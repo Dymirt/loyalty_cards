@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Access token</title>
+</head>
+<body>
+	<h1>Dotykačka access token</h1>
+	{% if access_token_available %}
+	<p>A valid access token is available. Its value is intentionally hidden.</p>
+	{% else %}
+	<p>No access token is available.</p>
+	{% endif %}
+</html>

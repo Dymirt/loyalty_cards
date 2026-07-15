@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+	<meta charset="UTF-8">
+	<title>Zarejestruj kartę</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<style>
+		html,
+		body {
+			height: 100%;
+			margin: 0;
+			font-family: Arial, sans-serif;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			width: 100%;
+		}
+
+		html {
+			background-image: url("{{ MEDIA_URL }}obraz_com.jpg");
+			background-size: cover;
+			background-position: center;
+		}
+
+		.btn {
+			padding: 1rem 2rem;
+			background-color: #3b82f6;
+			color: white;
+			font-size: 1.25rem;
+			border: none;
+			border-radius: 0.5rem;
+			text-decoration: none;
+			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+			transition: background-color 0.3s ease;
+		}
+
+		.btn:hover {
+			background-color: #2563eb;
+		}
+
+		img {
+			width: 100%;
+			height: auto;
+			margin-bottom: 20px;
+			object-fit: contain;
+		}
+
+		.container {
+			text-align: center;
+			background-color: rgba(255, 255, 255, 0.8);
+			padding: 2rem;
+			border-radius: 1rem;
+			box-shadow: 0 6px 6px rgba(0, 0, 0, 0.1);
+			display: flex;
+			flex-direction: column;
+			width: 320px;
+		}
+
+		.error {
+			background-color: #fee2e2;
+			color: #b91c1c;
+			border: 1px solid #fca5a5;
+			padding: 10px 16px;
+			border-radius: 6px;
+			margin-bottom: 10px;
+			font-weight: 500;
+			font-family: sans-serif;
+		}
+		.success {
+			background-color: #d1fae5;
+			color: #065f46;
+			border: 1px solid #6ee7b7;
+			padding: 10px 16px;
+			border-radius: 6px;
+			margin-bottom: 10px;
+			font-weight: 500;
+			font-family: sans-serif;
+		}
+	</style>
+</head>
+
+<body>
+
+	<div class="container">
+		<img src="{{ MEDIA_URL }}logo_atelier_cafe.png" alt="Logo" style="margin-bottom: 20px;">
+
+		{% if messages %}
+		<div class="messages">
+			{% for message in messages %}
+			<div{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}
+		</div>
+		{% endfor %}
+	</div>
+	{% endif %}
+
+	<a href="/dotykacka/register" class="btn">Zarejestruj kartę</a>
+	</div>
+	<script>
+		document.addEventListener("DOMContentLoaded", function () {
+			const messages = document.querySelector(".messages");
+			if (messages) {
+				setTimeout(() => {
+					messages.style.display = "none";
+					}, 10000); // 10000 ms = 10 sekund
+				}
+		});
+	</script>
+</body>
+
+
+
+</html>

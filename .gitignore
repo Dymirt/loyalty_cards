@@ -1,0 +1,45 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+*service-account*.json
+dotykacka/google_wallet/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.python-version.local
+.venv/
+venv/
+
+# Django runtime data
+*.sqlite3
+*.db
+media/*
+!media/.gitkeep
+staticfiles/
+static/admin
+var/logs/*
+!var/logs/.gitkeep
+*.log
+*.pkpass
+send_passes_log.csv
+
+# Tests and tools
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp

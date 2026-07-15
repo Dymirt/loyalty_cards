@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>Customers</title>
+</head>
+
+{% load static %}
+
+<body>
+	<h1>Customers</h1>
+	{% if error %}
+	<p>Error: <strong>{{ error }}</strong></p>
+	{% endif %}
+
+	{% if messages %}
+	<ul class="messages">
+		{% for message in messages %}
+		<li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
+			{% endfor %}
+	</ul>
+	{% endif %}
+	<!-- If user is authenticated-->
+	{% if user.is_authenticated %}
+
+
+	<table>
+		<tr>
+			<th>#</th>
+			<th>NAME</th>
+			<th>BARCODE</th>
+			<th>IMAGE</th>
+			<th>Apple Pass</th>
+			<th>ACTIONS</th>
+
+		</tr>
+		{% for customer in customers %}
+
+		<tr>
+			<td>{{ forloop.counter }}</td>
+			{% if customer.firstName %}
+			<td>{{ customer.firstName }} {{ customer.lastName }}</td>
+			{% else %}
+			<td>{{ customer.companyName }}</td>
+			{% endif %}
+			<td>{{ customer.barcode }}</td>
+
+			{% if customer.barcode_decode %}
+			<td>
+				<img width='100px' src="media/cropped_images/cropped_image_{{ customer.barcode_decode }}.jpg">
+			</td>
+			<td>
+				<a href="media/output_passes/pass_{{ customer.barcode_decode }}.pkpass" download>
+					Download Pass
+			</td>
+			<td>
+				<form action="{% url 'dotykacka:send_pass' customer.barcode %}" method="post">
+					{% csrf_token %}
+					<button type="submit">Send Pass</button>
+				</form>
+			</td>
+
+			{% endif %}
+		</tr>
+		{% endfor %}
+	</table>
+
+	<form action="{% url 'dotykacka:add_all_to_brevo' %}" method="post">
+		{% csrf_token %}
+		<button type="submit">Add All to Brevo 2</button>
+	</form>
+	<form action="{% url 'dotykacka:generate_jwt_passes' %}" method="post">
+		{% csrf_token %}
+		<button type="submit">Generate Google Wallet Passes</button>
+	</form>
+	<form action="{% url 'dotykacka:send_passes_to_all' %}" method="post">
+		{% csrf_token %}
+		<button type="submit">Send Passes to All</button>
+	</form>
+	{% endif %}
+
+</body>
+
+</html>

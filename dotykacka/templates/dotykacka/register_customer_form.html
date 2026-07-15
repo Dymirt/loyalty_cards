@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Rejestracja Karty</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="https://unpkg.com/@zxing/library@latest"></script>
+	<style>
+		html,
+		body {
+			height: auto;
+			min-height: 100vh;
+			margin: 0;
+			padding: 0;
+			font-family: Arial, sans-serif;
+			background-image: url("{{ MEDIA_URL }}obraz_com.jpg");
+			background-size: cover;
+			background-position: center;
+			background-repeat: no-repeat;
+		}
+
+		body {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			padding: 2rem 1rem;
+			box-sizing: border-box;
+		}
+
+		.container-custom {
+			background-color: rgba(255, 255, 255, 0.8);
+			padding: 2rem;
+			border-radius: 1rem;
+			box-shadow: 0 6px 6px rgba(0, 0, 0, 0.1);
+			width: 100%;
+			max-width: 720px;
+		}
+
+		.message {
+			padding: 10px 16px;
+			border-radius: 6px;
+			margin-bottom: 10px;
+			font-weight: 500;
+			font-family: sans-serif;
+		}
+
+		.message.error {
+			background-color: #fee2e2;
+			color: #b91c1c;
+			border: 1px solid #fca5a5;
+		}
+
+		.message.success {
+			background-color: #d1fae5;
+			color: #065f46;
+			border: 1px solid #6ee7b7;
+		}
+
+		#barcode-preview {
+			max-width: 300px;
+			border: 1px solid #ddd;
+			border-radius: 6px;
+		}
+
+		#scanner-guide {
+			position: absolute;
+			border: 3px dashed red;
+			width: 100%;
+			max-width: 400px;
+			height: 30%;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			pointer-events: none;
+			z-index: 2;
+		}
+
+		#video {
+			aspect-ratio: 1.586;
+			/* Credit card ratio (85.6mm / 54mm) */
+			width: 100%;
+			max-width: 400px;
+			border-radius: 8px;
+			object-fit: cover;
+			box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+			margin: auto;
+		}
+
+		#camera {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+		}
+
+		#loading-overlay {
+			display: none !important;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.5);
+			z-index: 9999;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container container-custom main-wrapper">
+		<div class="text-center mb-4">
+			<img src="{{ MEDIA_URL }}logo_atelier_cafe.png" alt="Logo" style="max-width: 200px; object-fit: contain;">
+		</div>
+
+		{% if error %}<p class="message error">❌ <strong>{{ error }}</strong></p>{% endif %}
+		{% if success %}<p id="successMessage" class="message success">✅ {{ success }}</p>{% endif %}
+
+		<form action="{% url 'dotykacka:register' %}" method="post">
+			<div class="row g-3">
+				<div class="col-md-6">
+					<label class="form-label" for="firstName">Imię:</label>
+					<input class="form-control" type="text" name="firstName" id="firstName" required>
+				</div>
+				<div class="col-md-6">
+					<label class="form-label" for="lastName">Nazwisko:</label>
+					<input class="form-control" type="text" name="lastName" id="lastName" required>
+				</div>
+				<div class="col-md-6">
+					<label class="form-label" for="email">E-mail:</label>
+					<input class="form-control" type="email" name="email" id="email" required>
+				</div>
+				<div class="col-md-6">
+					<label class="form-label" for="tel">Tel.:</label>
+					<input class="form-control" type="tel" name="tel" pattern="[1-9][0-9]{8}" id="tel" required>
+				</div>
+				<div class="col-md-12">
+					<label class="form-label" for="barcode">Barcode:</label>
+					<div class="input-group">
+						<input class="form-control" type="text" name="barcode" id="barcode" required>
+						<button type="button" class="btn btn-secondary" id="scan-barcode">Skanuj</button>
+					</div>
+				</div>
+				<div id="camera_wrapper">
+					<div id="camera" class="d-none text-center position-relative">
+						<video id="video" autoplay muted playsinline class="rounded border w-100"></video>
+						<div id="scanner-guide"></div>
+						<button class="btn btn-outline-danger mt-2" type="button" id="close-camera">Zamknij
+							Kamerę</button>
+					</div>
+					<div id="barcode-image-wrapper" class="mb-3 text-center d-none">
+						<p class="mb-2">Podgląd karty:</p>
+						<img id="barcode-preview" src="" alt="Cropped barcode image">
+					</div>
+				</div>
+				<div class="col-12">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" id="flexCheckDefault" required>
+						<label class="form-check-label" for="flexCheckDefault">
+							Wyrażam zgodę na kontakt i przesyłanie treści marketingowych dla firmy Centrum Concept Sp. z
+							o.o. Marta Banaszek Atelier-Cafe
+						</label>
+					</div>
+				</div>
+				<div class="col-12">
+					<input class="btn btn-primary w-100" type="submit" value="Zarejestruj">
+				</div>
+				{% csrf_token %}
+			</div>
+		</form>
+	</div>
+	<div id="loading-overlay">
+		<div class="spinner-border text-light" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+	</div>
+	<script>
+		setTimeout(() => {
+			const msg = document.getElementById('successMessage');
+			if (msg) msg.classList.add('d-none');
+		}, 5000);
+
+		const scanButton = document.getElementById('scan-barcode');
+		const closeCameraButton = document.getElementById('close-camera');
+		const cameraDiv = document.getElementById('camera');
+		const videoElement = document.getElementById('video');
+		const barcodeField = document.getElementById('barcode');
+		const previewImg = document.getElementById('barcode-preview');
+		const previewWrapper = document.getElementById('barcode-image-wrapper');
+		let codeReader = null;
+
+		scanButton.addEventListener('click', async () => {
+			try {
+				cameraDiv.classList.remove('d-none');
+
+				if (!navigator.mediaDevices?.getUserMedia) {
+					alert('Twoja przeglądarka nie wspiera kamery.');
+					return;
+				}
+
+				const constraints = {
+					video: {
+						facingMode: { ideal: 'environment' }, // back camera
+						width: { ideal: 720 },
+						height: { ideal: 720 },
+						advanced: [{ focusMode: "continuous" }]
+					}
+				};
+
+				const stream = await navigator.mediaDevices.getUserMedia(constraints);
+				videoElement.srcObject = stream;
+
+				// ✅ Attempt to apply zoom if supported
+				const [track] = stream.getVideoTracks();
+				const capabilities = track.getCapabilities();
+
+				if ('zoom' in capabilities) {
+					const desiredZoom = Math.min(capabilities.zoom.max, 3); // Change 3 to 2 or 4 if needed
+					try {
+						await track.applyConstraints({ advanced: [{ zoom: desiredZoom }] });
+						console.log(`Zoom set to ${desiredZoom}`);
+					} catch (err) {
+						console.warn('Zoom not supported or failed:', err);
+					}
+				}
+
+				if (!codeReader) {
+					codeReader = new ZXing.BrowserBarcodeReader();
+				}
+
+				const result = await codeReader.decodeOnceFromStream(stream, videoElement);
+				if (result) {
+					const code = result.text;
+					barcodeField.value = code;
+					const decoded = code.replace('MB-', '');
+					previewImg.src = `/media/cards/card-${decoded}/MB-${decoded}_front.jpg`;
+					previewWrapper.classList.remove('d-none');
+					cameraDiv.classList.add('d-none');
+				}
+
+				// Always stop the stream after
+				stream.getTracks().forEach(track => track.stop());
+
+			} catch (error) {
+				console.error('Błąd kamery:', error);
+				alert(`Błąd kamery: ${error.name}`);
+			}
+		});
+
+		closeCameraButton.addEventListener('click', () => {
+			cameraDiv.classList.add('d-none');
+			if (codeReader) codeReader.reset();
+		});
+
+		// Handle form submission to show loading overlay
+		const form = document.querySelector('form');
+		const overlay = document.getElementById('loading-overlay');
+		form.addEventListener('submit', function (e) {
+			e.preventDefault(); // Prevent immediate submit
+			overlay.style.display = 'flex'; // Show loading overlay
+
+			// Small delay to let the spinner actually render
+			setTimeout(() => {
+				form.submit(); // Now submit the form
+			}, 100); // Delay just enough to allow browser to paint
+		});
+
+
+	</script>
+</body>
+
+</html>
