@@ -13,9 +13,10 @@ class GoogleWalletJwtTests(SimpleTestCase):
     def test_missing_service_account_file_is_rejected(self):
         with override_settings(
             GOOGLE_WALLET_SERVICE_ACCOUNT_FILE=Path("/missing/test-service-account.json"),
-            GOOGLE_WALLET_ISSUER_ID="issuer",
         ), self.assertRaises(ImproperlyConfigured):
-            get_wallet_url("Test Customer", "MB-12")
+            get_wallet_url(
+                "Test Customer", "MB-12", issuer_id="issuer", class_suffix="MB"
+            )
 
     @patch("dotykacka.google_wallet.JWT.jwt.encode", return_value="signed-token")
     @patch("dotykacka.google_wallet.JWT.serialization.load_pem_private_key")
@@ -35,14 +36,14 @@ class GoogleWalletJwtTests(SimpleTestCase):
             with override_settings(
                 GOOGLE_WALLET_SERVICE_ACCOUNT_FILE=keyfile,
                 GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL="",
-                GOOGLE_WALLET_ISSUER_ID="issuer123",
-                GOOGLE_WALLET_CLASS_SUFFIX="MB",
                 GOOGLE_WALLET_ORIGINS=["https://club.example.test"],
             ):
                 result = get_wallet_url(
                     "Test Customer",
                     "MB-12",
-                    "https://club.example.test/media/card.jpg",
+                    issuer_id="issuer123",
+                    class_suffix="MB",
+                    customer_image_url="https://club.example.test/media/card.jpg",
                 )
 
         self.assertEqual(result, "https://pay.google.com/gp/v/save/signed-token")

@@ -18,7 +18,7 @@
 		}
 
 		html {
-			background-image: url("{{ MEDIA_URL }}obraz_com.jpg");
+			background-image: url("{{ MEDIA_URL }}{{ tenant.brand.background_image_path }}");
 			background-size: cover;
 			background-position: center;
 		}
@@ -83,7 +83,8 @@
 <body>
 
 	<div class="container">
-		<img src="{{ MEDIA_URL }}logo_atelier_cafe.png" alt="Logo" style="margin-bottom: 20px;">
+		<img src="{{ MEDIA_URL }}{{ tenant.brand.logo_path }}" alt="{{ tenant.brand.public_name }}"
+			style="margin-bottom: 20px;">
 
 		{% if messages %}
 		<div class="messages">
@@ -94,7 +95,7 @@
 	</div>
 	{% endif %}
 
-	<a href="/dotykacka/register" class="btn">Zarejestruj kartę</a>
+	<a href="{% url 'dotykacka:tenant_register' tenant.slug %}" class="btn">Zarejestruj kartę</a>
 	</div>
 	<script>
 		document.addEventListener("DOMContentLoaded", function () {

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .base import create_klient, create_superuser
+from .base import configure_dotykacka, create_klient, create_superuser
 
 
 class AdministrativeViewTests(TestCase):
@@ -126,7 +126,9 @@ class AdministrativeViewTests(TestCase):
 
     @patch("dotykacka.views.dotykacka_api.get_valid_access_token", return_value="secret")
     def test_access_token_diagnostic_never_renders_token(self, get_token):
+        connection = configure_dotykacka()
         self.client.force_login(self.superuser)
         response = self.client.get(reverse("dotykacka:acces_token"))
         self.assertContains(response, "available", html=False)
         self.assertNotContains(response, "secret")
+        get_token.assert_called_once_with(connection)

@@ -1,19 +1,18 @@
 from unittest.mock import Mock, patch
 
 from django.core.exceptions import ImproperlyConfigured
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from sib_api_v3_sdk.rest import ApiException
 
 from dotykacka import brevo
 
-from .base import create_klient
+from .base import configure_brevo, create_klient, default_tenant
 
 
 class BrevoServiceTests(TestCase):
-    @override_settings(BREVO_API_KEY="")
     def test_missing_configuration_is_rejected_before_api_use(self):
         with self.assertRaises(ImproperlyConfigured):
-            brevo._contacts_api()
+            brevo._connection_for(default_tenant())
 
     @patch("dotykacka.brevo._contacts_api")
     def test_customer_without_required_contact_data_is_skipped(self, contacts_api):
@@ -21,11 +20,11 @@ class BrevoServiceTests(TestCase):
         self.assertFalse(brevo.send_contact_to_brevo(klient))
         contacts_api.assert_not_called()
 
-    @override_settings(BREVO_LIST_ID=25, DEFAULT_PHONE_COUNTRY_CODE="+48")
     @patch("dotykacka.brevo._contacts_api")
     def test_contact_payload_normalizes_phone(self, contacts_api):
         api = Mock()
         contacts_api.return_value = api
+        connection = configure_brevo()
         klient = create_klient("MB-12", phone="501234567")
 
         self.assertTrue(brevo.send_contact_to_brevo(klient))
@@ -34,8 +33,8 @@ class BrevoServiceTests(TestCase):
         self.assertEqual(contact.email, "customer@example.test")
         self.assertEqual(contact.attributes["SMS"], "+48501234567")
         self.assertEqual(contact.list_ids, [25])
+        contacts_api.assert_called_once_with(connection)
 
-    @override_settings(BREVO_LIST_ID=25)
     @patch("dotykacka.brevo.add_contact_to_list")
     @patch("dotykacka.brevo._contacts_api")
     def test_duplicate_contact_is_added_to_configured_list(
@@ -47,6 +46,7 @@ class BrevoServiceTests(TestCase):
             reason="duplicate_parameter",
         )
         contacts_api.return_value = api
+        configure_brevo()
         klient = create_klient("MB-12")
 
         self.assertTrue(brevo.send_contact_to_brevo(klient))

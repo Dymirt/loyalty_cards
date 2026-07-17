@@ -6,7 +6,7 @@ Prepared: 2026-07-17
 
 Application: Django loyalty-card service at `mbstudio-loyalty-app`
 
-Progress: Phase 0 implemented and verified on 2026-07-17; migration `0008` is intentionally pending a reviewed deployment and verified backup.
+Progress: Phases 0 and 1 implemented and verified on the backed-up local MariaDB replica on 2026-07-17; migrations `0008` through `0011` are applied.
 
 ## 1. Product outcome
 
@@ -39,8 +39,8 @@ The following was verified read-only against the running local replica on 2026-0
 
 | Area | Current state |
 | --- | --- |
-| Django | 5.2.1; `manage.py check` passes |
-| Database | MariaDB replica with all existing migrations applied |
+| Django | 5.2.1; `manage.py check` passes after Phase 1 |
+| Database | MariaDB replica with Phase 1 migrations `0008` through `0011` applied |
 | Application users | 1 active user: `admin`; staff and superuser |
 | Loyalty customers | 267 `Klient` records |
 | Card identifiers | 267 valid `MB-*` numeric codes, range `MB-1` through `MB-494`; no duplicates and no empty IDs |
@@ -48,7 +48,7 @@ The following was verified read-only against the running local replica on 2026-0
 | Physical card inventory | Complete assets for `MB-1` through `MB-600` |
 | Per-card legacy assets | front image, back image, barcode PNG, cropped background, and Apple `.pkpass` all present |
 | Expected imported inventory | 600 Marta cards: 267 assigned, 333 available |
-| Tests | Placeholder files only; effectively no automated coverage |
+| Tests | 64 automated tests covering the legacy baseline, upgrade migration, tenant isolation, roles, and encrypted settings |
 | UI | Server-rendered templates using Bootstrap CDN and legacy jQuery; HTMX and Tailwind are not yet implemented |
 | Working tree | Existing uncommitted Docker, configuration, README, and Wallet-path work must be preserved |
 
@@ -257,7 +257,6 @@ Additional POS providers must be added as adapters plus contract tests, without 
 4. **Assign all customers** — attach every pre-existing `Klient` row to Marta without modifying any personal data, card code, primary key, or Wallet URL.
 5. **Import card inventory metadata** — create exactly one `PhysicalCard` row for each verified legacy code `MB-1` to `MB-600`. Attach the 267 matching customer records and mark those cards assigned; mark the remaining 333 available. Reference existing files as immutable legacy paths; do not copy, rename, or regenerate them in this migration.
 6. **Assign POS state** — create Marta’s Dotykačka connection from non-secret existing configuration references and attach all existing `AccessToken` rows to it as legacy token records. Do not expose, rewrite, or delete the token values. New tokens use the encrypted connection-scoped path.
-7. **Verify before constraints** — run count, ownership, code format, uniqueness, relationship, and file existence checks. Expected verified results are 600 physical cards, 267 assigned, 333 available, 267 tenant-owned customers, one tenant membership, and 261 legacy tokens.
 8. **Enforce tenant ownership** — only after verification, make required tenant foreign keys non-null and add composite uniqueness/check constraints in a separate migration.
 9. **Switch application reads** — deploy tenant-scoped code while keeping all legacy columns and paths readable.
 10. **Deferred cleanup** — do not drop `google_jwt_url`, global compatibility settings, legacy token data, old model names, or legacy file paths in this project phase. Any later cleanup requires a separate retention/archival plan, backup verification, user approval, and new migrations.
@@ -294,14 +293,16 @@ Acceptance gate: existing behavior is covered, tests do not make external calls,
 
 ### Phase 1 — Tenant foundation and Marta backfill
 
-- [ ] Add tenant, membership, authorization helpers, audit model, and tenant context.
-- [ ] Add tenant ownership to existing data using the additive migration sequence in section 10.
-- [ ] Import the `MB-1..600` inventory metadata and bind 267 customers.
-- [ ] Replace global/unscoped customer and bulk queries with tenant-scoped services.
-- [ ] Keep compatibility redirects/routes for Marta.
-- [ ] Add cross-tenant isolation and platform/client role tests using a synthetic second tenant.
+- [x] Add tenant, membership, authorization helpers, audit model, and tenant context.
+- [x] Add tenant ownership to existing data using the additive migration sequence in section 10.
+- [x] Import the `MB-1..600` inventory metadata and bind 267 customers.
+- [x] Move client-owned Dotykačka, Brevo, and Google Wallet identifiers plus encrypted credentials into tenant database settings.
+- [x] Add an owner-only integration settings page with masked secret retention and redacted audit events.
+- [x] Replace global/unscoped customer, POS token, integration, and bulk queries with tenant-scoped services.
+- [x] Keep compatibility routes for Marta and add the explicit tenant registration route.
+- [x] Add migration, encryption, cross-tenant isolation, and platform/owner/staff role tests using a synthetic second tenant.
 
-Acceptance gate: Marta’s current user, all 267 customers, 600 cards, 261 tokens, Wallet references, and legacy assets remain intact; the synthetic second tenant cannot access any Marta resource.
+Acceptance gate: passed on 2026-07-17. Marta’s current user, all 267 customers, 600 cards, 261 tokens, 267 Wallet references, and legacy assets remain intact; all null/orphan/mismatch checks are zero and the synthetic second tenant cannot access Marta resources.
 
 ### Phase 2 — Django/HTMX/Tailwind portal shell
 

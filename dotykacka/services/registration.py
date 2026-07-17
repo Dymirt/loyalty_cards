@@ -51,6 +51,7 @@ def run_registration_followups(klient_pk: int) -> None:
 
     try:
         dotykacka_api.register_dotykacka_customer(
+            klient.tenant,
             klient.klient_id,
             klient.first_name,
             klient.last_name,

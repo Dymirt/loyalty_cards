@@ -26,11 +26,17 @@ def send_pass_email(klient: Klient) -> int:
     customer_name = " ".join(
         part for part in (klient.first_name, klient.last_name) if part
     )
+    brand = klient.tenant.brand
+    public_name = brand.public_name or klient.tenant.name
+    signature = brand.email_signature or public_name
+    logo_path = brand.logo_path or "logo_atelier_cafe.png"
     safe_name = escape(customer_name)
+    safe_public_name = escape(public_name)
+    safe_signature = escape(signature)
     safe_google_url = escape(klient.google_jwt_url or "", quote=True)
     pass_file_name = pass_path.name
 
-    subject = "Twoja karta gościa Atelier-Café Marta Banaszek"
+    subject = brand.email_subject or f"Twoja karta gościa {public_name}"
     text_content = f"""Dzień dobry {customer_name},
 
 Twoja karta lojalnościowa Atelier Café jest gotowa.
@@ -38,7 +44,7 @@ Google Wallet: {klient.google_jwt_url or ''}
 Apple Wallet: karta w załączniku (.pkpass)
 
 Pozdrawiamy,
-Zespół Atelier Café
+{signature}
 """
     html_content = f"""<!doctype html>
 <html lang="pl">
@@ -49,8 +55,8 @@ Zespół Atelier Café
       <table role="presentation" width="600" cellpadding="0" cellspacing="0"
              style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden">
         <tr><td align="center" style="padding:24px 24px 8px">
-          <img src="{settings.APP_BASE_URL}/media/logo_atelier_cafe.png"
-               width="120" alt="Atelier-Café Marta Banaszek" style="display:block;height:auto">
+          <img src="{settings.APP_BASE_URL}/media/{escape(logo_path, quote=True)}"
+               width="120" alt="{safe_public_name}" style="display:block;height:auto">
         </td></tr>
         <tr><td style="padding:8px 24px;font-family:Arial,sans-serif;color:#111;font-size:18px">
           <p>Dzień dobry {safe_name},</p>
@@ -67,7 +73,7 @@ Zespół Atelier Café
           <a href="{settings.APP_BASE_URL}/media/output_passes/{pass_file_name}">Dodaj do Apple Wallet</a>
         </td></tr>
         <tr><td style="padding:0 24px 24px;font-family:Arial,sans-serif;color:#444;font-size:14px">
-          Pozdrawiamy,<br>Zespół Atelier-Café Marta Banaszek
+          Pozdrawiamy,<br>{safe_signature}
         </td></tr>
       </table>
     </td></tr>

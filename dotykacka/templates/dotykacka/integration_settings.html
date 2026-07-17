@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Integracje — {{ tenant.name }}</title>
+    <style>
+        body { max-width: 900px; margin: 2rem auto; padding: 0 1rem; font-family: Arial, sans-serif; }
+        section { border: 1px solid #ddd; border-radius: 10px; padding: 1.25rem; margin: 1rem 0; }
+        label { display: block; font-weight: 600; margin-top: .75rem; }
+        input { width: 100%; max-width: 520px; padding: .5rem; box-sizing: border-box; }
+        input[type="checkbox"] { width: auto; }
+        .configured { color: #166534; }
+        .not-configured { color: #991b1b; }
+        .errorlist { color: #991b1b; }
+        button { margin-top: 1rem; padding: .6rem 1rem; }
+    </style>
+</head>
+<body>
+    <h1>Integracje: {{ tenant.name }}</h1>
+    <p>Wartości tajne są zaszyfrowane i nigdy nie są wyświetlane ponownie.</p>
+
+    {% if messages %}
+        {% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}
+    {% endif %}
+
+    <section>
+        <h2>Dotykačka</h2>
+        <p class="{% if secret_status.dotykacka %}configured{% else %}not-configured{% endif %}">
+            Token: {% if secret_status.dotykacka %}skonfigurowany{% else %}brak{% endif %}
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="provider" value="dotykacka">
+            {{ forms.dotykacka.as_p }}
+            <button type="submit">Zapisz Dotykačka</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Brevo</h2>
+        <p class="{% if secret_status.brevo %}configured{% else %}not-configured{% endif %}">
+            Klucz API: {% if secret_status.brevo %}skonfigurowany{% else %}brak{% endif %}
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="provider" value="brevo">
+            {{ forms.brevo.as_p }}
+            <button type="submit">Zapisz Brevo</button>
+        </form>
+    </section>
+
+    <section>
+        <h2>Google Wallet</h2>
+        <p>Konto usługi i klucz podpisujący pozostają konfiguracją platformy w środowisku.</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="provider" value="google_wallet">
+            {{ forms.google_wallet.as_p }}
+            <button type="submit">Zapisz Google Wallet</button>
+        </form>
+    </section>
+</body>
+</html>

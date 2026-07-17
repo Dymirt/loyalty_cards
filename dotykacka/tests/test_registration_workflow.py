@@ -20,6 +20,7 @@ class RegistrationWorkflowTests(TestCase):
         ensure_apple.assert_called_once()
         generate_google.assert_called_once()
         register_pos.assert_called_once_with(
+            klient.tenant,
             "MB-12",
             "Test",
             "Customer",

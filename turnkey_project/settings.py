@@ -170,6 +170,11 @@ if not apple_wallet_template_dir.is_absolute():
 APPLE_WALLET_TEMPLATE_DIR = apple_wallet_template_dir
 
 APP_BASE_URL = config("APP_BASE_URL", default="http://localhost:8000").rstrip("/")
+LEGACY_DEFAULT_TENANT_SLUG = config(
+    "LEGACY_DEFAULT_TENANT_SLUG",
+    default="marta-banaszek-atelier-cafe",
+)
+TENANT_SECRETS_ENCRYPTION_KEYS = csv_setting("TENANT_SECRETS_ENCRYPTION_KEYS")
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = config("DJANGO_SECURE_SSL_REDIRECT", default=False, cast=bool)

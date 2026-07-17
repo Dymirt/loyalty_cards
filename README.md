@@ -1,7 +1,7 @@
-# MB Studio Loyalty App
+# MB Studio Loyalty SaaS
 
-Django loyalty-card application for Atelier-Café Marta Banaszek. The live
-service is available at [club.mbstudio.online](https://club.mbstudio.online).
+Django loyalty-card SaaS whose first tenant is Atelier-Café Marta Banaszek. The
+legacy live service is available at [club.mbstudio.online](https://club.mbstudio.online).
 
 This repository is a source-only snapshot of the complete application deployed
 from `/var/www/turnkey_project` on the TurnKey container. Production secrets,
@@ -19,6 +19,8 @@ logs, and nested Git metadata are intentionally excluded.
 - HTML and plain-text card emails over SMTP.
 - Administrative customer listing, pass generation, and bulk delivery.
 - Helper scripts for card artwork, barcode images, crops, manifests, and passes.
+- Tenant-owned customers, physical-card inventory, branding, users, and integrations.
+- Encrypted per-tenant Dotykačka/Brevo credentials and tenant settings UI.
 
 ## Runtime architecture
 
@@ -82,8 +84,9 @@ Development defaults to SQLite and the console email backend. The registration
 page is available at `http://localhost:8000/`; administration is at
 `http://localhost:8000/admin/`.
 
-The external integrations remain disabled until their values are added to
-`.env`. Never copy production credentials into Git.
+Tenant integrations remain disabled until an authorized tenant owner configures
+them in the integration settings page. Never copy production credentials into
+Git.
 
 ## Mac replica of the TurnKey deployment
 
@@ -138,22 +141,30 @@ controls.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure these groups:
+Copy `.env.example` to `.env` and configure the platform-owned groups:
 
 | Group | Important variables |
 | --- | --- |
 | Django | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `APP_BASE_URL` |
 | Database | `DB_ENGINE`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` |
 | Email | `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` |
-| Dotykačka | `DOTYKACKA_AUTHORIZATION_TOKEN`, `DOTYKACKA_CLOUD_ID`, `DOTYKACKA_DISCOUNT_GROUP_ID` |
-| Brevo | `BREVO_API_KEY`, `BREVO_LIST_ID` |
-| Google Wallet | `GOOGLE_WALLET_SERVICE_ACCOUNT_FILE`, `GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_WALLET_ISSUER_ID`, `GOOGLE_WALLET_CLASS_SUFFIX`, `GOOGLE_WALLET_ORIGINS` |
+| Tenant-secret encryption | `TENANT_SECRETS_ENCRYPTION_KEYS` |
+| Integration transport | `DOTYKACKA_HTTP_TIMEOUT` |
+| Google Wallet platform | `GOOGLE_WALLET_SERVICE_ACCOUNT_FILE`, `GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_WALLET_ORIGINS` |
 | Apple Wallet | `APPLE_WALLET_PASS_TYPE_IDENTIFIER`, `APPLE_WALLET_TEAM_IDENTIFIER` |
 
 For production, use `DJANGO_DEBUG=False`, secure cookies, HTTPS redirect, the
 real public origin, and the MariaDB configuration. The TurnKey
 `/var/lib/django/allowed_hosts` file is read automatically when present; its
 path can be overridden with `TURNKEY_ALLOWED_HOSTS_FILE`.
+
+Dotykačka cloud ID, discount group and authorization token; Brevo list ID, API
+key and default phone country; and Google Wallet issuer/class are tenant-owned
+database settings. Secrets are Fernet-encrypted and are never shown again after
+entry. Migration `0010` reads the old environment values once to initialize
+Marta, after which runtime integrations read only the tenant records. See
+`docs/phase-1-tenant-configuration.md` for the ownership boundary and key
+rotation rules.
 
 ## Wallet credentials and runtime assets
 
@@ -186,6 +197,8 @@ must never be committed.
 | --- | --- | --- | --- |
 | `GET` | `/` | Public | Registration landing page |
 | `GET`, `POST` | `/dotykacka/register` | Public | Register a loyalty customer |
+| `GET`, `POST` | `/dotykacka/c/<tenant-slug>/register` | Public | Tenant registration |
+| `GET`, `POST` | `/dotykacka/c/<tenant-slug>/settings/integrations` | Tenant owner/platform superuser | Configure tenant integrations |
 | `GET` | `/admin/` | Staff | Django administration |
 | `GET` | `/dotykacka/customers` | Superuser | Customer and card operations |
 | `POST` | `/dotykacka/send_pass/<barcode>` | Superuser | Send one customer's passes |
@@ -204,9 +217,8 @@ python manage.py makemigrations --check
 python manage.py test
 ```
 
-The recovered project has migrations but almost no automated tests. Adding
-integration tests and a CI workflow is a priority before large behavior
-changes.
+Tests use an isolated database, block unmocked network/SMTP calls, and cover the
+legacy behavior plus tenant migration, authorization, encryption, and isolation.
 
 ## Security and privacy
 

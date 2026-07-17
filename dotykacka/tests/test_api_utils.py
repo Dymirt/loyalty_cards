@@ -3,25 +3,20 @@ from unittest.mock import Mock, patch
 import requests
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
-from django.utils import timezone
 
 from dotykacka import api_utils
 from dotykacka.models import AccessToken
 
+from .base import configure_dotykacka, default_tenant
 
-DOTYKACKA_SETTINGS = {
-    "DOTYKACKA_AUTHORIZATION_TOKEN": "authorization-token",
-    "DOTYKACKA_CLOUD_ID": 123,
-    "DOTYKACKA_DISCOUNT_GROUP_ID": 456,
-    "DOTYKACKA_HTTP_TIMEOUT": 7,
-}
+
+DOTYKACKA_SETTINGS = {"DOTYKACKA_HTTP_TIMEOUT": 7}
 
 
 class DotykackaApiTests(TestCase):
-    @override_settings(DOTYKACKA_AUTHORIZATION_TOKEN="", DOTYKACKA_CLOUD_ID=0)
     def test_missing_configuration_fails_before_network(self):
         with self.assertRaises(ImproperlyConfigured):
-            api_utils.get_access_token()
+            api_utils.get_dotykacka_connection(default_tenant())
 
     @override_settings(**DOTYKACKA_SETTINGS)
     @patch("dotykacka.api_utils.requests.post")
@@ -30,7 +25,8 @@ class DotykackaApiTests(TestCase):
         response.json.return_value = {"accessToken": "cached-token"}
         post.return_value = response
 
-        token = api_utils.get_access_token()
+        connection = configure_dotykacka()
+        token = api_utils.get_access_token(connection)
 
         self.assertEqual(token, "cached-token")
         self.assertEqual(AccessToken.objects.get().token, "cached-token")
@@ -48,8 +44,9 @@ class DotykackaApiTests(TestCase):
     @override_settings(**DOTYKACKA_SETTINGS)
     @patch("dotykacka.api_utils.requests.post")
     def test_valid_cached_token_avoids_network(self, post):
-        AccessToken.objects.create(token="still-valid")
-        self.assertEqual(api_utils.get_valid_access_token(), "still-valid")
+        connection = configure_dotykacka()
+        AccessToken.objects.create(connection=connection, token="still-valid")
+        self.assertEqual(api_utils.get_valid_access_token(connection), "still-valid")
         post.assert_not_called()
 
     @override_settings(**DOTYKACKA_SETTINGS)
@@ -60,8 +57,10 @@ class DotykackaApiTests(TestCase):
         response.json.return_value = {"ok": True}
         post.return_value = response
 
+        tenant = default_tenant()
+        configure_dotykacka(tenant)
         result = api_utils.register_dotykacka_customer(
-            "MB-12", "Jan", "Kowalski", "jan@example.test", "501234567"
+            tenant, "MB-12", "Jan", "Kowalski", "jan@example.test", "501234567"
         )
 
         self.assertEqual(result, {"ok": True})
@@ -90,7 +89,9 @@ class DotykackaApiTests(TestCase):
         }
         get.side_effect = [page_one, page_two]
 
-        customers = api_utils.get_all_customers()
+        tenant = default_tenant()
+        configure_dotykacka(tenant)
+        customers = api_utils.get_all_customers(tenant)
 
         self.assertEqual([item["barcode"] for item in customers], ["MB-1", "MB-2"])
         self.assertEqual(get.call_count, 2)
@@ -102,6 +103,7 @@ class DotykackaApiTests(TestCase):
         response = Mock()
         response.raise_for_status.side_effect = requests.HTTPError("provider failed")
         post.return_value = response
+        connection = configure_dotykacka()
         with self.assertRaises(requests.HTTPError):
-            api_utils.get_access_token()
+            api_utils.get_access_token(connection)
         self.assertEqual(AccessToken.objects.count(), 0)

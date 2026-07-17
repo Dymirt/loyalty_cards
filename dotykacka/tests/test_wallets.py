@@ -9,7 +9,7 @@ from dotykacka.services.wallets import (
     generate_google_wallet_for_klient,
 )
 
-from .base import create_klient
+from .base import configure_google_wallet, create_klient
 
 
 class WalletServiceTests(TestCase):
@@ -38,6 +38,7 @@ class WalletServiceTests(TestCase):
     @patch("dotykacka.services.wallets.get_wallet_url", return_value="https://wallet.test/save")
     def test_google_wallet_url_is_generated_and_saved(self, get_wallet_url):
         klient = create_klient("MB-12", google_jwt_url="")
+        configure_google_wallet(klient.tenant)
         result = generate_google_wallet_for_klient(klient)
         klient.refresh_from_db()
 
@@ -46,6 +47,8 @@ class WalletServiceTests(TestCase):
         get_wallet_url.assert_called_once_with(
             name="Test Customer",
             customer_id="MB-12",
+            issuer_id="issuer123",
+            class_suffix="MB",
             customer_image_url=(
                 "https://club.example.test/media/cropped_images/cropped_image_12.jpg"
             ),

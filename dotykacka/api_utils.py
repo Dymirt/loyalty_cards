@@ -1,25 +1,40 @@
+"""Tenant-scoped Dotykačka API adapter."""
+
 import requests
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import timezone
 
-from .models import AccessToken
+from .models import AccessToken, IntegrationConnection, Tenant
 
 
-def _validate_configuration():
-    if not settings.DOTYKACKA_AUTHORIZATION_TOKEN:
-        raise ImproperlyConfigured("DOTYKACKA_AUTHORIZATION_TOKEN is not configured")
-    if not settings.DOTYKACKA_CLOUD_ID:
-        raise ImproperlyConfigured("DOTYKACKA_CLOUD_ID is not configured")
+def get_dotykacka_connection(tenant: Tenant) -> IntegrationConnection:
+    try:
+        connection = IntegrationConnection.objects.get(
+            tenant=tenant,
+            provider=IntegrationConnection.Provider.DOTYKACKA,
+            enabled=True,
+        )
+    except IntegrationConnection.DoesNotExist as exc:
+        raise ImproperlyConfigured(
+            "Dotykačka is not enabled for this tenant."
+        ) from exc
+
+    config = connection.configuration
+    if not config.get("cloud_id") or not config.get("discount_group_id"):
+        raise ImproperlyConfigured("Dotykačka tenant configuration is incomplete.")
+    if not connection.has_secret("authorization_token"):
+        raise ImproperlyConfigured("Dotykačka authorization token is not configured.")
+    return connection
 
 
-def get_access_token():
-    _validate_configuration()
+def get_access_token(connection: IntegrationConnection) -> str:
+    cloud_id = connection.configuration["cloud_id"]
     response = requests.post(
         "https://api.dotykacka.cz/v2/signin/token",
-        json={"_cloudId": settings.DOTYKACKA_CLOUD_ID},
+        json={"_cloudId": cloud_id},
         headers={
-            "Authorization": settings.DOTYKACKA_AUTHORIZATION_TOKEN,
+            "Authorization": connection.get_secret("authorization_token"),
             "Content-Type": "application/json",
         },
         timeout=settings.DOTYKACKA_HTTP_TIMEOUT,
@@ -29,29 +44,36 @@ def get_access_token():
     if not token:
         raise RuntimeError("Dotykačka did not return an access token")
 
-    AccessToken.objects.create(token=token)
+    AccessToken.objects.create(connection=connection, token=token)
     return token
 
 
-def get_valid_access_token():
-    access_token = AccessToken.objects.last()
+def get_valid_access_token(connection: IntegrationConnection) -> str:
+    access_token = connection.access_tokens.order_by("created_at", "pk").last()
     if (
         access_token
         and access_token.created_at + timezone.timedelta(hours=1) > timezone.now()
     ):
         return access_token.token
-    return get_access_token()
+    return get_access_token(connection)
 
 
-def register_dotykacka_customer(barcode, first_name, last_name, email, phone):
-    access_token = get_valid_access_token()
-    url = (
-        f"https://api.dotykacka.cz/v2/clouds/"
-        f"{settings.DOTYKACKA_CLOUD_ID}/customers"
-    )
+def register_dotykacka_customer(
+    tenant: Tenant,
+    barcode,
+    first_name,
+    last_name,
+    email,
+    phone,
+):
+    connection = get_dotykacka_connection(tenant)
+    access_token = get_valid_access_token(connection)
+    cloud_id = connection.configuration["cloud_id"]
+    discount_group_id = connection.configuration["discount_group_id"]
+    url = f"https://api.dotykacka.cz/v2/clouds/{cloud_id}/customers"
     body = [
         {
-            "_cloudId": settings.DOTYKACKA_CLOUD_ID,
+            "_cloudId": cloud_id,
             "addressLine1": "",
             "barcode": barcode,
             "companyId": "",
@@ -70,7 +92,7 @@ def register_dotykacka_customer(barcode, first_name, last_name, email, phone):
             "vatId": "",
             "zip": "",
             "flags": "0",
-            "_discountGroupId": settings.DOTYKACKA_DISCOUNT_GROUP_ID,
+            "_discountGroupId": discount_group_id,
         }
     ]
     response = requests.post(
@@ -86,11 +108,12 @@ def register_dotykacka_customer(barcode, first_name, last_name, email, phone):
     return response.json() if response.content else None
 
 
-def get_all_customers():
-    """Fetch and filter every customer from the configured Dotykačka cloud."""
-
-    access_token = get_valid_access_token()
-    url = f"https://api.dotykacka.cz/v2/clouds/{settings.DOTYKACKA_CLOUD_ID}/customers"
+def get_all_customers(tenant: Tenant):
+    connection = get_dotykacka_connection(tenant)
+    access_token = get_valid_access_token(connection)
+    cloud_id = connection.configuration["cloud_id"]
+    discount_group_id = connection.configuration["discount_group_id"]
+    url = f"https://api.dotykacka.cz/v2/clouds/{cloud_id}/customers"
     headers = {"Authorization": f"Bearer {access_token}"}
     customers = []
     page = 1
@@ -110,9 +133,8 @@ def get_all_customers():
             break
         page += 1
 
-    target_group_id = str(settings.DOTYKACKA_DISCOUNT_GROUP_ID)
     return [
         customer
         for customer in customers
-        if str(customer.get("_discountGroupId")) == target_group_id
+        if str(customer.get("_discountGroupId")) == str(discount_group_id)
     ]

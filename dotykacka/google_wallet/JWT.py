@@ -8,14 +8,21 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 
-def get_wallet_url(name: str, customer_id: str, customer_image_url: str = "") -> str:
+def get_wallet_url(
+    name: str,
+    customer_id: str,
+    *,
+    issuer_id: str,
+    class_suffix: str,
+    customer_image_url: str = "",
+) -> str:
     keyfile = Path(settings.GOOGLE_WALLET_SERVICE_ACCOUNT_FILE)
     if not keyfile.is_file():
         raise ImproperlyConfigured(
             f"Google Wallet service-account file not found: {keyfile}"
         )
-    if not settings.GOOGLE_WALLET_ISSUER_ID:
-        raise ImproperlyConfigured("GOOGLE_WALLET_ISSUER_ID is not configured")
+    if not issuer_id or not class_suffix:
+        raise ImproperlyConfigured("Google Wallet tenant configuration is incomplete")
 
     service_account = json.loads(keyfile.read_text(encoding="utf-8"))
     service_account_email = (
@@ -31,8 +38,7 @@ def get_wallet_url(name: str, customer_id: str, customer_image_url: str = "") ->
         password=None,
     )
 
-    issuer_id = settings.GOOGLE_WALLET_ISSUER_ID
-    class_id = f"{issuer_id}.{settings.GOOGLE_WALLET_CLASS_SUFFIX}"
+    class_id = f"{issuer_id}.{class_suffix}"
     object_id = f"{issuer_id}.{customer_id}"
 
     loyalty_object = {

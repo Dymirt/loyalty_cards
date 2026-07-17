@@ -10,7 +10,7 @@ from django.test import TestCase
 from dotykacka.management.commands.preflight_legacy_inventory import expected_asset_paths
 from dotykacka.models import AccessToken, Klient
 
-from .base import create_klient, create_superuser
+from .base import create_access_token, create_klient, create_superuser
 
 
 class LegacyInventoryPreflightTests(TestCase):
@@ -24,7 +24,7 @@ class LegacyInventoryPreflightTests(TestCase):
     def test_reports_aggregates_without_changing_database(self):
         create_superuser()
         create_klient("MB-1")
-        AccessToken.objects.create(token="test-token")
+        create_access_token()
         with TemporaryDirectory() as directory:
             self.create_assets(Path(directory), 1, 2)
             output = StringIO()

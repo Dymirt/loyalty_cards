@@ -16,7 +16,7 @@
 			margin: 0;
 			padding: 0;
 			font-family: Arial, sans-serif;
-			background-image: url("{{ MEDIA_URL }}obraz_com.jpg");
+			background-image: url("{{ MEDIA_URL }}{{ tenant.brand.background_image_path }}");
 			background-size: cover;
 			background-position: center;
 			background-repeat: no-repeat;
@@ -113,7 +113,8 @@
 <body>
 	<div class="container container-custom main-wrapper">
 		<div class="text-center mb-4">
-			<img src="{{ MEDIA_URL }}logo_atelier_cafe.png" alt="Logo" style="max-width: 200px; object-fit: contain;">
+			<img src="{{ MEDIA_URL }}{{ tenant.brand.logo_path }}" alt="{{ tenant.brand.public_name }}"
+				style="max-width: 200px; object-fit: contain;">
 		</div>
 
 		{% if error %}<p class="message error">❌ <strong>{{ error }}</strong></p>{% endif %}
@@ -122,7 +123,7 @@
 			{% for error in form.non_field_errors %}<p class="message error">{{ error }}</p>{% endfor %}
 		{% endif %}
 
-		<form action="{% url 'dotykacka:register' %}" method="post">
+		<form action="{{ form_action }}" method="post">
 			<div class="row g-3">
 				<div class="col-md-6">
 					<label class="form-label" for="firstName">Imię:</label>
@@ -174,8 +175,7 @@
 						<input class="form-check-input" type="checkbox" name="marketing_consent" value="1"
 							id="flexCheckDefault" {% if form.marketing_consent.value %}checked{% endif %} required>
 						<label class="form-check-label" for="flexCheckDefault">
-							Wyrażam zgodę na kontakt i przesyłanie treści marketingowych dla firmy Centrum Concept Sp. z
-							o.o. Marta Banaszek Atelier-Cafe
+							{{ form.marketing_consent.label }}
 						</label>
 						{% for error in form.marketing_consent.errors %}<p class="message error">{{ error }}</p>{% endfor %}
 					</div>
@@ -206,6 +206,8 @@
 		const previewImg = document.getElementById('barcode-preview');
 		const previewWrapper = document.getElementById('barcode-image-wrapper');
 		let codeReader = null;
+		const cardPrefix = "{{ tenant.card_prefix|escapejs }}";
+		const cardPattern = new RegExp(`^${cardPrefix}-([1-9][0-9]{0,2})$`);
 
 		scanButton.addEventListener('click', async () => {
 			try {
@@ -250,10 +252,10 @@
 				if (result) {
 					const code = result.text.trim().toUpperCase();
 					barcodeField.value = code;
-					const match = /^MB-([1-9][0-9]{0,2})$/.exec(code);
+					const match = cardPattern.exec(code);
 					if (match) {
 						const decoded = match[1];
-						previewImg.src = `/media/cards/card-${decoded}/MB-${decoded}_front.jpg`;
+						previewImg.src = `/media/cards/card-${decoded}/${cardPrefix}-${decoded}_front.jpg`;
 						previewWrapper.classList.remove('d-none');
 					}
 					cameraDiv.classList.add('d-none');

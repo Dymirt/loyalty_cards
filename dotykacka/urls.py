@@ -9,6 +9,12 @@ urlpatterns = [
 	path('acces_token', views.get_acces_token, name='acces_token'),
 	path('customers', views.get_all_costumers, name='customers'),
 	path('register', views.register_customer_form, name='register'),
+	path('c/<slug:tenant_slug>/register', views.register_customer_form, name='tenant_register'),
+	path(
+		'c/<slug:tenant_slug>/settings/integrations',
+		views.integration_settings,
+		name='integration_settings',
+	),
 	#				<form action="{% url 'dotykacka:send_pass' customer.barcode_decode %}" method="post">
 	#				{% csrf_token %}
 	#				<button type="submit">Send Pass</button>
