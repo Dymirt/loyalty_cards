@@ -120,6 +120,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "turnkey_project.test_runner.NoExternalCallsDiscoverRunner"
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/"
 
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND",

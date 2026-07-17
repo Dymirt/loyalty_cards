@@ -6,7 +6,7 @@ Prepared: 2026-07-17
 
 Application: Django loyalty-card service at `mbstudio-loyalty-app`
 
-Progress: Phases 0 and 1 implemented and verified on the backed-up local MariaDB replica on 2026-07-17; migrations `0008` through `0011` are applied.
+Progress: Phases 0–2 implemented and verified on the backed-up local MariaDB replica on 2026-07-17; migrations `0008` through `0011` are applied and Phase 2 required no schema change.
 
 ## 1. Product outcome
 
@@ -48,7 +48,7 @@ The following was verified read-only against the running local replica on 2026-0
 | Physical card inventory | Complete assets for `MB-1` through `MB-600` |
 | Per-card legacy assets | front image, back image, barcode PNG, cropped background, and Apple `.pkpass` all present |
 | Expected imported inventory | 600 Marta cards: 267 assigned, 333 available |
-| Tests | 64 automated tests covering the legacy baseline, upgrade migration, tenant isolation, roles, and encrypted settings |
+| Tests | 72 automated tests covering the legacy baseline, upgrade migration, tenant isolation, roles, encrypted settings, append-only token-cache verification, and portal/static-asset behavior |
 | UI | Server-rendered templates using Bootstrap CDN and legacy jQuery; HTMX and Tailwind are not yet implemented |
 | Working tree | Existing uncommitted Docker, configuration, README, and Wallet-path work must be preserved |
 
@@ -306,14 +306,14 @@ Acceptance gate: passed on 2026-07-17. Marta’s current user, all 267 customers
 
 ### Phase 2 — Django/HTMX/Tailwind portal shell
 
-- [ ] Add a reusable Django base template, accessible navigation, forms, messages, and error fragments.
-- [ ] Compile Tailwind into versioned static CSS using the approved build approach.
-- [ ] Vendor a pinned HTMX build locally; do not depend on a runtime `latest` CDN.
-- [ ] Remove Bootstrap and legacy jQuery from active loyalty screens after parity checks.
-- [ ] Build client settings navigation and the separate platform print-center navigation.
-- [ ] Keep only minimal JavaScript for camera access/barcode scanning; pin/vendor the scanner library and document why it is required.
+- [x] Add a reusable Django base template, accessible navigation, forms, messages, and error fragments.
+- [x] Compile Tailwind into versioned static CSS using the approved build-only Node approach.
+- [x] Vendor pinned HTMX 2.0.10 locally; no loyalty screen depends on a runtime CDN.
+- [x] Remove Bootstrap and legacy jQuery from active loyalty screens after parity checks.
+- [x] Build client settings navigation and the separate platform print-center navigation.
+- [x] Keep only minimal custom JavaScript for camera access/barcode scanning; vendor the compatible pinned ZXing 0.21.3 library and document why it is required.
 
-Acceptance gate: core pages work without custom JavaScript; HTMX failures gracefully fall back to normal Django form submissions.
+Acceptance gate: passed on 2026-07-17. Public registration and all portal forms remain ordinary Django HTML flows without custom JavaScript; integration forms progressively enhance with local HTMX and retain normal POST/redirect behavior when HTMX is unavailable. Desktop and mobile browser checks passed without console errors.
 
 ### Phase 3 — Tenant card design and unified generators
 

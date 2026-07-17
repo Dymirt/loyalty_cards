@@ -1,0 +1,15 @@
+<nav aria-label="Ustawienia firmy" class="mb-7 flex gap-2 overflow-x-auto border-b border-stone-200 pb-3 text-sm font-semibold">
+    <a href="{% url 'dotykacka:tenant_portal' tenant.slug %}"
+       {% if active_nav == 'overview' %}aria-current="page"{% endif %}
+       class="whitespace-nowrap rounded-lg px-3 py-2 {% if active_nav == 'overview' %}bg-ink-950 text-white{% else %}text-ink-700 hover:bg-stone-100{% endif %}">
+        Przegląd
+    </a>
+    {% if can_manage_integrations %}
+        <a href="{% url 'dotykacka:integration_settings' tenant.slug %}"
+           {% if active_nav == 'integrations' %}aria-current="page"{% endif %}
+           class="whitespace-nowrap rounded-lg px-3 py-2 {% if active_nav == 'integrations' %}bg-ink-950 text-white{% else %}text-ink-700 hover:bg-stone-100{% endif %}">
+            Integracje
+        </a>
+    {% endif %}
+    <span class="whitespace-nowrap rounded-lg px-3 py-2 text-stone-400" aria-disabled="true" title="Dostępne w Fazie 3">Projekt karty · wkrótce</span>
+</nav>

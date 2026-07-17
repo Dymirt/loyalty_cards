@@ -38,6 +38,8 @@ send_passes_log.csv
 .mypy_cache/
 .ruff_cache/
 htmlcov/
+node_modules/
+npm-debug.log*
 
 # Editors and operating systems
 .DS_Store

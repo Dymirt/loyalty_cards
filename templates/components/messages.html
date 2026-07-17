@@ -1,0 +1,13 @@
+{% if messages %}
+    <div class="mb-6 space-y-3" aria-live="polite" aria-atomic="true">
+        {% for message in messages %}
+            <div class="rounded-xl border px-4 py-3 text-sm font-semibold
+                {% if 'error' in message.tags %}border-red-200 bg-red-50 text-red-900
+                {% elif 'success' in message.tags %}border-emerald-200 bg-emerald-50 text-emerald-900
+                {% else %}border-sky-200 bg-sky-50 text-sky-900{% endif %}"
+                 role="{% if 'error' in message.tags %}alert{% else %}status{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

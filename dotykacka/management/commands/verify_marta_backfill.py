@@ -24,7 +24,18 @@ class Command(BaseCommand):
         )
         parser.add_argument("--expect-memberships", type=int, default=1)
         parser.add_argument("--expect-customers", type=int, default=267)
-        parser.add_argument("--expect-tokens", type=int, default=261)
+        parser.add_argument(
+            "--expect-tokens",
+            type=int,
+            default=None,
+            help="Require an exact token-cache count instead of the default minimum.",
+        )
+        parser.add_argument(
+            "--expect-min-tokens",
+            type=int,
+            default=261,
+            help="Minimum token-cache count; tokens are appended during normal refreshes.",
+        )
         parser.add_argument("--expect-cards", type=int, default=600)
         parser.add_argument("--expect-assigned", type=int, default=267)
         parser.add_argument("--expect-available", type=int, default=333)
@@ -71,7 +82,6 @@ class Command(BaseCommand):
         expectations = {
             "membership_count": options["expect_memberships"],
             "customer_count": options["expect_customers"],
-            "token_count": options["expect_tokens"],
             "physical_card_count": options["expect_cards"],
             "assigned_card_count": options["expect_assigned"],
             "available_card_count": options["expect_available"],
@@ -81,6 +91,17 @@ class Command(BaseCommand):
             for key, expected in expectations.items()
             if result[key] != expected
         }
+        if options["expect_tokens"] is not None:
+            if result["token_count"] != options["expect_tokens"]:
+                mismatches["token_count"] = {
+                    "expected": options["expect_tokens"],
+                    "actual": result["token_count"],
+                }
+        elif result["token_count"] < options["expect_min_tokens"]:
+            mismatches["token_count"] = {
+                "expected_minimum": options["expect_min_tokens"],
+                "actual": result["token_count"],
+            }
         required_providers = {provider for provider, _ in IntegrationConnection.Provider.choices}
         if set(result["integration_providers"]) != required_providers:
             mismatches["integration_providers"] = {

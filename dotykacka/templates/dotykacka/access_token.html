@@ -1,13 +1,15 @@
-<!DOCTYPE html>
-<html>
-<head>
-	<title>Access token</title>
-</head>
-<body>
-	<h1>Dotykačka access token</h1>
-	{% if access_token_available %}
-	<p>A valid access token is available. Its value is intentionally hidden.</p>
-	{% else %}
-	<p>No access token is available.</p>
-	{% endif %}
-</html>
+{% extends "base.html" %}
+
+{% block title %}Status tokenu Dotykačka{% endblock %}
+
+{% block content %}
+<section class="mx-auto max-w-2xl portal-card" aria-labelledby="token-title">
+    <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Diagnostyka platformy</p>
+    <h1 id="token-title" class="mt-2 text-3xl font-bold">Token Dotykačka</h1>
+    {% if access_token_available %}
+        <p class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900">Ważny token dostępu jest dostępny. Jego wartość pozostaje ukryta.</p>
+    {% else %}
+        <p class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">Token dostępu nie jest obecnie dostępny.</p>
+    {% endif %}
+</section>
+{% endblock %}

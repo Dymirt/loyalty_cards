@@ -21,6 +21,8 @@ logs, and nested Git metadata are intentionally excluded.
 - Helper scripts for card artwork, barcode images, crops, manifests, and passes.
 - Tenant-owned customers, physical-card inventory, branding, users, and integrations.
 - Encrypted per-tenant Dotykačka/Brevo credentials and tenant settings UI.
+- Shared accessible Django portal shell with separate client and platform navigation.
+- Locally served HTMX enhancements and compiled Tailwind CSS with ordinary HTML fallbacks.
 
 ## Runtime architecture
 
@@ -51,6 +53,7 @@ production deployment was changed while creating this repository.
 .
 ├── dotykacka/             Loyalty domain, integrations, views, and migrations
 │   └── google_wallet/     Google Wallet save-link generation
+├── assets/css/            Tailwind source CSS
 ├── turnkey_app/           Original TurnKey example application
 ├── turnkey_project/       Django project settings and root URLs
 ├── templates/             Root landing-page templates
@@ -61,6 +64,7 @@ production deployment was changed while creating this repository.
 ├── add_logo.py            Loyalty-card artwork and barcode generator
 ├── RandomImageCropper.py  Card background crop generator
 ├── generate_pass.py       Legacy batch Apple Wallet pass generator
+├── package.json           Pinned build-only frontend dependencies and asset commands
 └── manage.py              Django command entry point
 ```
 
@@ -74,8 +78,11 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+npm ci
+npm run build
 cp .env.example .env
 python manage.py migrate
+python manage.py collectstatic --noinput
 python manage.py createsuperuser
 python manage.py runserver
 ```
@@ -87,6 +94,10 @@ page is available at `http://localhost:8000/`; administration is at
 Tenant integrations remain disabled until an authorized tenant owner configures
 them in the integration settings page. Never copy production credentials into
 Git.
+
+Node is used only to compile/version static assets. It is not part of the Django
+production runtime. The compiled CSS and pinned vendor scripts are committed so
+the Apache container can run without Node. See `docs/phase-2-portal-shell.md`.
 
 ## Mac replica of the TurnKey deployment
 
@@ -198,7 +209,10 @@ must never be committed.
 | `GET` | `/` | Public | Registration landing page |
 | `GET`, `POST` | `/dotykacka/register` | Public | Register a loyalty customer |
 | `GET`, `POST` | `/dotykacka/c/<tenant-slug>/register` | Public | Tenant registration |
+| `GET` | `/accounts/login/` | Public | Client portal login |
+| `GET` | `/dotykacka/c/<tenant-slug>/portal` | Tenant member/platform superuser | Client dashboard |
 | `GET`, `POST` | `/dotykacka/c/<tenant-slug>/settings/integrations` | Tenant owner/platform superuser | Configure tenant integrations |
+| `GET` | `/dotykacka/platform/print-center` | Platform superuser | Centralized print-center shell and tenant inventory |
 | `GET` | `/admin/` | Staff | Django administration |
 | `GET` | `/dotykacka/customers` | Superuser | Customer and card operations |
 | `POST` | `/dotykacka/send_pass/<barcode>` | Superuser | Send one customer's passes |
@@ -215,10 +229,13 @@ renders the token value.
 python manage.py check
 python manage.py makemigrations --check
 python manage.py test
+npm ci
+npm run build
 ```
 
 Tests use an isolated database, block unmocked network/SMTP calls, and cover the
-legacy behavior plus tenant migration, authorization, encryption, and isolation.
+legacy behavior plus tenant migration, authorization, encryption, isolation,
+portal fallbacks, and pinned static assets.
 
 ## Security and privacy
 

@@ -1,64 +1,27 @@
-<!doctype html>
-<html lang="pl">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Integracje — {{ tenant.name }}</title>
-    <style>
-        body { max-width: 900px; margin: 2rem auto; padding: 0 1rem; font-family: Arial, sans-serif; }
-        section { border: 1px solid #ddd; border-radius: 10px; padding: 1.25rem; margin: 1rem 0; }
-        label { display: block; font-weight: 600; margin-top: .75rem; }
-        input { width: 100%; max-width: 520px; padding: .5rem; box-sizing: border-box; }
-        input[type="checkbox"] { width: auto; }
-        .configured { color: #166534; }
-        .not-configured { color: #991b1b; }
-        .errorlist { color: #991b1b; }
-        button { margin-top: 1rem; padding: .6rem 1rem; }
-    </style>
-</head>
-<body>
-    <h1>Integracje: {{ tenant.name }}</h1>
-    <p>Wartości tajne są zaszyfrowane i nigdy nie są wyświetlane ponownie.</p>
+{% extends "base.html" %}
 
-    {% if messages %}
-        {% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}
-    {% endif %}
+{% block title %}Integracje · {{ tenant.name }}{% endblock %}
+{% block page_messages %}{% endblock %}
 
-    <section>
-        <h2>Dotykačka</h2>
-        <p class="{% if secret_status.dotykacka %}configured{% else %}not-configured{% endif %}">
-            Token: {% if secret_status.dotykacka %}skonfigurowany{% else %}brak{% endif %}
-        </p>
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="provider" value="dotykacka">
-            {{ forms.dotykacka.as_p }}
-            <button type="submit">Zapisz Dotykačka</button>
-        </form>
-    </section>
+{% block content %}
+<div id="integration-settings-content">
+    {% include "components/messages.html" %}
+    {% include "dotykacka/partials/tenant_nav.html" %}
 
-    <section>
-        <h2>Brevo</h2>
-        <p class="{% if secret_status.brevo %}configured{% else %}not-configured{% endif %}">
-            Klucz API: {% if secret_status.brevo %}skonfigurowany{% else %}brak{% endif %}
-        </p>
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="provider" value="brevo">
-            {{ forms.brevo.as_p }}
-            <button type="submit">Zapisz Brevo</button>
-        </form>
-    </section>
+    <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Ustawienia firmy</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Integracje</h1>
+        <p class="mt-2 max-w-3xl text-ink-700">Konfiguracja należy wyłącznie do {{ tenant.name }}. Sekrety są szyfrowane i po zapisaniu widoczny jest tylko ich status.</p>
+    </div>
 
-    <section>
-        <h2>Google Wallet</h2>
-        <p>Konto usługi i klucz podpisujący pozostają konfiguracją platformy w środowisku.</p>
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="provider" value="google_wallet">
-            {{ forms.google_wallet.as_p }}
-            <button type="submit">Zapisz Google Wallet</button>
-        </form>
-    </section>
-</body>
-</html>
+    <div class="mt-8 grid gap-5 lg:grid-cols-2">
+        {% include "dotykacka/partials/integration_panel.html" with provider="dotykacka" title="Dotykačka" description="Połączenie POS, grupa rabatowa i uwierzytelnianie chmury." form=forms.dotykacka connection=connections.dotykacka secret_label="Token" secret_configured=secret_status.dotykacka %}
+        {% include "dotykacka/partials/integration_panel.html" with provider="brevo" title="Brevo" description="Lista kontaktów marketingowych i domyślny kod kraju." form=forms.brevo connection=connections.brevo secret_label="Klucz API" secret_configured=secret_status.brevo %}
+        {% include "dotykacka/partials/integration_panel.html" with provider="google_wallet" title="Google Wallet" description="Identyfikator wydawcy i klasa programu tej firmy. Konto podpisujące pozostaje po stronie platformy." form=forms.google_wallet connection=connections.google_wallet %}
+    </div>
+
+    <noscript>
+        <p class="mt-6 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">JavaScript jest wyłączony. Formularze nadal działają jako zwykłe formularze Django i przeładują całą stronę.</p>
+    </noscript>
+</div>
+{% endblock %}

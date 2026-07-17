@@ -68,8 +68,10 @@ management process.
    key. Never rotate both at the same time.
 3. Apply migrations `0008` through `0011`.
 4. Run `python manage.py verify_marta_backfill` and confirm the expected
-   non-sensitive aggregates: one membership, 267 customers, 261 tokens, 600
-   physical cards, 267 assigned and 333 available.
+   non-sensitive aggregates: one membership, 267 customers, at least the 261
+   migrated tokens, 600 physical cards, 267 assigned and 333 available. The
+   token cache is append-only during normal refreshes; use
+   `--expect-tokens 261` only for the immediate migration-time exact check.
 5. Run `python manage.py check` and the Phase 0 inventory preflight again.
 6. Verify the settings page reports configured secrets without displaying their
    values, then clear the legacy client variables from the environment.

@@ -1,86 +1,71 @@
-<!DOCTYPE html>
-<html>
-
-<head>
-	<title>Customers</title>
-</head>
-
+{% extends "base.html" %}
 {% load static %}
-{% get_media_prefix as MEDIA_PREFIX %}
+{% get_media_prefix as media_prefix %}
 
-<body>
-	<h1>Customers</h1>
-	{% if error %}
-	<p>Error: <strong>{{ error }}</strong></p>
-	{% endif %}
+{% block title %}Klienci · {{ tenant.name }}{% endblock %}
 
-	{% if messages %}
-	<ul class="messages">
-		{% for message in messages %}
-		<li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
-			{% endfor %}
-	</ul>
-	{% endif %}
-	<!-- If user is authenticated-->
-	{% if user.is_authenticated %}
+{% block content %}
+<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Operacje platformy</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Klienci Dotykačka</h1>
+        <p class="mt-2 text-ink-700">Widok operatora dla {{ tenant.name }}.</p>
+    </div>
+    <a href="{% url 'dotykacka:platform_print_center' %}" class="portal-button-secondary">Centrum druku</a>
+</div>
 
+{% if error %}<p class="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900" role="alert">{{ error }}</p>{% endif %}
 
-	<table>
-		<tr>
-			<th>#</th>
-			<th>NAME</th>
-			<th>BARCODE</th>
-			<th>IMAGE</th>
-			<th>Apple Pass</th>
-			<th>ACTIONS</th>
+<section class="portal-card mt-8" aria-labelledby="customer-table-title">
+    <h2 id="customer-table-title" class="sr-only">Lista klientów</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full min-w-4xl border-collapse text-left text-sm">
+            <thead>
+                <tr class="border-b border-stone-200 text-ink-700">
+                    <th scope="col" class="px-3 py-3 font-semibold">#</th>
+                    <th scope="col" class="px-3 py-3 font-semibold">Klient</th>
+                    <th scope="col" class="px-3 py-3 font-semibold">Kod</th>
+                    <th scope="col" class="px-3 py-3 font-semibold">Podgląd</th>
+                    <th scope="col" class="px-3 py-3 font-semibold">Apple Wallet</th>
+                    <th scope="col" class="px-3 py-3 text-right font-semibold">Akcja</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100">
+                {% for customer in customers %}
+                    <tr>
+                        <td class="px-3 py-4 tabular-nums text-ink-700">{{ forloop.counter }}</td>
+                        <th scope="row" class="px-3 py-4 font-semibold">
+                            {% if customer.firstName %}{{ customer.firstName }} {{ customer.lastName }}{% else %}{{ customer.companyName }}{% endif %}
+                        </th>
+                        <td class="px-3 py-4 font-mono text-xs">{{ customer.barcode }}</td>
+                        {% if customer.barcode_decode %}
+                            <td class="px-3 py-4"><img class="h-16 w-24 rounded-lg object-cover" src="{{ media_prefix }}cropped_images/cropped_image_{{ customer.barcode_decode }}.jpg" alt="Podgląd karty {{ customer.barcode }}"></td>
+                            <td class="px-3 py-4"><a class="font-semibold text-accent-700 underline-offset-4 hover:underline" href="{{ media_prefix }}output_passes/pass_{{ customer.barcode_decode }}.pkpass" download>Pobierz</a></td>
+                            <td class="px-3 py-4 text-right">
+                                <form action="{% url 'dotykacka:send_pass' customer.barcode %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="portal-button-secondary">Wyślij kartę</button>
+                                </form>
+                            </td>
+                        {% else %}
+                            <td colspan="3" class="px-3 py-4 text-ink-700">Nieprawidłowy kod karty</td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="px-3 py-10 text-center text-ink-700">Brak klientów do wyświetlenia.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 
-		</tr>
-		{% for customer in customers %}
-
-		<tr>
-			<td>{{ forloop.counter }}</td>
-			{% if customer.firstName %}
-			<td>{{ customer.firstName }} {{ customer.lastName }}</td>
-			{% else %}
-			<td>{{ customer.companyName }}</td>
-			{% endif %}
-			<td>{{ customer.barcode }}</td>
-
-			{% if customer.barcode_decode %}
-			<td>
-				<img width="100" src="{{ MEDIA_PREFIX }}cropped_images/cropped_image_{{ customer.barcode_decode }}.jpg"
-					alt="Podgląd karty {{ customer.barcode }}">
-			</td>
-			<td>
-				<a href="{{ MEDIA_PREFIX }}output_passes/pass_{{ customer.barcode_decode }}.pkpass" download>
-					Download Pass</a>
-			</td>
-			<td>
-				<form action="{% url 'dotykacka:send_pass' customer.barcode %}" method="post">
-					{% csrf_token %}
-					<button type="submit">Send Pass</button>
-				</form>
-			</td>
-
-			{% endif %}
-		</tr>
-		{% endfor %}
-	</table>
-
-	<form action="{% url 'dotykacka:add_all_to_brevo' %}" method="post">
-		{% csrf_token %}
-		<button type="submit">Add All to Brevo 2</button>
-	</form>
-	<form action="{% url 'dotykacka:generate_jwt_passes' %}" method="post">
-		{% csrf_token %}
-		<button type="submit">Generate Google Wallet Passes</button>
-	</form>
-	<form action="{% url 'dotykacka:send_passes_to_all' %}" method="post">
-		{% csrf_token %}
-		<button type="submit">Send Passes to All</button>
-	</form>
-	{% endif %}
-
-</body>
-
-</html>
+<section class="mt-8" aria-labelledby="bulk-actions-title">
+    <h2 id="bulk-actions-title" class="text-xl font-bold">Operacje zbiorcze</h2>
+    <p class="mt-1 text-sm text-ink-700">Każda operacja wymaga świadomego wysłania formularza POST.</p>
+    <div class="mt-4 flex flex-wrap gap-3">
+        <form action="{% url 'dotykacka:add_all_to_brevo' %}" method="post">{% csrf_token %}<button type="submit" class="portal-button-secondary">Synchronizuj z Brevo</button></form>
+        <form action="{% url 'dotykacka:generate_jwt_passes' %}" method="post">{% csrf_token %}<button type="submit" class="portal-button-secondary">Generuj Google Wallet</button></form>
+        <form action="{% url 'dotykacka:send_passes_to_all' %}" method="post">{% csrf_token %}<button type="submit" class="portal-button">Wyślij karty wszystkim</button></form>
+    </div>
+</section>
+{% endblock %}

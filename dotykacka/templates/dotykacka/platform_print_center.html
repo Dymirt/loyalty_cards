@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Centrum druku · Loyalty Studio{% endblock %}
+
+{% block content %}
+<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Operacje platformy</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Centrum druku</h1>
+        <p class="mt-2 max-w-2xl text-ink-700">Oddzielny widok operatora. Kolejka zamówień i pakiety produkcyjne pojawią się w Fazie 4.</p>
+    </div>
+    <a href="{% url 'admin:index' %}" class="portal-button-secondary">Administracja Django</a>
+</div>
+
+<section class="portal-card mt-8" aria-labelledby="tenant-inventory-title">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h2 id="tenant-inventory-title" class="text-xl font-bold">Inwentarz według firmy</h2>
+            <p class="mt-1 text-sm text-ink-700">Tylko dane zagregowane; pliki produkcyjne nie są jeszcze udostępniane.</p>
+        </div>
+        <span class="portal-status bg-amber-100 text-amber-900">Kolejka druku · Faza 4</span>
+    </div>
+
+    <div class="mt-5 overflow-x-auto">
+        <table class="w-full min-w-2xl border-collapse text-left text-sm">
+            <thead>
+                <tr class="border-b border-stone-200 text-ink-700">
+                    <th scope="col" class="px-3 py-3 font-semibold">Firma</th>
+                    <th scope="col" class="px-3 py-3 text-right font-semibold">Klienci</th>
+                    <th scope="col" class="px-3 py-3 text-right font-semibold">Przypisane</th>
+                    <th scope="col" class="px-3 py-3 text-right font-semibold">Dostępne</th>
+                    <th scope="col" class="px-3 py-3 text-right font-semibold">Panel</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-stone-100">
+                {% for item in tenants %}
+                    <tr>
+                        <th scope="row" class="px-3 py-4 font-semibold">{{ item.name }}</th>
+                        <td class="px-3 py-4 text-right tabular-nums">{{ item.customer_count }}</td>
+                        <td class="px-3 py-4 text-right tabular-nums">{{ item.assigned_card_count }}</td>
+                        <td class="px-3 py-4 text-right tabular-nums">{{ item.available_card_count }}</td>
+                        <td class="px-3 py-4 text-right"><a class="font-semibold text-accent-700 underline-offset-4 hover:underline" href="{% url 'dotykacka:tenant_portal' item.slug %}">Otwórz</a></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="px-3 py-8 text-center text-ink-700">Brak aktywnych firm.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

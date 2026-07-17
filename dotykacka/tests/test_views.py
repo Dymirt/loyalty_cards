@@ -129,6 +129,6 @@ class AdministrativeViewTests(TestCase):
         connection = configure_dotykacka()
         self.client.force_login(self.superuser)
         response = self.client.get(reverse("dotykacka:acces_token"))
-        self.assertContains(response, "available", html=False)
+        self.assertContains(response, "dostępny", html=False)
         self.assertNotContains(response, "secret")
         get_token.assert_called_once_with(connection)

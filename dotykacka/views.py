@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db import IntegrityError, transaction
+from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -27,7 +28,12 @@ from .models import AuditEvent, IntegrationConnection, Klient, PhysicalCard, Ten
 from .services.notifications import send_pass_email
 from .services.registration import start_registration_followups
 from .services.wallets import generate_google_wallet_for_klient
-from .tenancy import can_manage_integrations, get_default_tenant, get_public_tenant
+from .tenancy import (
+    can_access_tenant,
+    can_manage_integrations,
+    get_default_tenant,
+    get_public_tenant,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +57,6 @@ def _render_registration(request, form, tenant, *, tenant_slug=None, status=200)
             "form": form,
             "form_action": form_action,
             "tenant": tenant,
-            "MEDIA_URL": settings.MEDIA_URL,
         },
         status=status,
     )
@@ -72,7 +77,11 @@ def get_acces_token(request):
     return render(
         request,
         "dotykacka/access_token.html",
-        {"access_token_available": bool(access_token)},
+        {
+            "access_token_available": bool(access_token),
+            "tenant": tenant,
+            "active_nav": "access_token",
+        },
     )
 
 
@@ -99,7 +108,75 @@ def get_all_costumers(request):
     return render(
         request,
         "dotykacka/customers.html",
-        {"customers": all_customers, "error": error, "tenant": tenant},
+        {
+            "customers": all_customers,
+            "error": error,
+            "tenant": tenant,
+            "active_nav": "customers",
+        },
+    )
+
+
+@login_required
+def tenant_portal(request, tenant_slug):
+    tenant = get_object_or_404(
+        Tenant.objects.select_related("brand"),
+        slug=tenant_slug,
+        is_active=True,
+    )
+    if not can_access_tenant(request.user, tenant):
+        return HttpResponseForbidden("Nie masz dostępu do tej firmy.")
+
+    integration_statuses = {
+        connection.provider: connection.enabled
+        for connection in IntegrationConnection.objects.filter(tenant=tenant)
+    }
+    return render(
+        request,
+        "dotykacka/tenant_portal.html",
+        {
+            "tenant": tenant,
+            "active_nav": "overview",
+            "can_manage_integrations": can_manage_integrations(request.user, tenant),
+            "customer_count": tenant.customers.count(),
+            "available_card_count": tenant.physical_cards.filter(
+                status=PhysicalCard.Status.AVAILABLE,
+                customer__isnull=True,
+            ).count(),
+            "assigned_card_count": tenant.physical_cards.filter(
+                status=PhysicalCard.Status.ASSIGNED,
+                customer__isnull=False,
+            ).count(),
+            "integration_statuses": integration_statuses,
+        },
+    )
+
+
+@superuser_required
+def platform_print_center(request):
+    tenants = Tenant.objects.filter(is_active=True).annotate(
+        customer_count=Count("customers", distinct=True),
+        available_card_count=Count(
+            "physical_cards",
+            filter=Q(
+                physical_cards__status=PhysicalCard.Status.AVAILABLE,
+                physical_cards__customer__isnull=True,
+            ),
+            distinct=True,
+        ),
+        assigned_card_count=Count(
+            "physical_cards",
+            filter=Q(
+                physical_cards__status=PhysicalCard.Status.ASSIGNED,
+                physical_cards__customer__isnull=False,
+            ),
+            distinct=True,
+        ),
+    )
+    return render(
+        request,
+        "dotykacka/platform_print_center.html",
+        {"tenants": tenants, "platform_nav": "print_center"},
     )
 
 
@@ -328,7 +405,7 @@ def send_all_passes(request):
     return redirect("dotykacka:customers")
 
 
-@login_required(login_url="/admin/login/")
+@login_required
 @require_http_methods(["GET", "POST"])
 def integration_settings(request, tenant_slug):
     tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
@@ -352,6 +429,7 @@ def integration_settings(request, tenant_slug):
         provider: form_class(
             tenant=tenant,
             connection=connection_by_provider[provider],
+            prefix=provider,
         )
         for provider, form_class in form_classes.items()
     }
@@ -365,6 +443,7 @@ def integration_settings(request, tenant_slug):
             request.POST,
             tenant=tenant,
             connection=connection_by_provider[provider],
+            prefix=provider,
         )
         forms[provider] = form
         if form.is_valid():
@@ -393,6 +472,8 @@ def integration_settings(request, tenant_slug):
             "tenant": tenant,
             "forms": forms,
             "connections": connection_by_provider,
+            "active_nav": "integrations",
+            "can_manage_integrations": True,
             "secret_status": {
                 "dotykacka": connection_by_provider[
                     IntegrationConnection.Provider.DOTYKACKA

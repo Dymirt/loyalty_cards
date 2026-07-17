@@ -1,0 +1,17 @@
+{
+  "name": "mbstudio-loyalty-portal-assets",
+  "private": true,
+  "scripts": {
+    "build": "npm run vendor:assets && npm run build:css",
+    "build:css": "tailwindcss -i assets/css/portal.css -o static/css/portal.v1.css --minify",
+    "vendor:assets": "mkdir -p static/vendor && cp node_modules/htmx.org/dist/htmx.min.js static/vendor/htmx-2.0.10.min.js && cp node_modules/@zxing/library/umd/index.min.js static/vendor/zxing-library-0.21.3.min.js"
+  },
+  "dependencies": {
+    "@zxing/library": "0.21.3",
+    "htmx.org": "2.0.10"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.2",
+    "tailwindcss": "4.3.2"
+  }
+}

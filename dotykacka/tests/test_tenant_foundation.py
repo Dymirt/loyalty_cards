@@ -20,6 +20,7 @@ from dotykacka.models import (
 from .base import (
     REGISTRATION_DATA,
     configure_dotykacka,
+    create_access_token,
     create_physical_card,
     create_tenant,
     create_tenant_owner,
@@ -72,6 +73,23 @@ class MartaTenantBaselineTests(TestCase):
                 "cards": PhysicalCard.objects.count(),
             },
         )
+
+    def test_backfill_verifier_allows_append_only_token_cache_growth(self):
+        create_access_token(tenant=default_tenant())
+        output = StringIO()
+
+        call_command(
+            "verify_marta_backfill",
+            expect_memberships=0,
+            expect_customers=0,
+            expect_min_tokens=1,
+            expect_cards=600,
+            expect_assigned=0,
+            expect_available=600,
+            stdout=output,
+        )
+
+        self.assertEqual(json.loads(output.getvalue())["status"], "ok")
 
 
 class TenantRegistrationIsolationTests(TestCase):
@@ -143,10 +161,10 @@ class IntegrationSettingsSecurityTests(TestCase):
                 self.url,
                 {
                     "provider": IntegrationConnection.Provider.DOTYKACKA,
-                    "enabled": "on",
-                    "cloud_id": "987",
-                    "discount_group_id": "654",
-                    "authorization_token": "",
+                    "dotykacka-enabled": "on",
+                    "dotykacka-cloud_id": "987",
+                    "dotykacka-discount_group_id": "654",
+                    "dotykacka-authorization_token": "",
                 },
             )
 

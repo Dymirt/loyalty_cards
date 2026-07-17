@@ -1,114 +1,33 @@
-<!DOCTYPE html>
-<html lang="pl">
+{% extends "base.html" %}
+{% load static %}
+{% get_media_prefix as media_prefix %}
 
-<head>
-	<meta charset="UTF-8">
-	<title>Zarejestruj kartę</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<style>
-		html,
-		body {
-			height: 100%;
-			margin: 0;
-			font-family: Arial, sans-serif;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-			width: 100%;
-		}
+{% block title %}{{ tenant.brand.public_name|default:tenant.name }} · Karta lojalnościowa{% endblock %}
 
-		html {
-			background-image: url("{{ MEDIA_URL }}{{ tenant.brand.background_image_path }}");
-			background-size: cover;
-			background-position: center;
-		}
+{% block full_width_content %}
+<section class="relative isolate grid min-h-[calc(100vh-9rem)] place-items-center overflow-hidden px-4 py-12">
+    {% if tenant.brand.background_image_path %}
+        <img src="{{ media_prefix }}{{ tenant.brand.background_image_path }}" alt=""
+             class="absolute inset-0 -z-20 size-full object-cover">
+        <div class="absolute inset-0 -z-10 bg-ink-950/55"></div>
+    {% else %}
+        <div class="absolute inset-0 -z-20 bg-gradient-to-br from-stone-900 via-stone-800 to-accent-700"></div>
+    {% endif %}
 
-		.btn {
-			padding: 1rem 2rem;
-			background-color: #3b82f6;
-			color: white;
-			font-size: 1.25rem;
-			border: none;
-			border-radius: 0.5rem;
-			text-decoration: none;
-			box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-			transition: background-color 0.3s ease;
-		}
-
-		.btn:hover {
-			background-color: #2563eb;
-		}
-
-		img {
-			width: 100%;
-			height: auto;
-			margin-bottom: 20px;
-			object-fit: contain;
-		}
-
-		.container {
-			text-align: center;
-			background-color: rgba(255, 255, 255, 0.8);
-			padding: 2rem;
-			border-radius: 1rem;
-			box-shadow: 0 6px 6px rgba(0, 0, 0, 0.1);
-			display: flex;
-			flex-direction: column;
-			width: 320px;
-		}
-
-		.error {
-			background-color: #fee2e2;
-			color: #b91c1c;
-			border: 1px solid #fca5a5;
-			padding: 10px 16px;
-			border-radius: 6px;
-			margin-bottom: 10px;
-			font-weight: 500;
-			font-family: sans-serif;
-		}
-		.success {
-			background-color: #d1fae5;
-			color: #065f46;
-			border: 1px solid #6ee7b7;
-			padding: 10px 16px;
-			border-radius: 6px;
-			margin-bottom: 10px;
-			font-weight: 500;
-			font-family: sans-serif;
-		}
-	</style>
-</head>
-
-<body>
-
-	<div class="container">
-		<img src="{{ MEDIA_URL }}{{ tenant.brand.logo_path }}" alt="{{ tenant.brand.public_name }}"
-			style="margin-bottom: 20px;">
-
-		{% if messages %}
-		<div class="messages">
-			{% for message in messages %}
-			<div{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}
-		</div>
-		{% endfor %}
-	</div>
-	{% endif %}
-
-	<a href="{% url 'dotykacka:tenant_register' tenant.slug %}" class="btn">Zarejestruj kartę</a>
-	</div>
-	<script>
-		document.addEventListener("DOMContentLoaded", function () {
-			const messages = document.querySelector(".messages");
-			if (messages) {
-				setTimeout(() => {
-					messages.style.display = "none";
-					}, 10000); // 10000 ms = 10 sekund
-				}
-		});
-	</script>
-</body>
-
-
-
-</html>
+    <div class="w-full max-w-xl">
+        {% include "components/messages.html" %}
+        <div class="rounded-3xl border border-white/30 bg-white/95 p-7 text-center shadow-2xl backdrop-blur sm:p-10">
+            {% if tenant.brand.logo_path %}
+                <img src="{{ media_prefix }}{{ tenant.brand.logo_path }}"
+                     alt="{{ tenant.brand.public_name|default:tenant.name }}"
+                     class="mx-auto h-28 w-auto max-w-full object-contain sm:h-36">
+            {% endif %}
+            <p class="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-accent-700">Program lojalnościowy</p>
+            <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Twoja karta gościa</h1>
+            {% if tenant.brand.tagline %}<p class="mt-3 text-lg text-ink-700">{{ tenant.brand.tagline }}</p>{% endif %}
+            <a href="{% url 'dotykacka:tenant_register' tenant.slug %}" class="portal-button mt-8 w-full sm:w-auto">Zarejestruj kartę</a>
+            <p class="mt-5 text-sm leading-6 text-ink-700">Masz fizyczną kartę? Przygotuj jej kod przed rozpoczęciem rejestracji.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

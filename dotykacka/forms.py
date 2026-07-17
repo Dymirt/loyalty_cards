@@ -8,6 +8,28 @@ from .card_codes import CardCodeError, parse_card_code
 from .models import IntegrationConnection, Klient, PhysicalCard, Tenant
 
 
+PORTAL_INPUT_CLASSES = (
+    "portal-input disabled:cursor-not-allowed disabled:bg-stone-100 "
+    "disabled:text-stone-500"
+)
+PORTAL_CHECKBOX_CLASSES = (
+    "mt-1 size-5 rounded border-stone-300 text-accent-700 "
+    "focus:ring-2 focus:ring-accent-100"
+)
+
+
+def _style_portal_form(form):
+    for name, field in form.fields.items():
+        classes = (
+            PORTAL_CHECKBOX_CLASSES
+            if isinstance(field.widget, forms.CheckboxInput)
+            else PORTAL_INPUT_CLASSES
+        )
+        field.widget.attrs["class"] = classes
+        if field.help_text:
+            field.widget.attrs["aria-describedby"] = f"{form[name].id_for_label}_help"
+
+
 class LoyaltyCustomerRegistrationForm(forms.Form):
     first_name = forms.CharField(max_length=100, label="Imię")
     last_name = forms.CharField(max_length=100, label="Nazwisko")
@@ -22,6 +44,7 @@ class LoyaltyCustomerRegistrationForm(forms.Form):
     def __init__(self, *args, tenant: Tenant, **kwargs):
         super().__init__(*args, **kwargs)
         self.tenant = tenant
+        _style_portal_form(self)
         if hasattr(tenant, "brand") and tenant.brand.marketing_consent_text:
             self.fields["marketing_consent"].label = tenant.brand.marketing_consent_text
 
@@ -66,11 +89,16 @@ def registration_form_data(post_data):
 
 
 class DotykackaIntegrationForm(forms.Form):
-    enabled = forms.BooleanField(required=False)
-    cloud_id = forms.IntegerField(min_value=1, required=False)
-    discount_group_id = forms.IntegerField(min_value=1, required=False)
+    enabled = forms.BooleanField(required=False, label="Włącz integrację")
+    cloud_id = forms.IntegerField(min_value=1, required=False, label="Cloud ID")
+    discount_group_id = forms.IntegerField(
+        min_value=1,
+        required=False,
+        label="ID grupy rabatowej",
+    )
     authorization_token = forms.CharField(
         required=False,
+        label="Token autoryzacyjny",
         widget=forms.PasswordInput(render_value=False),
         help_text="Pozostaw puste, aby zachować zapisany token.",
     )
@@ -90,6 +118,7 @@ class DotykackaIntegrationForm(forms.Form):
                 ),
             }
         super().__init__(*args, **kwargs)
+        _style_portal_form(self)
 
     def clean(self):
         cleaned = super().clean()
@@ -121,14 +150,16 @@ class DotykackaIntegrationForm(forms.Form):
 
 
 class BrevoIntegrationForm(forms.Form):
-    enabled = forms.BooleanField(required=False)
-    list_id = forms.IntegerField(min_value=1, required=False)
+    enabled = forms.BooleanField(required=False, label="Włącz integrację")
+    list_id = forms.IntegerField(min_value=1, required=False, label="ID listy")
     default_phone_country_code = forms.RegexField(
         regex=r"^\+[1-9][0-9]{0,3}$",
         required=False,
+        label="Domyślny kod kraju",
     )
     api_key = forms.CharField(
         required=False,
+        label="Klucz API",
         widget=forms.PasswordInput(render_value=False),
         help_text="Pozostaw puste, aby zachować zapisany klucz.",
     )
@@ -148,6 +179,7 @@ class BrevoIntegrationForm(forms.Form):
                 ),
             }
         super().__init__(*args, **kwargs)
+        _style_portal_form(self)
 
     def clean(self):
         cleaned = super().clean()
@@ -176,11 +208,12 @@ class BrevoIntegrationForm(forms.Form):
 
 
 class GoogleWalletIntegrationForm(forms.Form):
-    enabled = forms.BooleanField(required=False)
-    issuer_id = forms.CharField(max_length=100, required=False)
+    enabled = forms.BooleanField(required=False, label="Włącz integrację")
+    issuer_id = forms.CharField(max_length=100, required=False, label="ID wydawcy")
     class_suffix = forms.RegexField(
         regex=r"^[A-Za-z0-9_-]{1,64}$",
         required=False,
+        label="Sufiks klasy",
     )
 
     def __init__(self, *args, tenant: Tenant, connection=None, **kwargs):
@@ -196,6 +229,7 @@ class GoogleWalletIntegrationForm(forms.Form):
                 "class_suffix": self.connection.configuration.get("class_suffix"),
             }
         super().__init__(*args, **kwargs)
+        _style_portal_form(self)
 
     def clean(self):
         cleaned = super().clean()

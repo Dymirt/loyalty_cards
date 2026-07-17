@@ -38,3 +38,15 @@ def can_manage_integrations(user, tenant: Tenant) -> bool:
         role=TenantMembership.Role.OWNER,
         is_active=True,
     ).exists()
+
+
+def can_access_tenant(user, tenant: Tenant) -> bool:
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return TenantMembership.objects.filter(
+        tenant=tenant,
+        user=user,
+        is_active=True,
+    ).exists()

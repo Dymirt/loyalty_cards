@@ -1,0 +1,84 @@
+{% load static %}
+{% get_media_prefix as media_prefix %}
+<!doctype html>
+<html lang="pl" class="h-full">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>{% block title %}Loyalty Studio{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/portal.v1.css' %}">
+    <script src="{% static 'vendor/htmx-2.0.10.min.js' %}"
+            integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
+            defer></script>
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="flex min-h-full flex-col bg-canvas">
+    <a href="#main-content"
+       class="sr-only z-50 rounded-lg bg-white px-4 py-3 font-semibold focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
+        Przejdź do treści
+    </a>
+
+    <header class="border-b border-stone-200 bg-paper/95">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <a href="{% url 'index' %}" class="flex min-w-0 items-center gap-3" aria-label="Strona główna">
+                {% if tenant and tenant.brand.logo_path %}
+                    <img src="{{ media_prefix }}{{ tenant.brand.logo_path }}"
+                         alt="" class="size-11 rounded-xl object-contain">
+                {% else %}
+                    <span class="grid size-11 place-items-center rounded-xl bg-ink-950 text-sm font-black text-white">LS</span>
+                {% endif %}
+                <span class="min-w-0">
+                    <span class="block truncate text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">Loyalty Studio</span>
+                    <span class="block truncate text-base font-bold text-ink-950">
+                        {% if tenant %}{{ tenant.brand.public_name|default:tenant.name }}{% else %}Panel platformy{% endif %}
+                    </span>
+                </span>
+            </a>
+
+            <nav aria-label="Główna nawigacja" class="flex flex-wrap items-center justify-end gap-1 text-sm font-semibold">
+                {% if tenant %}
+                    <a href="{% url 'dotykacka:tenant_register' tenant.slug %}"
+                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Rejestracja</a>
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'dotykacka:tenant_portal' tenant.slug %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Panel firmy</a>
+                    {% endif %}
+                {% endif %}
+                {% if user.is_superuser %}
+                    <a href="{% url 'dotykacka:platform_print_center' %}"
+                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Centrum druku</a>
+                    <a href="{% url 'dotykacka:customers' %}"
+                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Klienci</a>
+                    <a href="{% url 'admin:index' %}"
+                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Administracja</a>
+                {% endif %}
+                {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Wyloguj</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}" class="portal-button-secondary ml-1">Zaloguj</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main id="main-content" class="flex-1" tabindex="-1">
+        {% block full_width_content %}
+            <div class="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                {% block page_messages %}{% include "components/messages.html" %}{% endblock %}
+                {% block content %}{% endblock %}
+            </div>
+        {% endblock %}
+    </main>
+
+    <footer class="border-t border-stone-200 bg-paper">
+        <div class="mx-auto flex max-w-7xl flex-wrap justify-between gap-2 px-4 py-5 text-sm text-ink-700 sm:px-6 lg:px-8">
+            <p>Loyalty Studio · bezpieczny panel kart lojalnościowych</p>
+            {% if tenant %}<p>{{ tenant.brand.public_name|default:tenant.name }}</p>{% endif %}
+        </div>
+    </footer>
+</body>
+</html>
