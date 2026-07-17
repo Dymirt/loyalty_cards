@@ -1,0 +1,1 @@
+"""Card artwork domain app."""

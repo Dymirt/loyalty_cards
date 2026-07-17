@@ -1,12 +1,12 @@
 # MB Studio Loyalty SaaS Conversion Plan
 
-Status: in progress — Phases 0–3 complete; roadmap revised for modular extraction
+Status: in progress — Phases 0–4 complete
 
 Prepared: 2026-07-17
 
 Application: Django loyalty-card service at `mbstudio-loyalty-app`
 
-Progress: Phases 0–3 implemented and verified on the backed-up local MariaDB replica on 2026-07-17; migrations `0008` through `0013` are applied. Phase 3 added only versioned design, artifact, Wallet identity, and nullable batch-design metadata.
+Progress: Phases 0–4 implemented and verified on the backed-up local MariaDB replica on 2026-07-17; migrations `0008` through `0013` are applied. Phase 4 activated the `loyalty_platform` project package, empty destination apps, compatibility redirects/imports, architecture tests, and a read-only extraction verifier without creating a migration or changing business data.
 
 ## 1. Product outcome
 
@@ -98,7 +98,7 @@ Existing CLI workflows will remain available as Django management commands, but 
 ### Application structure and product operations
 
 - Nearly all domain models, forms, views, provider adapters, Wallet code, card generation, and admin behavior still live under the `dotykacka` app even after their services were stabilized.
-- `turnkey_project`, `turnkey_app`, `/turnkey/`, and `TURNKEY_ALLOWED_HOSTS_FILE` no longer describe the product. The project package name leaks into deployment entry points and tests.
+- Deprecated project/app imports, `/turnkey/`, and `TURNKEY_ALLOWED_HOSTS_FILE` remain as bounded compatibility shims for one verified release; active configuration and deployment paths now use `loyalty_platform`.
 - There is no subscription, entitlement, metered-usage, price-book, quote, or card-pack model, so user limits and print overages cannot be enforced consistently.
 - Existing legacy cards have inventory state but no append-only printing/delivery record that an operator can safely backfill without altering assignment or regenerating files.
 - Public marketing and pricing pages have no bounded owner and should not be mixed into the authenticated tenant portal.
@@ -485,14 +485,14 @@ Acceptance gate: passed on 2026-07-17. Marta v1 retains the verified 1011×638, 
 
 ### Phase 4 — Project rename and extraction safety rails
 
-- [ ] Add an architecture test that rejects forbidden imports from core/domain apps into concrete provider apps and inventory all current URLs, management commands, admin actions, model labels, tables, content types and permissions.
-- [ ] Rename `turnkey_project` to `loyalty_platform` across `manage.py`, settings, URLs, ASGI/WSGI, test runner, Docker/Apache/deployment commands, tests and documentation.
-- [ ] Add `LOYALTY_ALLOWED_HOSTS_FILE` with a one-release fallback to `TURNKEY_ALLOWED_HOSTS_FILE`.
-- [ ] Create empty destination app packages from section 5 with namespaced URLs/tests, without moving models or changing tables.
-- [ ] Turn `turnkey_app` into a compatibility redirect toward the `marketing` app; do not remove the old route in this phase.
-- [ ] Add a read-only `verify_app_extraction` command that reports table counts, model labels, content types, permissions, admin-log references and migration state.
+- [x] Add an architecture test that rejects forbidden imports from core/domain apps into concrete provider apps and inventory all current URLs, management commands, admin actions, model labels, tables, content types and permissions.
+- [x] Rename `turnkey_project` to `loyalty_platform` across `manage.py`, settings, URLs, ASGI/WSGI, test runner, Docker/Apache/deployment commands, tests and documentation.
+- [x] Add `LOYALTY_ALLOWED_HOSTS_FILE` with a one-release fallback to `TURNKEY_ALLOWED_HOSTS_FILE`.
+- [x] Create empty destination app packages from section 5 with namespaced URLs/tests, without moving models or changing tables.
+- [x] Turn `turnkey_app` into a compatibility redirect toward the `marketing` app; do not remove the old route in this phase.
+- [x] Add a read-only `verify_app_extraction` command that reports table counts, model labels, content types, permissions, admin-log references and migration state.
 
-Acceptance gate: the fresh database and upgraded Marta replica have the same business row counts, model tables, permissions and working routes; no business-data migration is created; all 80+ existing tests and the rename/deployment checks pass.
+Acceptance gate: passed on 2026-07-17. Django reports no model changes and no planned migration operations; the Marta verifier preserves 19 content types, 76 permissions, 14 admin registrations, historical migrations/tables/routes/commands and aggregate business counts. All 89 tests pass on a fresh isolated database. The rebuilt Docker/Apache web container uses `/var/www/loyalty_platform`, starts with no migrations to apply, and serves the public page plus compatibility redirects successfully.
 
 ### Phase 5 — Extract tenants, customers, cards, and card artwork
 
@@ -601,35 +601,40 @@ No production release proceeds if it would produce an unplanned migration, null 
 
 ## 14. Decisions required before their phases
 
-Completed Phases 0–3 are not blocked by these. The named future phase must not proceed past its design gate without the relevant decision:
+Completed Phases 0–4 are not blocked by these. The named future phase must not proceed past its design gate without the relevant decision:
 
 1. Confirm the first tenant’s exact display/legal name and public slug. The repository currently uses “Marta Banaszek / Atelier-Café”.
+    Marta Banaszek Atelier-Café its a brand name, legal name is  CENTRUM CONCEPT SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ so tenent can have both and leagale name is for invoicing.
 2. Confirm whether card prefixes must be globally unique across tenants and whether Marta keeps `MB` permanently. The recommended answer is yes to both.
-3. **Before Phase 4:** accept `loyalty_platform` as the replacement configuration package name. It is the recommended neutral name.
+    prefix must be unique across tanants.
+3. **Resolved in Phase 4:** `loyalty_platform` is the active replacement configuration package name; deprecated import shims remain for one verified release.
 4. **Before Phase 7:** define the first plan(s), PLN/EUR currency, tax display, billing interval, included active seats, included card issuances/prints, whether unused quota rolls over, per-card overage, 100-card pack price/expiry, shipping and cancellation/refund rules.
+
+    Default curency shold be PLN, display tax, biling interwall each month, later there isll be wirtual carts so wirtual cards will be free for subscribrion only printed will be payed. for phisicall cards add shiping price.
 5. **Before Phase 7 payment work:** choose an invoicing/payment provider and accounting ownership. No provider is assumed by this plan.
 6. **Before Phase 8:** provide the printer’s finished size, bleed, safe area, DPI, color profile, sheet/imposition, crop marks, duplex orientation, preferred file type and naming convention.
 7. **Before Phases 8–9:** confirm the allocation rule: preprinted card scanned at registration, digital-first then printed, or both.
 8. **Before Phase 8:** confirm that tenant users receive low-resolution proofs only and platform operators alone download production files; this is the recommended policy.
 9. **Before Phase 6 production onboarding:** obtain/verify Dotykačka partner `client_id`/`client_secret`, redirect URI and production access; define who can reconnect a tenant.
 10. **Before Phase 6 points support:** define source of truth for customer fields, discounts, points/balance, transactions and conflict resolution. Initial scope should remain customer upsert/reconciliation only.
+    source of truth shold be our database so if customer is syncronized with POS it shold get id grom a pos and sabe it to our database. also klient shold have status for each integration is that klient synchtonized or not.
 11. **Before Phase 6 Wallet production:** confirm centralized Apple Pass Type/Team and Google Wallet Issuer ownership; centralized MB Studio credentials are recommended.
 12. **Before Phase 8 Marta reconciliation:** identify which legacy `MB-1..600` cards were actually printed and delivered, the delivery date/reference to record, and whether one bulk event or smaller verified groups are needed.
-13. Decide whether one user may belong to multiple tenants in the first release. The current model supports it.
-14. Decide whether custom tenant domains are required initially or tenant slugs are sufficient.
+13. Decide whether one user may belong to multiple tenants in the first release. The current model supports it. yes for now usersc can have multiple cards and multiple tenant with same email but later there will be a function that one card can do acces to promotions on conected tenets if they have an agreement on that.
+14. Decide whether custom tenant domains are required initially or tenant slugs are sufficient. tenet shold be able to select a domain. also thaere shold be one page for all klients and all tenants to register, to which tenets asikng klient will be decide based on card prefix.
 15. Defer a physical `Klient` model/table rename until the modular extraction is stable; a code-facing `Customer` name is sufficient initially.
 
 ## 15. Recommended next implementation slice
 
-Start Phase 4 as a no-data-change slice:
+Start Phase 5 with behavior-only extraction:
 
-1. Capture the current app-label/table/content-type/permission/URL/command baseline in tests and a read-only report.
-2. Rename only the Django configuration package to `loyalty_platform`, update deployment references, and keep the allowed-host environment fallback.
-3. Create the destination app packages and architecture test without moving models or adding business schema.
-4. Run the full suite on a fresh database and the upgraded, backed-up Marta replica.
-5. Compare the aggregate report and migration plan; stop if any business row, table, content type, permission, URL, card asset or checksum changes unexpectedly.
+1. Move tenant context, membership authorization and tenant portal views/templates/tests to `tenants`, importing the existing `dotykacka` models temporarily.
+2. Move customer query/form services to `customers` and card-code/inventory services to `cards` without changing model labels or tables.
+3. Move design forms, views, templates and renderer services to `card_artwork`; keep the current management commands as compatibility adapters.
+4. Add no model move in the same release. Any new `CropPlan`, consent or external-identity schema must be additive and owned by its destination app.
+5. Run `verify_app_extraction --strict --expect-marta`, the upgraded/fresh migration checks, generator golden tests and the full suite after each bounded context.
 
-Only after that gate should Phase 5 move tenant/customer/card/artwork behavior. Existing model ownership and database tables stay in `dotykacka` during the first extraction release.
+The `dotykacka` app remains installed as the historical model/migration owner throughout this slice.
 
 ## 16. Documentation review basis
 

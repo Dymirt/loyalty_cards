@@ -27,14 +27,14 @@ RUN apt-get update \
         zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /var/www/turnkey_project
+WORKDIR /var/www/loyalty_platform
 
 COPY requirements-remote.txt /tmp/requirements-remote.txt
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
     && /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements-remote.txt
 
-# The TurnKey host exposes Django admin assets through this absolute symlink.
+# The legacy host exposes Django admin assets through this absolute symlink.
 # Recreate its target in the container using the pinned virtualenv installation.
 RUN mkdir -p /usr/lib/python3/dist-packages/django/contrib/admin/static \
     && ln -s /opt/venv/lib/python3.11/site-packages/django/contrib/admin/static/admin \

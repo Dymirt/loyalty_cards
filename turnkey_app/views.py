@@ -1,8 +1,7 @@
-from django.shortcuts import render
-from django import http
+from django.shortcuts import redirect
 
-# Create your views here.
+
 def index(request):
-    http_host = request.META['HTTP_HOST']
-    host = {'http_host': http_host}
-    return render(request, 'index.html', host)
+    """Keep the old URL while handing ownership to the marketing app."""
+
+    return redirect("marketing:home")

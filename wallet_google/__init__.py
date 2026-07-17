@@ -1,0 +1,1 @@
+"""Google Wallet domain app."""

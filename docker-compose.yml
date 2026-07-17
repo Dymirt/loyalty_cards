@@ -41,8 +41,8 @@ services:
     ports:
       - "127.0.0.1:${LOCAL_WEB_PORT:-8000}:80"
     volumes:
-      - ./:/var/www/turnkey_project
-      - ./local-data/media:/var/www/turnkey_project/media
+      - ./:/var/www/loyalty_platform
+      - ./local-data/media:/var/www/loyalty_platform/media
       - ./local-data/mypass_template:/source-mypass-template:ro
       - ./secrets:/source-secrets:ro
 

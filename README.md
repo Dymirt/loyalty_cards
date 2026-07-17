@@ -4,7 +4,7 @@ Django loyalty-card SaaS whose first tenant is Atelier-Café Marta Banaszek. The
 legacy live service is available at [club.mbstudio.online](https://club.mbstudio.online).
 
 This repository is a source-only snapshot of the complete application deployed
-from `/var/www/turnkey_project` on the TurnKey container. Production secrets,
+from `/var/www/loyalty_platform` on the legacy production container. Production secrets,
 customer data, generated cards, Wallet passes, virtual environments, databases,
 logs, and nested Git metadata are intentionally excluded.
 
@@ -34,7 +34,7 @@ Browser / mobile device
         |
 Cloudflare + HTTPS
         |
-Apache + mod_wsgi on TurnKey Linux
+Apache + mod_wsgi on Debian Linux
         |
 Django 5.2 application
         |
@@ -54,11 +54,13 @@ production deployment was changed while creating this repository.
 
 ```text
 .
-├── dotykacka/             Loyalty domain, integrations, views, and migrations
+├── loyalty_platform/      Active Django settings, root URLs, ASGI/WSGI, and test runner
+├── core/, tenants/, ...   Phase 4 destination apps and architecture safety rails
+├── dotykacka/             Legacy model/migration owner during behavior-first extraction
 │   └── google_wallet/     Google Wallet save-link generation
 ├── assets/css/            Tailwind source CSS
-├── turnkey_app/           Original TurnKey example application
-├── turnkey_project/       Django project settings and root URLs
+├── turnkey_app/           Deprecated `/turnkey/` redirect compatibility shim
+├── turnkey_project/       Deprecated import compatibility shim
 ├── templates/             Root landing-page templates
 ├── static/                Source fonts, CSS, JavaScript, and images
 ├── mypass_template/       Non-secret Apple Wallet artwork
@@ -102,7 +104,7 @@ Node is used only to compile/version static assets. It is not part of the Django
 production runtime. The compiled CSS and pinned vendor scripts are committed so
 the Apache container can run without Node. See `docs/phase-2-portal-shell.md`.
 
-## Mac replica of the TurnKey deployment
+## Mac replica of the deployed service
 
 For development against a local copy of the deployed database and media, use
 the Docker Compose environment. It mirrors Debian 12, Python 3.11, Django
@@ -141,7 +143,7 @@ deletes the local database copy, so confirm the target carefully.
 
 ## Production dependencies
 
-The TurnKey deployment uses MariaDB, so production also needs the MySQL client
+The production deployment uses MariaDB, so it also needs the MySQL client
 headers and driver:
 
 ```bash
@@ -149,7 +151,7 @@ python -m pip install -r requirements-production.txt
 ```
 
 The Apple Wallet generator calls the `openssl` and `zip` command-line tools.
-Apache must be configured to load `turnkey_project.wsgi` from the project
+Apache must be configured to load `loyalty_platform.wsgi` from the project
 virtual environment and to serve static/media paths with appropriate access
 controls.
 
@@ -168,9 +170,10 @@ Copy `.env.example` to `.env` and configure the platform-owned groups:
 | Apple Wallet | `APPLE_WALLET_PASS_TYPE_IDENTIFIER`, `APPLE_WALLET_TEAM_IDENTIFIER` |
 
 For production, use `DJANGO_DEBUG=False`, secure cookies, HTTPS redirect, the
-real public origin, and the MariaDB configuration. The TurnKey
+real public origin, and the MariaDB configuration. The legacy host’s
 `/var/lib/django/allowed_hosts` file is read automatically when present; its
-path can be overridden with `TURNKEY_ALLOWED_HOSTS_FILE`.
+path can be overridden with `LOYALTY_ALLOWED_HOSTS_FILE`.
+`TURNKEY_ALLOWED_HOSTS_FILE` remains a deprecated fallback for one release.
 
 Dotykačka cloud ID, discount group and authorization token; Brevo list ID, API
 key and default phone country; and Google Wallet issuer/class are tenant-owned
@@ -233,10 +236,15 @@ renders the token value.
 ```bash
 python manage.py check
 python manage.py makemigrations --check
+python manage.py verify_app_extraction --strict
 python manage.py test
 npm ci
 npm run build
 ```
+
+Use `--expect-marta` only on the protected first-tenant replica. See
+`docs/phase-4-project-extraction.md` for the no-data-change extraction contract,
+deployment rename, and rollback procedure.
 
 Tests use an isolated database, block unmocked network/SMTP calls, and cover the
 legacy behavior plus tenant migration, authorization, encryption, isolation,
@@ -267,28 +275,16 @@ existing artifacts are never overwritten. See `docs/phase-3-card-designs.md`.
   where they mutate state.
 - Rotate any production credential that has previously appeared in source,
   logs, shell output, or an older repository history.
-- Use a secret manager or root-readable environment file on TurnKey; never store
+- Use a secret manager or root-readable environment file on the host; never store
   live values in `.env.example`.
 - Back up MariaDB and runtime media separately and encrypt those backups.
 
 ## Modernization roadmap
 
-The recovered application works, but it needs a production-hardening phase:
-
-1. Add tests for registration, duplicate cards, Dotykačka failures, email, and
-   both Wallet integrations.
-2. Move email, CRM synchronization, and pass generation from daemon threads to
-   a durable job queue with retries and observability.
-3. Generate Apple passes on demand and store stable pass serial numbers.
-4. Manage Google Wallet classes/objects through a dedicated service layer and
-   support card updates.
-5. Add consent versioning, privacy retention rules, and customer deletion/data
-   export workflows.
-6. Replace print statements and PII-heavy CSV logs with structured, redacted
-   logging.
-7. Add Docker/TurnKey deployment automation, health checks, backups, and CI.
-8. Remove the unused TurnKey example app and legacy batch scripts after their
-   behavior is covered elsewhere.
+Phases 0–4 provide the test safety net, tenant/Marta backfill, HTMX/Tailwind
+portal, unified generators, and modular-project safety rails. The remaining
+domain extraction, provider, billing, printing, enrollment, marketing, and
+production-hardening sequence is maintained in `PLAN.md`.
 
 ## What belongs in Git
 

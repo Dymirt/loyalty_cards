@@ -1,0 +1,1 @@
+"""POS domain app."""

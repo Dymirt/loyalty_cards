@@ -1,0 +1,1 @@
+"""Dotykačka POS domain app."""

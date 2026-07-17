@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-cd /var/www/turnkey_project
+cd /var/www/loyalty_platform
 
 mkdir -p \
     media/logs \

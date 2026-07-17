@@ -68,7 +68,7 @@ camera API are available; users can always enter a code manually. The scanner:
 - does not send frames or decoded values to a third party;
 - does not prevent or delay ordinary form submission.
 
-The old TurnKey demonstration page and its legacy jQuery files are preserved for
+The old demonstration page and its legacy jQuery files are preserved for
 recovery compatibility at `/turnkey/`, but no active loyalty route references
 them. Bootstrap, jQuery, `@latest`, and external UI CDNs were removed from every
 active loyalty template.
