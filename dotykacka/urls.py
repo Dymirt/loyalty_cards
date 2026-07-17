@@ -26,6 +26,16 @@ urlpatterns = [
         name="integration_settings",
     ),
     path(
+        "c/<slug:tenant_slug>/settings/card-design",
+        views.card_design_settings,
+        name="card_design_settings",
+    ),
+    path(
+        "c/<slug:tenant_slug>/artifacts/<int:artifact_id>/download",
+        views.card_artifact_download,
+        name="card_artifact_download",
+    ),
+    path(
         "platform/print-center",
         views.platform_print_center,
         name="platform_print_center",

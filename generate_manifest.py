@@ -1,13 +1,11 @@
-import hashlib
-import json
-import os
+"""Compatibility wrapper around the shared Apple manifest implementation."""
 
-files = [f for f in os.listdir('.') if f not in ['manifest.json', 'signature', 'certificate.pem', 'key.pem', 'AppleWWDR.pem']]
-manifest = {}
+import sys
 
-for f in files:
-    with open(f, 'rb') as file:
-        manifest[f] = hashlib.sha1(file.read()).hexdigest()
+from dotykacka.services.apple_wallet import generate_manifest
 
-with open('manifest.json', 'w') as mf:
-    json.dump(manifest, mf, indent=4)
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: python generate_manifest.py PASS_DIRECTORY")
+    generate_manifest(sys.argv[1])

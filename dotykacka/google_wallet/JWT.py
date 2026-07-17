@@ -14,7 +14,9 @@ def get_wallet_url(
     *,
     issuer_id: str,
     class_suffix: str,
+    object_id: str = "",
     customer_image_url: str = "",
+    image_description: str = "Karta lojalnościowa",
 ) -> str:
     keyfile = Path(settings.GOOGLE_WALLET_SERVICE_ACCOUNT_FILE)
     if not keyfile.is_file():
@@ -39,7 +41,7 @@ def get_wallet_url(
     )
 
     class_id = f"{issuer_id}.{class_suffix}"
-    object_id = f"{issuer_id}.{customer_id}"
+    object_id = object_id or f"{issuer_id}.{customer_id}"
 
     loyalty_object = {
         "id": object_id,
@@ -59,7 +61,7 @@ def get_wallet_url(
             "contentDescription": {
                 "defaultValue": {
                     "language": "pl-PL",
-                    "value": "Twoja karta gościa Atelier-Café Marta Banaszek",
+                    "value": image_description,
                 }
             },
         }

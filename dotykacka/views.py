@@ -1,14 +1,16 @@
 """HTTP views for the legacy single-tenant loyalty application."""
 
 import logging
+import mimetypes
 from threading import Thread
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
-from django.http import HttpResponseForbidden
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
@@ -19,17 +21,37 @@ from dotykacka.brevo import send_contact_to_brevo
 from .card_codes import CardCodeError, card_number, parse_card_code
 from .forms import (
     BrevoIntegrationForm,
+    CardDesignForm,
     DotykackaIntegrationForm,
     GoogleWalletIntegrationForm,
     LoyaltyCustomerRegistrationForm,
+    TenantBrandForm,
     registration_form_data,
 )
-from .models import AuditEvent, IntegrationConnection, Klient, PhysicalCard, Tenant
+from .models import (
+    AuditEvent,
+    CardArtifact,
+    CardDesign,
+    IntegrationConnection,
+    Klient,
+    PhysicalCard,
+    Tenant,
+)
+from .services.card_designs import (
+    brand_snapshot_values,
+    design_snapshot_values,
+    generate_proof_artifacts,
+    publish_card_design,
+    render_card,
+    resolve_artifact_path,
+    spec_from_values,
+)
 from .services.notifications import send_pass_email
 from .services.registration import start_registration_followups
 from .services.wallets import generate_google_wallet_for_klient
 from .tenancy import (
     can_access_tenant,
+    can_manage_card_designs,
     can_manage_integrations,
     get_default_tenant,
     get_public_tenant,
@@ -138,6 +160,7 @@ def tenant_portal(request, tenant_slug):
             "tenant": tenant,
             "active_nav": "overview",
             "can_manage_integrations": can_manage_integrations(request.user, tenant),
+            "can_manage_card_designs": can_manage_card_designs(request.user, tenant),
             "customer_count": tenant.customers.count(),
             "available_card_count": tenant.physical_cards.filter(
                 status=PhysicalCard.Status.AVAILABLE,
@@ -149,6 +172,159 @@ def tenant_portal(request, tenant_slug):
             ).count(),
             "integration_statuses": integration_statuses,
         },
+    )
+
+
+def _card_design_context(tenant, brand_form, design_form, proof=None):
+    designs = CardDesign.objects.filter(tenant=tenant).select_related("brand_revision")
+    current_design = designs.first()
+    proof_artifacts = (
+        CardArtifact.objects.filter(
+            tenant=tenant,
+            design=current_design,
+            kind__in=(
+                CardArtifact.Kind.PROOF_FRONT,
+                CardArtifact.Kind.PROOF_BACK,
+                CardArtifact.Kind.MANIFEST,
+            ),
+        )[:12]
+        if current_design
+        else []
+    )
+    return {
+        "tenant": tenant,
+        "brand_form": brand_form,
+        "design_form": design_form,
+        "designs": designs,
+        "current_design": current_design,
+        "proof": proof,
+        "proof_artifacts": proof_artifacts,
+        "active_nav": "card_design",
+        "can_manage_integrations": True,
+        "can_manage_card_designs": True,
+    }
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def card_design_settings(request, tenant_slug):
+    tenant = get_object_or_404(
+        Tenant.objects.select_related("brand"),
+        slug=tenant_slug,
+        is_active=True,
+    )
+    if not can_manage_card_designs(request.user, tenant):
+        return HttpResponseForbidden("Nie masz uprawnień do projektu kart tej firmy.")
+
+    current_design = CardDesign.objects.filter(tenant=tenant).first()
+    if request.method == "GET":
+        brand_form = TenantBrandForm(instance=tenant.brand, prefix="brand")
+        design_form = CardDesignForm(
+            tenant=tenant,
+            current_design=current_design,
+            prefix="design",
+        )
+        return render(
+            request,
+            "dotykacka/card_design_settings.html",
+            _card_design_context(tenant, brand_form, design_form),
+        )
+
+    brand_form = TenantBrandForm(
+        request.POST,
+        instance=tenant.brand,
+        prefix="brand",
+    )
+    design_form = CardDesignForm(
+        request.POST,
+        request.FILES,
+        tenant=tenant,
+        current_design=current_design,
+        prefix="design",
+    )
+    proof = None
+    status = 400
+    if brand_form.is_valid() and design_form.is_valid():
+        design_values = design_snapshot_values(design_form.cleaned_data)
+        try:
+            spec = spec_from_values(
+                tenant=tenant,
+                values=design_values,
+                background_upload=design_form.cleaned_data.get("background_image"),
+                logo_upload=design_form.cleaned_data.get("logo_image"),
+                fallback_design=current_design,
+            )
+            rendered = render_card(spec, f"{tenant.card_prefix}-1")
+            proof = {
+                **rendered.data_urls(),
+                "checksum": spec.checksum,
+                "crop_box": rendered.crop_box,
+                "width_px": rendered.width_px,
+                "height_px": rendered.height_px,
+                "dpi": rendered.dpi,
+            }
+            status = 200
+            if request.POST.get("action") == "publish":
+                design = publish_card_design(
+                    tenant=tenant,
+                    actor=request.user,
+                    brand_values=brand_snapshot_values(brand_form.cleaned_data),
+                    design_values=design_values,
+                    background_upload=design_form.cleaned_data.get("background_image"),
+                    logo_upload=design_form.cleaned_data.get("logo_image"),
+                )
+                generate_proof_artifacts(design=design)
+                AuditEvent.objects.create(
+                    tenant=tenant,
+                    actor=request.user,
+                    action="card_design.published",
+                    object_type="CardDesign",
+                    object_id=str(design.pk),
+                    metadata={
+                        "version": design.version,
+                        "checksum": design.design_checksum,
+                    },
+                )
+                messages.success(request, f"Opublikowano projekt karty v{design.version}.")
+                target = reverse(
+                    "dotykacka:card_design_settings",
+                    kwargs={"tenant_slug": tenant.slug},
+                )
+                if request.headers.get("HX-Request") == "true":
+                    response = HttpResponse(status=204)
+                    response["HX-Redirect"] = target
+                    return response
+                return redirect(target)
+        except ValidationError as exc:
+            design_form.add_error(None, exc)
+            status = 400
+
+    context = _card_design_context(tenant, brand_form, design_form, proof)
+    if request.headers.get("HX-Request") == "true":
+        return render(
+            request,
+            "dotykacka/partials/card_design_proof.html",
+            context,
+            status=status,
+        )
+    return render(request, "dotykacka/card_design_settings.html", context, status=status)
+
+
+@login_required
+def card_artifact_download(request, tenant_slug, artifact_id):
+    tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
+    if not can_manage_card_designs(request.user, tenant):
+        return HttpResponseForbidden("Nie masz dostępu do plików tej firmy.")
+    artifact = get_object_or_404(CardArtifact, pk=artifact_id, tenant=tenant)
+    path = resolve_artifact_path(artifact)
+    if not path.is_file():
+        raise Http404("Plik artefaktu nie istnieje.")
+    content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    return FileResponse(
+        path.open("rb"),
+        as_attachment=True,
+        filename=path.name,
+        content_type=content_type,
     )
 
 

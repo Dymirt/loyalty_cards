@@ -1,10 +1,30 @@
 import re
+from pathlib import Path
+from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
 from .tenant_secrets import decrypt_credentials, encrypt_credentials
+
+
+def _card_design_asset_path(instance, filename, asset_kind):
+    extension = Path(filename).suffix.lower()
+    if extension not in {".jpg", ".jpeg", ".png", ".webp"}:
+        extension = ".bin"
+    return (
+        f"tenants/{instance.tenant.slug}/designs/v{instance.version:04d}/assets/"
+        f"{asset_kind}-{uuid4().hex}{extension}"
+    )
+
+
+def card_design_background_path(instance, filename):
+    return _card_design_asset_path(instance, filename, "background")
+
+
+def card_design_logo_path(instance, filename):
+    return _card_design_asset_path(instance, filename, "logo")
 
 
 class Tenant(models.Model):
@@ -70,6 +90,155 @@ class TenantBrand(models.Model):
     email_signature = models.CharField(max_length=240, blank=True)
     marketing_consent_text = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class ImmutableVersionMixin:
+    """Prevent published configuration and artifact records from being rewritten."""
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Published version records are immutable; create a new version.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Published version records cannot be deleted.")
+
+
+class TenantBrandRevision(ImmutableVersionMixin, models.Model):
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="brand_revisions",
+    )
+    version = models.PositiveIntegerField()
+    public_name = models.CharField(max_length=160)
+    tagline = models.CharField(max_length=240, blank=True)
+    address = models.TextField(blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    email = models.EmailField(blank=True)
+    website_url = models.URLField(blank=True)
+    email_subject = models.CharField(max_length=240, blank=True)
+    email_signature = models.CharField(max_length=240, blank=True)
+    marketing_consent_text = models.TextField(blank=True)
+    snapshot_checksum = models.CharField(max_length=64)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_brand_revisions",
+        blank=True,
+        null=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("tenant", "version"),
+                name="unique_tenant_brand_revision_version",
+            )
+        ]
+        ordering = ("-version",)
+
+    def __str__(self):
+        return f"{self.tenant} brand v{self.version}"
+
+
+class CardDesign(ImmutableVersionMixin, models.Model):
+    class CropMode(models.TextChoices):
+        CENTER = "center", "Center crop"
+        FOCAL = "focal", "Focal point"
+        DETERMINISTIC = "deterministic", "Deterministic variation"
+
+    class LayoutPreset(models.TextChoices):
+        MARTA_LEGACY = "marta_legacy", "Legacy logo and text"
+        CENTERED = "centered", "Centered logo and text"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="card_designs")
+    brand_revision = models.ForeignKey(
+        TenantBrandRevision,
+        on_delete=models.PROTECT,
+        related_name="card_designs",
+    )
+    version = models.PositiveIntegerField()
+    name = models.CharField(max_length=160)
+    background_source = models.ImageField(
+        upload_to=card_design_background_path,
+        max_length=500,
+        blank=True,
+    )
+    logo = models.ImageField(
+        upload_to=card_design_logo_path,
+        max_length=500,
+        blank=True,
+    )
+    layout_preset = models.CharField(
+        max_length=32,
+        choices=LayoutPreset.choices,
+        default=LayoutPreset.CENTERED,
+    )
+    crop_mode = models.CharField(
+        max_length=24,
+        choices=CropMode.choices,
+        default=CropMode.DETERMINISTIC,
+    )
+    focal_x = models.PositiveSmallIntegerField(default=50)
+    focal_y = models.PositiveSmallIntegerField(default=50)
+    width_px = models.PositiveIntegerField(default=1011)
+    height_px = models.PositiveIntegerField(default=638)
+    dpi = models.PositiveSmallIntegerField(default=300)
+    bleed_mm = models.DecimalField(max_digits=4, decimal_places=1, default=0)
+    logo_width_px = models.PositiveIntegerField(default=576)
+    front_text = models.CharField(max_length=240, blank=True)
+    back_text = models.TextField(blank=True)
+    foreground_color = models.CharField(max_length=7, default="#000000")
+    panel_color = models.CharField(max_length=7, default="#FFFFFF")
+    barcode_foreground_color = models.CharField(max_length=7, default="#000000")
+    barcode_background_color = models.CharField(max_length=7, default="#FFFFFF")
+    font_family = models.CharField(max_length=40, default="barlow")
+    design_checksum = models.CharField(max_length=64)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_card_designs",
+        blank=True,
+        null=True,
+    )
+    published_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("tenant", "version"),
+                name="unique_tenant_card_design_version",
+            ),
+            models.UniqueConstraint(
+                fields=("tenant", "design_checksum"),
+                name="unique_tenant_card_design_checksum",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(focal_x__lte=100, focal_y__lte=100),
+                name="card_design_focal_point_in_range",
+            ),
+        ]
+        ordering = ("-version",)
+
+    def clean(self):
+        errors = {}
+        for field_name in (
+            "foreground_color",
+            "panel_color",
+            "barcode_foreground_color",
+            "barcode_background_color",
+        ):
+            if not re.fullmatch(r"#[0-9A-Fa-f]{6}", getattr(self, field_name, "")):
+                errors[field_name] = "Use a six-digit hexadecimal color, for example #000000."
+        if self.brand_revision_id and self.brand_revision.tenant_id != self.tenant_id:
+            errors["brand_revision"] = "Brand revision must belong to the same tenant."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.tenant} card design v{self.version}"
 
 
 class IntegrationConnection(models.Model):
@@ -146,6 +315,13 @@ class CardBatch(models.Model):
         GENERATED = "generated", "Generated"
 
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="card_batches")
+    design = models.ForeignKey(
+        CardDesign,
+        on_delete=models.PROTECT,
+        related_name="batches",
+        blank=True,
+        null=True,
+    )
     name = models.CharField(max_length=160)
     card_prefix = models.CharField(max_length=10)
     start_number = models.PositiveIntegerField()
@@ -201,6 +377,109 @@ class PhysicalCard(models.Model):
                 name="unique_tenant_physical_card_number",
             )
         ]
+
+
+class CardArtifact(ImmutableVersionMixin, models.Model):
+    class Kind(models.TextChoices):
+        PROOF_FRONT = "proof_front", "Proof front"
+        PROOF_BACK = "proof_back", "Proof back"
+        CARD_FRONT = "card_front", "Card front"
+        CARD_BACK = "card_back", "Card back"
+        BARCODE = "barcode", "Barcode"
+        MANIFEST = "manifest", "Manifest"
+        APPLE_PASS = "apple_pass", "Apple Wallet pass"
+        GOOGLE_METADATA = "google_metadata", "Google Wallet metadata"
+
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="card_artifacts")
+    design = models.ForeignKey(CardDesign, on_delete=models.PROTECT, related_name="artifacts")
+    batch = models.ForeignKey(
+        CardBatch,
+        on_delete=models.PROTECT,
+        related_name="artifacts",
+        blank=True,
+        null=True,
+    )
+    physical_card = models.ForeignKey(
+        PhysicalCard,
+        on_delete=models.PROTECT,
+        related_name="artifacts",
+        blank=True,
+        null=True,
+    )
+    storage_key = models.UUIDField(default=uuid4, unique=True, editable=False)
+    kind = models.CharField(max_length=32, choices=Kind.choices)
+    storage_path = models.CharField(max_length=700)
+    sha256 = models.CharField(max_length=64)
+    size_bytes = models.PositiveBigIntegerField()
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def clean(self):
+        errors = {}
+        if self.design_id and self.design.tenant_id != self.tenant_id:
+            errors["design"] = "Design must belong to the artifact tenant."
+        if self.batch_id and self.batch.tenant_id != self.tenant_id:
+            errors["batch"] = "Batch must belong to the artifact tenant."
+        if self.physical_card_id and self.physical_card.tenant_id != self.tenant_id:
+            errors["physical_card"] = "Card must belong to the artifact tenant."
+        if errors:
+            raise ValidationError(errors)
+
+
+class WalletPass(models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="wallet_passes")
+    customer = models.OneToOneField(
+        Klient,
+        on_delete=models.PROTECT,
+        related_name="wallet_pass",
+    )
+    physical_card = models.OneToOneField(
+        PhysicalCard,
+        on_delete=models.PROTECT,
+        related_name="wallet_pass",
+        blank=True,
+        null=True,
+    )
+    apple_serial = models.UUIDField(default=uuid4, unique=True, editable=False)
+    google_object_id = models.CharField(
+        max_length=220,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+    google_save_url = models.CharField(max_length=10000, blank=True)
+    apple_pass_path = models.CharField(max_length=700, blank=True)
+    apple_pass_sha256 = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        errors = {}
+        if self.customer_id and self.customer.tenant_id != self.tenant_id:
+            errors["customer"] = "Customer must belong to the Wallet tenant."
+        if self.physical_card_id and self.physical_card.tenant_id != self.tenant_id:
+            errors["physical_card"] = "Card must belong to the Wallet tenant."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            previous = type(self).objects.get(pk=self.pk)
+            for field_name in ("tenant_id", "customer_id", "physical_card_id", "apple_serial"):
+                if getattr(previous, field_name) != getattr(self, field_name):
+                    raise ValidationError(f"Wallet identity field {field_name} is immutable.")
+            if (
+                previous.google_object_id
+                and self.google_object_id != previous.google_object_id
+            ):
+                raise ValidationError("Google Wallet object identity is immutable.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Wallet identity records cannot be deleted.")
 
 
 class AuditEvent(models.Model):

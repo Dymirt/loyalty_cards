@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
@@ -9,12 +10,14 @@ from dotykacka.services.wallets import (
     generate_google_wallet_for_klient,
 )
 
+from dotykacka.models import WalletPass
+
 from .base import configure_google_wallet, create_klient
 
 
 class WalletServiceTests(TestCase):
-    @patch("dotykacka.services.wallets.build_pass")
-    def test_existing_apple_pass_is_never_overwritten(self, build_pass):
+    @patch("dotykacka.services.wallets.build_apple_pass")
+    def test_existing_apple_pass_is_never_overwritten(self, build_apple_pass):
         with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
             klient = create_klient("MB-12")
             pass_path = Path(directory) / "output_passes" / "pass_12.pkpass"
@@ -23,16 +26,21 @@ class WalletServiceTests(TestCase):
 
             self.assertEqual(ensure_apple_wallet_pass(klient), pass_path)
             self.assertEqual(pass_path.read_bytes(), b"legacy-pass")
-            build_pass.assert_not_called()
+            build_apple_pass.assert_not_called()
 
-    @patch("dotykacka.services.wallets.build_pass")
-    def test_missing_apple_pass_is_generated_explicitly(self, build_pass):
+    @patch("dotykacka.services.wallets.update_wallet_apple_artifact")
+    @patch("dotykacka.services.wallets.build_apple_pass")
+    def test_missing_apple_pass_is_generated_explicitly(
+        self, build_apple_pass, update_wallet_apple_artifact
+    ):
         with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
             klient = create_klient("MB-12")
-            generated = Path(directory) / "output_passes" / "pass_12.pkpass"
-            build_pass.return_value = str(generated)
+            generated = Path(directory) / "generated" / "card.pkpass"
+            artifact = SimpleNamespace(storage_path="generated/card.pkpass", sha256="a" * 64)
+            build_apple_pass.return_value = (generated, artifact)
             self.assertEqual(ensure_apple_wallet_pass(klient), generated)
-            build_pass.assert_called_once_with(12)
+            build_apple_pass.assert_called_once()
+            update_wallet_apple_artifact.assert_called_once()
 
     @override_settings(APP_BASE_URL="https://club.example.test")
     @patch("dotykacka.services.wallets.get_wallet_url", return_value="https://wallet.test/save")
@@ -44,12 +52,17 @@ class WalletServiceTests(TestCase):
 
         self.assertEqual(result, "https://wallet.test/save")
         self.assertEqual(klient.google_jwt_url, result)
+        wallet = WalletPass.objects.get(customer=klient)
+        self.assertEqual(wallet.google_object_id, "issuer123.MB-12")
+        self.assertEqual(wallet.google_save_url, result)
         get_wallet_url.assert_called_once_with(
             name="Test Customer",
             customer_id="MB-12",
             issuer_id="issuer123",
             class_suffix="MB",
+            object_id="issuer123.MB-12",
             customer_image_url=(
                 "https://club.example.test/media/cropped_images/cropped_image_12.jpg"
             ),
+            image_description="Karta lojalnościowa Atelier-Café Marta Banaszek",
         )

@@ -23,6 +23,9 @@ logs, and nested Git metadata are intentionally excluded.
 - Encrypted per-tenant Dotykačka/Brevo credentials and tenant settings UI.
 - Shared accessible Django portal shell with separate client and platform navigation.
 - Locally served HTMX enhancements and compiled Tailwind CSS with ordinary HTML fallbacks.
+- Versioned tenant brand/card design settings with server-rendered proofs.
+- Deterministic physical-card artwork, immutable checksummed artifacts, and protected proof downloads.
+- Stable Apple Wallet serials and Google Wallet object identities per tenant customer.
 
 ## Runtime architecture
 
@@ -61,9 +64,9 @@ production deployment was changed while creating this repository.
 ├── mypass_template/       Non-secret Apple Wallet artwork
 ├── media/                 Runtime data; ignored except for .gitkeep
 ├── var/logs/              Runtime application logs; ignored
-├── add_logo.py            Loyalty-card artwork and barcode generator
-├── RandomImageCropper.py  Card background crop generator
-├── generate_pass.py       Legacy batch Apple Wallet pass generator
+├── add_logo.py            Compatibility entry point for the shared card command
+├── RandomImageCropper.py  Compatibility entry point for deterministic generation
+├── generate_pass.py       Compatibility entry point for the Wallet command
 ├── package.json           Pinned build-only frontend dependencies and asset commands
 └── manage.py              Django command entry point
 ```
@@ -212,6 +215,8 @@ must never be committed.
 | `GET` | `/accounts/login/` | Public | Client portal login |
 | `GET` | `/dotykacka/c/<tenant-slug>/portal` | Tenant member/platform superuser | Client dashboard |
 | `GET`, `POST` | `/dotykacka/c/<tenant-slug>/settings/integrations` | Tenant owner/platform superuser | Configure tenant integrations |
+| `GET`, `POST` | `/dotykacka/c/<tenant-slug>/settings/card-design` | Tenant owner/platform superuser | Generate proofs and publish immutable design versions |
+| `GET` | `/dotykacka/c/<tenant-slug>/artifacts/<id>/download` | Tenant owner/platform superuser | Protected proof/artifact download |
 | `GET` | `/dotykacka/platform/print-center` | Platform superuser | Centralized print-center shell and tenant inventory |
 | `GET` | `/admin/` | Staff | Django administration |
 | `GET` | `/dotykacka/customers` | Superuser | Customer and card operations |
@@ -235,7 +240,22 @@ npm run build
 
 Tests use an isolated database, block unmocked network/SMTP calls, and cover the
 legacy behavior plus tenant migration, authorization, encryption, isolation,
-portal fallbacks, and pinned static assets.
+portal fallbacks, pinned static assets, deterministic card output, immutable
+artifact retries, Wallet identity, and cross-tenant download denial.
+
+Safe bounded generator commands replace the former standalone loops:
+
+```bash
+python manage.py generate_card_artifacts \
+  --tenant marta-banaszek-atelier-cafe --start 1 --end 10 --dry-run
+python manage.py generate_wallet_passes \
+  --tenant marta-banaszek-atelier-cafe --start 1 --end 10 --wallet apple --dry-run
+python manage.py verify_card_design_backfill
+```
+
+Remove `--dry-run` only after reviewing the tenant, design version, selected
+codes, and count. Every run publishes to a new tenant/design/batch/run path;
+existing artifacts are never overwritten. See `docs/phase-3-card-designs.md`.
 
 ## Security and privacy
 

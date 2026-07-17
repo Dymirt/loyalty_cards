@@ -40,6 +40,12 @@ def can_manage_integrations(user, tenant: Tenant) -> bool:
     ).exists()
 
 
+def can_manage_card_designs(user, tenant: Tenant) -> bool:
+    """Published card settings are restricted to tenant owners and platform admins."""
+
+    return can_manage_integrations(user, tenant)
+
+
 def can_access_tenant(user, tenant: Tenant) -> bool:
     if not user.is_authenticated:
         return False

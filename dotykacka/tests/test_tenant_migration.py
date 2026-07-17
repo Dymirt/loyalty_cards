@@ -7,7 +7,7 @@ from django.test import TransactionTestCase, override_settings
 
 class MartaBackfillMigrationTests(TransactionTestCase):
     migrate_from = [("dotykacka", "0008_alter_klient_klient_id_unique")]
-    migrate_to = [("dotykacka", "0011_require_tenant_ownership")]
+    migrate_to = [("dotykacka", "0013_backfill_card_designs")]
 
     def setUp(self):
         super().setUp()
@@ -60,6 +60,9 @@ class MartaBackfillMigrationTests(TransactionTestCase):
         AccessToken = self.apps.get_model("dotykacka", "AccessToken")
         Klient = self.apps.get_model("dotykacka", "Klient")
         PhysicalCard = self.apps.get_model("dotykacka", "PhysicalCard")
+        CardDesign = self.apps.get_model("dotykacka", "CardDesign")
+        TenantBrandRevision = self.apps.get_model("dotykacka", "TenantBrandRevision")
+        WalletPass = self.apps.get_model("dotykacka", "WalletPass")
 
         tenant = Tenant.objects.get(slug="marta-banaszek-atelier-cafe")
         self.assertEqual(TenantMembership.objects.filter(tenant=tenant).count(), 1)
@@ -80,6 +83,15 @@ class MartaBackfillMigrationTests(TransactionTestCase):
         self.assertEqual(
             PhysicalCard.objects.get(code="MB-600").customer.klient_id,
             "MB-600",
+        )
+        design = CardDesign.objects.get(tenant=tenant, version=1)
+        self.assertEqual(design.background_source.name, "Marta Banaszek - Obraz II.jpg")
+        self.assertEqual(design.layout_preset, "marta_legacy")
+        self.assertEqual(TenantBrandRevision.objects.filter(tenant=tenant).count(), 1)
+        self.assertEqual(WalletPass.objects.filter(tenant=tenant).count(), 2)
+        self.assertEqual(
+            WalletPass.objects.get(customer__klient_id="MB-1").google_object_id,
+            "legacy-issuer.MB-1",
         )
 
         dotykacka = IntegrationConnection.objects.get(
