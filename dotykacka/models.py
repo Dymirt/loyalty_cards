@@ -9,7 +9,7 @@ class AccessToken(models.Model):
 		return self.created_at.strftime("%Y-%m-%d %H:%M:%S")
 
 class Klient (models.Model):
-	klient_id = models.CharField(max_length=60)
+	klient_id = models.CharField(max_length=60, unique=True)
 	email = models.EmailField(max_length=100, blank=True, null=True)
 	phone = models.CharField(max_length=20, blank=True, null=True)
 	first_name = models.CharField(max_length=100, blank=True, null=True)

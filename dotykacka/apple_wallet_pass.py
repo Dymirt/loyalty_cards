@@ -7,7 +7,7 @@ from uuid import uuid4
 from django.conf import settings
 
 BASE_DIR = os.getcwd()
-TEMPLATE_DIR = os.path.join(settings.MEDIA_ROOT, "mypass_template")
+TEMPLATE_DIR = str(settings.APPLE_WALLET_TEMPLATE_DIR)
 OUTPUT_DIR = os.path.join(settings.MEDIA_ROOT, "output_passes")
 CROPED_IMG_DIR = os.path.join(settings.MEDIA_ROOT, "cropped_images")
 

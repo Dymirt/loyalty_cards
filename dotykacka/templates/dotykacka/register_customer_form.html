@@ -96,7 +96,7 @@
 		}
 
 		#loading-overlay {
-			display: none !important;
+			display: none;
 			position: fixed;
 			top: 0;
 			left: 0;
@@ -104,7 +104,6 @@
 			height: 100%;
 			background-color: rgba(0, 0, 0, 0.5);
 			z-index: 9999;
-			display: flex;
 			justify-content: center;
 			align-items: center;
 		}
@@ -119,31 +118,44 @@
 
 		{% if error %}<p class="message error">❌ <strong>{{ error }}</strong></p>{% endif %}
 		{% if success %}<p id="successMessage" class="message success">✅ {{ success }}</p>{% endif %}
+		{% if form.non_field_errors %}
+			{% for error in form.non_field_errors %}<p class="message error">{{ error }}</p>{% endfor %}
+		{% endif %}
 
 		<form action="{% url 'dotykacka:register' %}" method="post">
 			<div class="row g-3">
 				<div class="col-md-6">
 					<label class="form-label" for="firstName">Imię:</label>
-					<input class="form-control" type="text" name="firstName" id="firstName" required>
+					<input class="form-control" type="text" name="first_name" id="firstName"
+						value="{{ form.first_name.value|default_if_none:'' }}" maxlength="100" required>
+					{% for error in form.first_name.errors %}<p class="message error">{{ error }}</p>{% endfor %}
 				</div>
 				<div class="col-md-6">
 					<label class="form-label" for="lastName">Nazwisko:</label>
-					<input class="form-control" type="text" name="lastName" id="lastName" required>
+					<input class="form-control" type="text" name="last_name" id="lastName"
+						value="{{ form.last_name.value|default_if_none:'' }}" maxlength="100" required>
+					{% for error in form.last_name.errors %}<p class="message error">{{ error }}</p>{% endfor %}
 				</div>
 				<div class="col-md-6">
 					<label class="form-label" for="email">E-mail:</label>
-					<input class="form-control" type="email" name="email" id="email" required>
+					<input class="form-control" type="email" name="email" id="email"
+						value="{{ form.email.value|default_if_none:'' }}" maxlength="100" required>
+					{% for error in form.email.errors %}<p class="message error">{{ error }}</p>{% endfor %}
 				</div>
 				<div class="col-md-6">
 					<label class="form-label" for="tel">Tel.:</label>
-					<input class="form-control" type="tel" name="tel" pattern="[1-9][0-9]{8}" id="tel" required>
+					<input class="form-control" type="tel" name="phone" pattern="[1-9][0-9]{8}" id="tel"
+						value="{{ form.phone.value|default_if_none:'' }}" required>
+					{% for error in form.phone.errors %}<p class="message error">{{ error }}</p>{% endfor %}
 				</div>
 				<div class="col-md-12">
 					<label class="form-label" for="barcode">Barcode:</label>
 					<div class="input-group">
-						<input class="form-control" type="text" name="barcode" id="barcode" required>
+						<input class="form-control" type="text" name="barcode" id="barcode"
+							value="{{ form.barcode.value|default_if_none:'' }}" maxlength="60" required>
 						<button type="button" class="btn btn-secondary" id="scan-barcode">Skanuj</button>
 					</div>
+					{% for error in form.barcode.errors %}<p class="message error">{{ error }}</p>{% endfor %}
 				</div>
 				<div id="camera_wrapper">
 					<div id="camera" class="d-none text-center position-relative">
@@ -159,11 +171,13 @@
 				</div>
 				<div class="col-12">
 					<div class="form-check">
-						<input class="form-check-input" type="checkbox" id="flexCheckDefault" required>
+						<input class="form-check-input" type="checkbox" name="marketing_consent" value="1"
+							id="flexCheckDefault" {% if form.marketing_consent.value %}checked{% endif %} required>
 						<label class="form-check-label" for="flexCheckDefault">
 							Wyrażam zgodę na kontakt i przesyłanie treści marketingowych dla firmy Centrum Concept Sp. z
 							o.o. Marta Banaszek Atelier-Cafe
 						</label>
+						{% for error in form.marketing_consent.errors %}<p class="message error">{{ error }}</p>{% endfor %}
 					</div>
 				</div>
 				<div class="col-12">
@@ -234,11 +248,14 @@
 
 				const result = await codeReader.decodeOnceFromStream(stream, videoElement);
 				if (result) {
-					const code = result.text;
+					const code = result.text.trim().toUpperCase();
 					barcodeField.value = code;
-					const decoded = code.replace('MB-', '');
-					previewImg.src = `/media/cards/card-${decoded}/MB-${decoded}_front.jpg`;
-					previewWrapper.classList.remove('d-none');
+					const match = /^MB-([1-9][0-9]{0,2})$/.exec(code);
+					if (match) {
+						const decoded = match[1];
+						previewImg.src = `/media/cards/card-${decoded}/MB-${decoded}_front.jpg`;
+						previewWrapper.classList.remove('d-none');
+					}
 					cameraDiv.classList.add('d-none');
 				}
 

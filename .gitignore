@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 secrets/
+local-data/
 *.key
 *.pem
 *.p12

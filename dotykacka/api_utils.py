@@ -84,3 +84,35 @@ def register_dotykacka_customer(barcode, first_name, last_name, email, phone):
     )
     response.raise_for_status()
     return response.json() if response.content else None
+
+
+def get_all_customers():
+    """Fetch and filter every customer from the configured Dotykačka cloud."""
+
+    access_token = get_valid_access_token()
+    url = f"https://api.dotykacka.cz/v2/clouds/{settings.DOTYKACKA_CLOUD_ID}/customers"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    customers = []
+    page = 1
+
+    while True:
+        response = requests.get(
+            url,
+            headers=headers,
+            params={"page": page},
+            timeout=settings.DOTYKACKA_HTTP_TIMEOUT,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        customers.extend(payload.get("data", []))
+
+        if str(page) == str(payload.get("lastPage", page)):
+            break
+        page += 1
+
+    target_group_id = str(settings.DOTYKACKA_DISCOUNT_GROUP_ID)
+    return [
+        customer
+        for customer in customers
+        if str(customer.get("_discountGroupId")) == target_group_id
+    ]

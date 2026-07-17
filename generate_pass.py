@@ -6,7 +6,10 @@ import subprocess
 from uuid import uuid4
 
 BASE_DIR = os.getcwd()
-TEMPLATE_DIR = os.path.join(BASE_DIR, 'mypass_template')
+TEMPLATE_DIR = os.environ.get(
+    'APPLE_WALLET_TEMPLATE_DIR',
+    os.path.join(BASE_DIR, 'mypass_template'),
+)
 OUTPUT_DIR = os.path.join(BASE_DIR, 'media/output_passes')
 CROPED_IMG_DIR = os.path.join(BASE_DIR, 'media/cropped_images')
 
@@ -53,9 +56,12 @@ def build_pass(i):
     serial = str(uuid4())
     pass_data = {
         "formatVersion": 1,
-        "passTypeIdentifier": "pass.club.mbstudio.online",
+        "passTypeIdentifier": os.environ.get(
+            "APPLE_WALLET_PASS_TYPE_IDENTIFIER",
+            "pass.club.mbstudio.online",
+        ),
         "serialNumber": serial,
-        "teamIdentifier": "W66MF62243",
+        "teamIdentifier": os.environ.get("APPLE_WALLET_TEAM_IDENTIFIER", "W66MF62243"),
         "organizationName": "",
         "description": "",
         "foregroundColor": "rgb(186, 186, 186)",

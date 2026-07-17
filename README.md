@@ -85,6 +85,43 @@ page is available at `http://localhost:8000/`; administration is at
 The external integrations remain disabled until their values are added to
 `.env`. Never copy production credentials into Git.
 
+## Mac replica of the TurnKey deployment
+
+For development against a local copy of the deployed database and media, use
+the Docker Compose environment. It mirrors Debian 12, Python 3.11, Django
+5.2.1, Apache/mod_wsgi, and MariaDB 10.11.11.
+
+The private local replica requires these ignored files copied from the server:
+
+```text
+.env
+local-data/database.sql.gz
+local-data/media/
+local-data/mypass_template/
+secrets/google-wallet-service-account.json
+```
+
+Start it with:
+
+```bash
+docker compose up --build -d
+docker compose ps
+```
+
+Open `http://localhost:8000/`. MariaDB is available to local database tools at
+`127.0.0.1:3307` with the application credentials from `.env`.
+
+The SQL dump is imported only when the `loyalty-cards_loyalty-db` volume is
+created for the first time. To import a fresh copy later, stop the stack and
+remove that named volume before starting again. Removing the volume permanently
+deletes the local database copy, so confirm the target carefully.
+
+> [!CAUTION]
+> The copied environment contains production integration credentials. Actions
+> performed locally can create real Dotykačka customers, change Brevo contacts,
+> generate live Wallet objects, and send real email. Do not use real customer
+> addresses for development tests unless that external effect is intentional.
+
 ## Production dependencies
 
 The TurnKey deployment uses MariaDB, so production also needs the MySQL client

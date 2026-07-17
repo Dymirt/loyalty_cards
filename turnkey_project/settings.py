@@ -119,6 +119,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+TEST_RUNNER = "turnkey_project.test_runner.NoExternalCallsDiscoverRunner"
 
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND",
@@ -158,6 +159,15 @@ GOOGLE_WALLET_ORIGINS = csv_setting("GOOGLE_WALLET_ORIGINS")
 
 APPLE_WALLET_PASS_TYPE_IDENTIFIER = config("APPLE_WALLET_PASS_TYPE_IDENTIFIER", default="")
 APPLE_WALLET_TEAM_IDENTIFIER = config("APPLE_WALLET_TEAM_IDENTIFIER", default="")
+apple_wallet_template_dir = Path(
+    config(
+        "APPLE_WALLET_TEMPLATE_DIR",
+        default=str(MEDIA_ROOT / "mypass_template"),
+    )
+)
+if not apple_wallet_template_dir.is_absolute():
+    apple_wallet_template_dir = BASE_DIR / apple_wallet_template_dir
+APPLE_WALLET_TEMPLATE_DIR = apple_wallet_template_dir
 
 APP_BASE_URL = config("APP_BASE_URL", default="http://localhost:8000").rstrip("/")
 

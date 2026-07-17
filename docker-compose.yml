@@ -1,0 +1,50 @@
+name: loyalty-cards
+
+services:
+  db:
+    image: mariadb:10.11.11
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - loyalty-db:/var/lib/mysql
+      - ./local-data/database.sql.gz:/docker-entrypoint-initdb.d/10-production.sql.gz:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      GOOGLE_WALLET_SERVICE_ACCOUNT_FILE: /run/loyalty-secrets/google-wallet-service-account.json
+      APPLE_WALLET_TEMPLATE_DIR: /run/loyalty-secrets/mypass_template
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${LOCAL_WEB_PORT:-8000}:80"
+    volumes:
+      - ./:/var/www/turnkey_project
+      - ./local-data/media:/var/www/turnkey_project/media
+      - ./local-data/mypass_template:/source-mypass-template:ro
+      - ./secrets:/source-secrets:ro
+
+volumes:
+  loyalty-db:

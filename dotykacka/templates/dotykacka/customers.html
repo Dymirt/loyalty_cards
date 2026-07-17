@@ -6,6 +6,7 @@
 </head>
 
 {% load static %}
+{% get_media_prefix as MEDIA_PREFIX %}
 
 <body>
 	<h1>Customers</h1>
@@ -47,11 +48,12 @@
 
 			{% if customer.barcode_decode %}
 			<td>
-				<img width='100px' src="media/cropped_images/cropped_image_{{ customer.barcode_decode }}.jpg">
+				<img width="100" src="{{ MEDIA_PREFIX }}cropped_images/cropped_image_{{ customer.barcode_decode }}.jpg"
+					alt="Podgląd karty {{ customer.barcode }}">
 			</td>
 			<td>
-				<a href="media/output_passes/pass_{{ customer.barcode_decode }}.pkpass" download>
-					Download Pass
+				<a href="{{ MEDIA_PREFIX }}output_passes/pass_{{ customer.barcode_decode }}.pkpass" download>
+					Download Pass</a>
 			</td>
 			<td>
 				<form action="{% url 'dotykacka:send_pass' customer.barcode %}" method="post">
