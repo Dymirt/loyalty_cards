@@ -12,6 +12,8 @@ from core.extraction_inventory import (
     LEGACY_COMMANDS,
     LEGACY_MODEL_TABLES,
     LEGACY_URL_NAMES,
+    EXTRACTED_MODEL_TABLES,
+    EXTRACTED_URL_NAMES,
     collect_extraction_inventory,
     structural_errors,
 )
@@ -27,17 +29,27 @@ class ExtractionInventoryTests(TestCase):
             LEGACY_MODEL_TABLES,
         )
         self.assertTrue(set(TARGET_APPS).issubset(inventory["installed_apps"]))
-        self.assertFalse(
-            any(
-                item["app_label"] in TARGET_APPS
+        self.assertEqual(
+            {
+                f"{item['app_label']}.{item['model']}"
                 for item in inventory["content_types"]
-            )
+                if item["app_label"] in TARGET_APPS
+            },
+            set(EXTRACTED_MODEL_TABLES),
         )
-        self.assertFalse(
-            any(
-                item["app_label"] in TARGET_APPS
+        self.assertEqual(
+            {
+                (item["app_label"], item["model"], item["codename"])
                 for item in inventory["permissions"]
-            )
+                if item["app_label"] in TARGET_APPS
+            },
+            {
+                (app_label, model, f"{action}_{model}")
+                for app_label, model in (
+                    label.split(".", 1) for label in EXTRACTED_MODEL_TABLES
+                )
+                for action in ("add", "change", "delete", "view")
+            },
         )
         self.assertTrue(
             LEGACY_COMMANDS.issubset(
@@ -46,6 +58,11 @@ class ExtractionInventoryTests(TestCase):
         )
         self.assertTrue(
             LEGACY_URL_NAMES.issubset(
+                {item["name"] for item in inventory["urls"]}
+            )
+        )
+        self.assertTrue(
+            EXTRACTED_URL_NAMES.issubset(
                 {item["name"] for item in inventory["urls"]}
             )
         )

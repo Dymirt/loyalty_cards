@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Połączenia systemowe · Loyalty Studio{% endblock %}
+
+{% block content %}
+<div id="system-connections-content">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Panel administratora</p>
+            <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Połączenia systemowe</h1>
+            <p class="mt-2 max-w-3xl text-ink-700">Bezpieczne testy infrastruktury platformy oraz aktywnych połączeń firm. Wyniki nie pokazują kluczy, tokenów ani haseł.</p>
+        </div>
+        <form method="post"
+              action="{% url 'integrations:test_system_connection' 'all' %}"
+              hx-post="{% url 'integrations:test_system_connection' 'all' %}"
+              hx-target="#system-connections-content"
+              hx-select="#system-connections-content"
+              hx-swap="outerHTML"
+              hx-disabled-elt="find button">
+            {% csrf_token %}
+            <button type="submit" class="portal-button">Testuj wszystkie</button>
+        </form>
+    </div>
+
+    <div class="mt-8 grid gap-5 lg:grid-cols-2">
+        {% for check in checks %}
+            <section class="portal-card" aria-labelledby="{{ check.spec.key }}-title">
+                <h2 id="{{ check.spec.key }}-title" class="text-xl font-bold">{{ check.spec.title }}</h2>
+                <p class="mt-1 text-sm leading-6 text-ink-700">{{ check.spec.description }}</p>
+                <div id="{{ check.spec.key }}-status" class="mt-4" aria-live="polite">
+                    {% include "integrations/partials/system_check_status.html" with result=check.result %}
+                </div>
+                <form method="post"
+                      action="{% url 'integrations:test_system_connection' check.spec.key %}"
+                      class="mt-5"
+                      hx-post="{% url 'integrations:test_system_connection' check.spec.key %}"
+                      hx-target="#{{ check.spec.key }}-status"
+                      hx-swap="innerHTML"
+                      hx-disabled-elt="find button">
+                    {% csrf_token %}
+                    <button type="submit" class="portal-button-secondary">Testuj połączenie</button>
+                </form>
+            </section>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

@@ -34,7 +34,7 @@ class DotykackaApiTests(TestCase):
             "https://api.dotykacka.cz/v2/signin/token",
             json={"_cloudId": 123},
             headers={
-                "Authorization": "authorization-token",
+                "Authorization": "User authorization-token",
                 "Content-Type": "application/json",
             },
             timeout=7,

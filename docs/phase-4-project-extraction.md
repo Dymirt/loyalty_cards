@@ -2,6 +2,11 @@
 
 Completed: 2026-07-17
 
+Historical note: Phase 5 subsequently added three final-owner models and moved
+the first behavior slices. The current frozen contract and counts are in
+`docs/phase-5-domain-extraction.md`; the results below remain the Phase 4
+pre-extraction baseline.
+
 Phase 4 changes Python/Django ownership boundaries only. It does not move a
 model, rename a table, alter a row, regenerate an asset, or add a migration.
 

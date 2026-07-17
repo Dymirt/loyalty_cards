@@ -16,7 +16,7 @@ class RegistrationViewTests(TestCase):
         self.assertContains(response, 'name="marketing_consent"')
         self.assertContains(response, 'name="first_name"')
 
-    @patch("dotykacka.views.start_registration_followups")
+    @patch("enrollment.views.start_registration_followups")
     def test_valid_registration_persists_customer_and_starts_workflow(self, start_workflow):
         response = self.client.post(reverse("dotykacka:register"), REGISTRATION_DATA)
         self.assertRedirects(response, reverse("index"))
@@ -25,7 +25,7 @@ class RegistrationViewTests(TestCase):
         self.assertEqual(klient.phone, "501234567")
         start_workflow.assert_called_once_with(klient.pk)
 
-    @patch("dotykacka.views.start_registration_followups")
+    @patch("enrollment.views.start_registration_followups")
     def test_invalid_registration_has_no_side_effects(self, start_workflow):
         response = self.client.post(
             reverse("dotykacka:register"),
@@ -40,8 +40,8 @@ class RegistrationViewTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             create_klient("MB-12", email="other@example.test")
 
-    @patch("dotykacka.views.start_registration_followups")
-    @patch("dotykacka.views.Klient.objects.create", side_effect=IntegrityError)
+    @patch("enrollment.views.start_registration_followups")
+    @patch("customers.services.Customer.objects.create", side_effect=IntegrityError)
     def test_integrity_error_is_returned_as_duplicate_conflict(self, create, start_workflow):
         response = self.client.post(reverse("dotykacka:register"), REGISTRATION_DATA)
         self.assertEqual(response.status_code, 409)

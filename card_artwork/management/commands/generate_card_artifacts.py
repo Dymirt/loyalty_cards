@@ -1,11 +1,14 @@
-"""Safely generate immutable physical-card artifacts through the shared service."""
+"""Generate immutable card artifacts through the card-artwork service."""
 
 import json
 
 from django.core.management.base import BaseCommand, CommandError
 
-from dotykacka.models import CardDesign, PhysicalCard, Tenant
-from dotykacka.services.card_designs import generate_card_artifacts
+from cards.models import PhysicalCard
+from tenants.models import Tenant
+
+from card_artwork.models import CardDesign
+from card_artwork.services import generate_card_artifacts
 
 
 class Command(BaseCommand):
@@ -31,7 +34,6 @@ class Command(BaseCommand):
         design = designs.first()
         if design is None:
             raise CommandError("Published tenant design does not exist.")
-
         cards = PhysicalCard.objects.filter(tenant=tenant).select_related("batch")
         card_codes = options.get("card_codes") or []
         start = options.get("start")
@@ -53,7 +55,6 @@ class Command(BaseCommand):
             raise CommandError("Selection exceeds --max-cards.")
         if card_codes and len(cards) != len(set(card_codes)):
             raise CommandError("One or more selected card codes do not belong to the tenant.")
-
         result = {
             "status": "planned" if options["dry_run"] else "generated",
             "tenant": tenant.slug,

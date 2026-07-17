@@ -1,0 +1,27 @@
+<article class="portal-card" aria-labelledby="quote-{{ quote.pk }}-title">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h3 id="quote-{{ quote.pk }}-title" class="font-bold">Kalkulacja #{{ quote.pk }} · {{ quote.quantity }} kart</h3>
+            <p class="mt-1 text-sm text-ink-700">Cennik {{ quote.price_book_version.price_book.name }} v{{ quote.price_book_version.version }}</p>
+        </div>
+        <span class="portal-status {% if quote.status == 'accepted' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">{{ quote.get_status_display }}</span>
+    </div>
+    <dl class="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        <div><dt class="text-ink-600">W planie</dt><dd class="font-bold tabular-nums">{{ quote.included_quantity }}</dd></div>
+        <div><dt class="text-ink-600">Z pakietów</dt><dd class="font-bold tabular-nums">{{ quote.pack_quantity }}</dd></div>
+        <div><dt class="text-ink-600">Płatne</dt><dd class="font-bold tabular-nums">{{ quote.billable_quantity }}</dd></div>
+        <div><dt class="text-ink-600">Razem</dt><dd class="font-bold tabular-nums">{{ quote.total_amount }} {{ quote.currency }}</dd></div>
+    </dl>
+    <details class="mt-4 text-sm">
+        <summary class="cursor-pointer font-semibold">Pokaż kalkulację</summary>
+        <ul class="mt-3 divide-y divide-stone-200">
+            {% for line in quote.lines.all %}<li class="flex justify-between gap-4 py-2"><span>{{ line.description }} · {{ line.quantity }}</span><span class="font-semibold tabular-nums">{{ line.total_amount }} {{ quote.currency }}</span></li>{% endfor %}
+        </ul>
+    </details>
+    {% if quote.status == 'draft' %}
+        <form method="post" action="{% url 'billing:accept_quote' tenant.slug quote.pk %}" class="mt-4">
+            {% csrf_token %}
+            <button type="submit" class="portal-button">Akceptuję zamrożoną kalkulację</button>
+        </form>
+    {% endif %}
+</article>

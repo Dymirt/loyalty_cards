@@ -17,13 +17,10 @@ class NoExternalCallsDiscoverRunner(DiscoverRunner):
         super().setup_test_environment(**kwargs)
         self._email_override = override_settings(
             EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-            DOTYKACKA_AUTHORIZATION_TOKEN="",
             DOTYKACKA_CLOUD_ID=0,
             DOTYKACKA_DISCOUNT_GROUP_ID=0,
             BREVO_API_KEY="",
             BREVO_LIST_ID=0,
-            GOOGLE_WALLET_ISSUER_ID="",
-            GOOGLE_WALLET_CLASS_SUFFIX="MB",
         )
         self._email_override.enable()
         self._external_patchers = [

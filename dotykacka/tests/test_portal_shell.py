@@ -112,10 +112,21 @@ class PortalShellViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'hx-post="', count=3)
+        self.assertContains(response, 'hx-post="', count=4)
         self.assertContains(response, 'hx-select="#integration-settings-content"', count=3)
-        self.assertContains(response, 'method="post"', count=4)
-        self.assertContains(response, "Formularze nadal działają jako zwykłe formularze Django")
+        self.assertContains(response, 'method="post"', count=6)
+        self.assertContains(
+            response,
+            reverse("pos_dotykacka:connect", args=[self.tenant.slug]),
+        )
+        self.assertContains(response, "autoryzujesz bezpośrednio u dostawcy")
+        self.assertNotContains(
+            response,
+            reverse(
+                "integrations:test",
+                args=[self.tenant.slug, "google_wallet"],
+            ),
+        )
         self.assertNotContains(response, "authorization-token")
 
     def test_print_center_is_platform_only_and_separate_from_client_navigation(self):

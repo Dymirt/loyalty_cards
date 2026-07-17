@@ -1,5 +1,9 @@
-"""Reserved namespaced URLs for the cards domain."""
+from django.urls import path
+
+from . import views
 
 
 app_name = "cards"
-urlpatterns = []
+urlpatterns = [
+    path("platform/print-center", views.platform_print_center, name="platform_print_center"),
+]

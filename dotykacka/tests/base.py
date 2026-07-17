@@ -103,7 +103,10 @@ def configure_dotykacka(tenant=None):
         tenant,
         IntegrationConnection.Provider.DOTYKACKA,
         configuration={"cloud_id": 123, "discount_group_id": 456},
-        secrets={"authorization_token": "authorization-token"},
+        secrets={
+            "authorization_token": "authorization-token",
+            "refresh_token": "authorization-token",
+        },
     )
 
 

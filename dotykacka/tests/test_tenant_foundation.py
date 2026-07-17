@@ -93,7 +93,7 @@ class MartaTenantBaselineTests(TestCase):
 
 
 class TenantRegistrationIsolationTests(TestCase):
-    @patch("dotykacka.views.start_registration_followups")
+    @patch("enrollment.views.start_registration_followups")
     @override_settings(APP_BASE_URL="https://club.example.test")
     def test_tenant_route_assigns_only_that_tenants_card(self, start_followups):
         second = create_tenant()
@@ -146,11 +146,11 @@ class IntegrationSettingsSecurityTests(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Token: skonfigurowany")
+        self.assertNotContains(response, "Autoryzacja Connector")
         self.assertNotContains(response, "authorization-token")
         self.assertNotIn("authorization-token", connection.credentials_encrypted)
 
-    def test_blank_secret_retains_encrypted_value_and_audits_update(self):
+    def test_settings_retain_secrets_and_cannot_change_connected_cloud(self):
         key = Fernet.generate_key().decode("ascii")
         with override_settings(TENANT_SECRETS_ENCRYPTION_KEYS=[key]):
             connection = configure_dotykacka(self.tenant)
@@ -170,8 +170,9 @@ class IntegrationSettingsSecurityTests(TestCase):
 
             self.assertRedirects(response, self.url)
             connection.refresh_from_db()
-            self.assertEqual(connection.configuration["cloud_id"], 987)
+            self.assertEqual(connection.configuration["cloud_id"], 123)
             self.assertEqual(connection.get_secret("authorization_token"), "authorization-token")
+            self.assertEqual(connection.get_secret("refresh_token"), "authorization-token")
             self.assertTrue(connection.credentials_encrypted.startswith("fernet:v1:"))
             self.assertNotIn("authorization-token", connection.credentials_encrypted)
             self.assertTrue(encrypted_before.startswith("fernet:v1:"))

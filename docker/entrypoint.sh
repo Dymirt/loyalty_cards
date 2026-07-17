@@ -25,8 +25,10 @@ find /source-mypass-template -maxdepth 1 -type f -exec \
     install -m 0600 -o www-data -g www-data {} \
     /run/loyalty-secrets/mypass_template/ \;
 
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput --verbosity 0
-python manage.py check
+if [ "${LOYALTY_SKIP_STARTUP_MIGRATIONS:-false}" != "true" ]; then
+    python manage.py migrate --noinput
+    python manage.py collectstatic --noinput --verbosity 0
+    python manage.py check
+fi
 
 exec "$@"

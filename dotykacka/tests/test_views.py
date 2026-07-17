@@ -16,32 +16,19 @@ class AdministrativeViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith("/admin/login/"))
 
-    @patch("dotykacka.views.dotykacka_api.get_all_customers")
-    def test_customer_list_renders_valid_card_preview(self, get_customers):
+    def test_customer_list_renders_valid_card_preview(self):
         self.client.force_login(self.superuser)
-        get_customers.return_value = [
-            {
-                "firstName": "Test",
-                "lastName": "Customer",
-                "barcode": "MB-12",
-            }
-        ]
+        create_klient("MB-12")
         response = self.client.get(reverse("dotykacka:customers"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "cropped_image_12.jpg")
         self.assertContains(response, "/media/output_passes/pass_12.pkpass")
 
-    @patch(
-        "dotykacka.views.dotykacka_api.get_all_customers",
-        side_effect=RuntimeError("provider unavailable"),
-    )
-    def test_customer_list_handles_provider_failure_without_details(self, get_customers):
+    def test_customer_list_does_not_require_provider_availability(self):
         self.client.force_login(self.superuser)
-        with self.assertLogs("dotykacka.views", level="WARNING"):
-            response = self.client.get(reverse("dotykacka:customers"))
+        response = self.client.get(reverse("dotykacka:customers"))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Nie udało się pobrać")
-        self.assertNotContains(response, "provider unavailable")
+        self.assertNotContains(response, "Nie udało się pobrać")
 
     def test_mutating_admin_routes_reject_get(self):
         self.client.force_login(self.superuser)

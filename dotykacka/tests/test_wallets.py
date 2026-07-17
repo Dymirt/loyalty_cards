@@ -42,7 +42,10 @@ class WalletServiceTests(TestCase):
             build_apple_pass.assert_called_once()
             update_wallet_apple_artifact.assert_called_once()
 
-    @override_settings(APP_BASE_URL="https://club.example.test")
+    @override_settings(
+        APP_BASE_URL="https://club.example.test",
+        GOOGLE_WALLET_ISSUER_ID="3388000000022973962",
+    )
     @patch("dotykacka.services.wallets.get_wallet_url", return_value="https://wallet.test/save")
     def test_google_wallet_url_is_generated_and_saved(self, get_wallet_url):
         klient = create_klient("MB-12", google_jwt_url="")
@@ -53,14 +56,14 @@ class WalletServiceTests(TestCase):
         self.assertEqual(result, "https://wallet.test/save")
         self.assertEqual(klient.google_jwt_url, result)
         wallet = WalletPass.objects.get(customer=klient)
-        self.assertEqual(wallet.google_object_id, "issuer123.MB-12")
+        self.assertEqual(wallet.google_object_id, "3388000000022973962.MB-12")
         self.assertEqual(wallet.google_save_url, result)
         get_wallet_url.assert_called_once_with(
             name="Test Customer",
             customer_id="MB-12",
-            issuer_id="issuer123",
+            issuer_id="3388000000022973962",
             class_suffix="MB",
-            object_id="issuer123.MB-12",
+            object_id="3388000000022973962.MB-12",
             customer_image_url=(
                 "https://club.example.test/media/cropped_images/cropped_image_12.jpg"
             ),

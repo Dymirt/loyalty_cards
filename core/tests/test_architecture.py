@@ -4,13 +4,42 @@ from pathlib import Path
 from django.apps import apps
 from django.conf import settings
 from django.test import SimpleTestCase
-from django.urls import reverse
+from django.urls import resolve, reverse
 
 from core.architecture import TARGET_APPS, forbidden_imports
 from loyalty_platform.configuration import config_with_legacy_alias
 
 
-class PhaseFourArchitectureTests(SimpleTestCase):
+EXTRACTED_MODELS = {
+    "billing": {
+        "billing.billingperiod",
+        "billing.cardpack",
+        "billing.cardpackallocation",
+        "billing.cardpricetier",
+        "billing.entitlementpolicy",
+        "billing.plan",
+        "billing.planversion",
+        "billing.pricebook",
+        "billing.pricebookversion",
+        "billing.quote",
+        "billing.quoteline",
+        "billing.tenantsubscription",
+        "billing.usageevent",
+    },
+    "customers": {
+        "customers.customerexternalidentity",
+        "customers.consentrecord",
+    },
+    "card_artwork": {"card_artwork.cropplan"},
+    "integrations": {"integrations.integrationjob"},
+    "pos_dotykacka": {
+        "pos_dotykacka.dotykackaconnectstate",
+        "pos_dotykacka.dotykackaaccesstoken",
+    },
+}
+
+
+class ExtractedArchitectureTests(SimpleTestCase):
     def test_active_project_package_is_loyalty_platform(self):
         self.assertEqual(settings.ROOT_URLCONF, "loyalty_platform.urls")
         self.assertEqual(
@@ -46,7 +75,7 @@ class PhaseFourArchitectureTests(SimpleTestCase):
         self.assertIs(legacy_asgi.application, active_asgi.application)
         self.assertIs(legacy_wsgi.application, active_wsgi.application)
 
-    def test_destination_apps_are_installed_namespaced_and_model_free(self):
+    def test_destination_apps_are_installed_namespaced_with_only_planned_models(self):
         for app_name in TARGET_APPS:
             with self.subTest(app=app_name):
                 app_config = apps.get_app_config(app_name)
@@ -54,7 +83,10 @@ class PhaseFourArchitectureTests(SimpleTestCase):
                 urlconf = importlib.import_module(f"{app_name}.urls")
                 self.assertEqual(urlconf.app_name, app_name)
                 self.assertIsInstance(urlconf.urlpatterns, list)
-                self.assertEqual(list(app_config.get_models()), [])
+                self.assertEqual(
+                    {model._meta.label_lower for model in app_config.get_models()},
+                    EXTRACTED_MODELS.get(app_name, set()),
+                )
 
     def test_new_apps_obey_declared_dependency_direction(self):
         violations = forbidden_imports(Path(settings.BASE_DIR))
@@ -99,3 +131,30 @@ class PhaseFourArchitectureTests(SimpleTestCase):
             reverse("marketing:home"),
             fetch_redirect_response=False,
         )
+
+    def test_legacy_domain_imports_point_to_extracted_owners(self):
+        legacy_codes = importlib.import_module("dotykacka.card_codes")
+        codes = importlib.import_module("cards.codes")
+        legacy_tenancy = importlib.import_module("dotykacka.tenancy")
+        authorization = importlib.import_module("tenants.authorization")
+        legacy_artwork = importlib.import_module("dotykacka.services.card_designs")
+        artwork = importlib.import_module("card_artwork.services")
+        legacy_views = importlib.import_module("dotykacka.views")
+
+        self.assertIs(legacy_codes.parse_card_code, codes.parse_card_code)
+        self.assertIs(legacy_tenancy.get_public_tenant, authorization.get_public_tenant)
+        self.assertIs(legacy_artwork.render_card, artwork.render_card)
+        self.assertEqual(legacy_views.tenant_portal.__module__, "tenants.views")
+        self.assertEqual(legacy_views.card_design_settings.__module__, "card_artwork.views")
+
+    def test_canonical_and_legacy_urls_use_extracted_views(self):
+        routes = (
+            ("/dotykacka/c/example/portal", "tenants.views"),
+            ("/dotykacka/customers", "customers.views"),
+            ("/dotykacka/platform/print-center", "cards.views"),
+            ("/dotykacka/c/example/settings/card-design", "card_artwork.views"),
+            ("/dotykacka/register", "enrollment.views"),
+        )
+        for path, module in routes:
+            with self.subTest(path=path):
+                self.assertEqual(resolve(path).func.__module__, module)

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Plan i rozliczenia · {{ tenant.name }}{% endblock %}
+{% block content %}
+{% include "tenants/partials/nav.html" %}
+<div>
+    <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Plan i rozliczenia</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight">{{ tenant.brand.public_name|default:tenant.name }}</h1>
+    <p class="mt-2 max-w-3xl text-ink-700">Bieżący plan, wykorzystanie i kalkulacje fizycznych kart. Cenniki są publikowane wyłącznie przez operatora platformy.</p>
+</div>
+
+{% if subscription %}
+<section class="mt-8 grid gap-4 md:grid-cols-3" aria-label="Bieżąca subskrypcja">
+    <article class="portal-card"><p class="text-sm text-ink-600">Plan</p><p class="mt-2 text-xl font-bold">{{ subscription.plan_version.plan.name }} v{{ subscription.plan_version.version }}</p><p class="mt-1 text-sm">{{ subscription.plan_version.recurring_amount }} {{ subscription.plan_version.currency }} / {{ subscription.plan_version.get_billing_interval_display }}</p></article>
+    <article class="portal-card"><p class="text-sm text-ink-600">Aktywne miejsca</p><p class="mt-2 text-4xl font-bold tabular-nums">{{ active_seats }}{% if policy.active_seat_limit %} / {{ policy.active_seat_limit }}{% endif %}</p></article>
+    <article class="portal-card"><p class="text-sm text-ink-600">Okres</p><p class="mt-2 font-bold">{{ period.starts_at|date:"d.m.Y" }}–{{ period.ends_at|date:"d.m.Y" }}</p><p class="mt-1 text-sm">Wydane karty: {{ usage.physical_card_issued|default:0 }} · Wyprodukowane: {{ usage.physical_card_produced|default:0 }}</p></article>
+</section>
+
+<section class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+    <div class="portal-card">
+        <h2 class="text-xl font-bold">Kalkulacja druku</h2>
+        <p class="mt-1 text-sm text-ink-700">System rozliczy kolejno limit planu, ważne pakiety, próg ceny, wysyłkę i podatek.</p>
+        <form method="post" action="{% url 'billing:create_quote' tenant.slug %}" hx-post="{% url 'billing:create_quote' tenant.slug %}" hx-target="#quote-result" hx-swap="innerHTML" class="mt-5">
+            {% csrf_token %}
+            {% include "billing/partials/form_fields.html" with form=quote_form %}
+            <button type="submit" class="portal-button">Pokaż cenę przed akceptacją</button>
+        </form>
+    </div>
+    <div id="quote-result" aria-live="polite"></div>
+</section>
+{% else %}
+<section class="portal-card mt-8 border-amber-200 bg-amber-50">
+    <h2 class="text-xl font-bold text-amber-950">Tryb zgodności bez zarządzanej subskrypcji</h2>
+    <p class="mt-2 text-amber-900">Dotychczasowe dane i rejestracja działają bez zmian. Operator platformy musi przypisać opublikowany plan przed utworzeniem kalkulacji druku. Historyczne karty nie są automatycznie doliczane.</p>
+</section>
+{% endif %}
+
+<section class="mt-10">
+    <h2 class="text-2xl font-bold">Ostatnie kalkulacje</h2>
+    <div class="mt-4 grid gap-4">
+        {% for quote in quotes %}{% include "billing/partials/quote_card.html" %}{% empty %}<p class="text-ink-700">Nie ma jeszcze kalkulacji.</p>{% endfor %}
+    </div>
+</section>
+{% endblock %}

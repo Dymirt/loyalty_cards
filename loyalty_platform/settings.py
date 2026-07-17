@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Existing model/table owner. It remains installed throughout extraction.
     "dotykacka.apps.DotykackaConfig",
-    # Phase 4 destination apps contain no business models yet.
+    # Phase 5 adds only final-owner additive models; legacy tables stay above.
     "core.apps.CoreConfig",
     "tenants.apps.TenantsConfig",
     "customers.apps.CustomersConfig",
@@ -159,15 +159,33 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "webmaster@localhost")
 EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=15, cast=int)
 
-# Legacy first-tenant import settings. Runtime tenant configuration is database-owned.
-DOTYKACKA_AUTHORIZATION_TOKEN = config("DOTYKACKA_AUTHORIZATION_TOKEN", default="")
+# Legacy first-tenant import aliases. Runtime tenant configuration is database-owned;
+# these values are read only by historical migrations/verification.
 DOTYKACKA_CLOUD_ID = config("DOTYKACKA_CLOUD_ID", default=0, cast=int)
 DOTYKACKA_DISCOUNT_GROUP_ID = config("DOTYKACKA_DISCOUNT_GROUP_ID", default=0, cast=int)
 DOTYKACKA_HTTP_TIMEOUT = config("DOTYKACKA_HTTP_TIMEOUT", default=15, cast=int)
+DOTYKACKA_CONNECTOR_CLIENT_ID = config("DOTYKACKA_CONNECTOR_CLIENT_ID", default="")
+DOTYKACKA_CONNECTOR_CLIENT_SECRET = config(
+    "DOTYKACKA_CONNECTOR_CLIENT_SECRET", default=""
+)
+DOTYKACKA_CONNECTOR_URL = config(
+    "DOTYKACKA_CONNECTOR_URL",
+    default="https://admin.dotykacka.cz/client/connect/v2",
+)
+DOTYKACKA_API_BASE_URL = config(
+    "DOTYKACKA_API_BASE_URL", default="https://api.dotykacka.cz"
+)
+DOTYKACKA_TOKEN_EXPIRY_SKEW = config(
+    "DOTYKACKA_TOKEN_EXPIRY_SKEW", default=120, cast=int
+)
+DOTYKACKA_MAX_PAGES = config("DOTYKACKA_MAX_PAGES", default=1000, cast=int)
 
 BREVO_API_KEY = config("BREVO_API_KEY", default="")
 BREVO_LIST_ID = config("BREVO_LIST_ID", default=25, cast=int)
+BREVO_API_BASE_URL = config("BREVO_API_BASE_URL", default="https://api.brevo.com/v3")
+BREVO_HTTP_TIMEOUT = config("BREVO_HTTP_TIMEOUT", default=15, cast=int)
 DEFAULT_PHONE_COUNTRY_CODE = config("DEFAULT_PHONE_COUNTRY_CODE", default="+48")
+INTEGRATION_HTTP_RETRIES = config("INTEGRATION_HTTP_RETRIES", default=2, cast=int)
 
 google_wallet_keyfile = Path(
     config(
@@ -180,8 +198,15 @@ if not google_wallet_keyfile.is_absolute():
 GOOGLE_WALLET_SERVICE_ACCOUNT_FILE = google_wallet_keyfile
 GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL = config("GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL", default="")
 GOOGLE_WALLET_ISSUER_ID = config("GOOGLE_WALLET_ISSUER_ID", default="")
-GOOGLE_WALLET_CLASS_SUFFIX = config("GOOGLE_WALLET_CLASS_SUFFIX", default="MB")
 GOOGLE_WALLET_ORIGINS = csv_setting("GOOGLE_WALLET_ORIGINS")
+GOOGLE_WALLET_API_BASE_URL = config(
+    "GOOGLE_WALLET_API_BASE_URL",
+    default="https://walletobjects.googleapis.com/walletobjects/v1",
+)
+GOOGLE_WALLET_HTTP_TIMEOUT = config("GOOGLE_WALLET_HTTP_TIMEOUT", default=15, cast=int)
+GOOGLE_WALLET_REMOTE_SYNC_ENABLED = config(
+    "GOOGLE_WALLET_REMOTE_SYNC_ENABLED", default=True, cast=bool
+)
 
 APPLE_WALLET_PASS_TYPE_IDENTIFIER = config("APPLE_WALLET_PASS_TYPE_IDENTIFIER", default="")
 APPLE_WALLET_TEAM_IDENTIFIER = config("APPLE_WALLET_TEAM_IDENTIFIER", default="")

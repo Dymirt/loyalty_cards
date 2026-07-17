@@ -1,6 +1,6 @@
 from django.shortcuts import render
 
-from dotykacka.tenancy import get_default_tenant
+from tenants.authorization import get_default_tenant
 
 
 def index(request):

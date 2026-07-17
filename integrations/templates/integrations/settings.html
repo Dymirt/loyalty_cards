@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Integracje · {{ tenant.name }}{% endblock %}
+{% block page_messages %}{% endblock %}
+
+{% block content %}
+<div id="integration-settings-content">
+    {% include "components/messages.html" %}
+    {% include "tenants/partials/nav.html" %}
+    <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Ustawienia firmy</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Integracje</h1>
+        <p class="mt-2 max-w-3xl text-ink-700">Tutaj ustawiasz integracje należące do {{ tenant.name }}. Sekrety firmy są szyfrowane, a połączenia wymagające logowania autoryzujesz bezpośrednio u dostawcy.</p>
+    </div>
+    <div class="mt-8 grid gap-5 lg:grid-cols-2">
+        {% for panel in panels %}
+            {% include "integrations/partials/panel.html" with panel=panel %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

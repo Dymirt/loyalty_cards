@@ -1,14 +1,12 @@
-"""Bounded tenant Wallet generation through the shared service layer."""
+"""Bounded tenant Wallet generation through final-owner services."""
 
 import json
 
 from django.core.management.base import BaseCommand, CommandError
 
-from dotykacka.models import Klient, Tenant
-from dotykacka.services.wallets import (
-    ensure_apple_wallet_pass,
-    generate_google_wallet_for_klient,
-)
+from customers.models import Customer
+from tenants.models import Tenant
+from wallets.services import issue_apple, issue_google
 
 
 class Command(BaseCommand):
@@ -29,7 +27,7 @@ class Command(BaseCommand):
             tenant = Tenant.objects.get(slug=options["tenant"], is_active=True)
         except Tenant.DoesNotExist as exc:
             raise CommandError("Tenant does not exist.") from exc
-        customers = Klient.objects.filter(tenant=tenant)
+        customers = Customer.objects.filter(tenant=tenant)
         customer_codes = options.get("customer_codes") or []
         start = options.get("start")
         end = options.get("end")
@@ -51,7 +49,6 @@ class Command(BaseCommand):
             raise CommandError("Selection exceeds --max-customers.")
         if customer_codes and len(customers) != len(set(customer_codes)):
             raise CommandError("One or more customer codes do not belong to the tenant.")
-
         result = {
             "status": "planned" if options["dry_run"] else "generated",
             "tenant": tenant.slug,
@@ -62,7 +59,7 @@ class Command(BaseCommand):
         if not options["dry_run"]:
             for customer in customers:
                 if options["wallet"] in ("apple", "both"):
-                    ensure_apple_wallet_pass(customer, force=options["force_apple"])
+                    issue_apple(customer, force=options["force_apple"])
                 if options["wallet"] in ("google", "both"):
-                    generate_google_wallet_for_klient(customer)
+                    issue_google(customer)
         self.stdout.write(json.dumps(result, ensure_ascii=False, sort_keys=True))

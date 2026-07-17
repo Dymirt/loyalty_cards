@@ -46,5 +46,28 @@ services:
       - ./local-data/mypass_template:/source-mypass-template:ro
       - ./secrets:/source-secrets:ro
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      GOOGLE_WALLET_SERVICE_ACCOUNT_FILE: /run/loyalty-secrets/google-wallet-service-account.json
+      APPLE_WALLET_TEMPLATE_DIR: /run/loyalty-secrets/mypass_template
+      LOYALTY_SKIP_STARTUP_MIGRATIONS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+    command: ["python", "manage.py", "run_integration_worker"]
+    volumes:
+      - ./:/var/www/loyalty_platform
+      - ./local-data/media:/var/www/loyalty_platform/media
+      - ./local-data/mypass_template:/source-mypass-template:ro
+      - ./secrets:/source-secrets:ro
+
 volumes:
   loyalty-db:

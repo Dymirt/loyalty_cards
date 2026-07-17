@@ -5,12 +5,13 @@ client. The application must be migrated before tenant-aware code is served.
 
 ## Stored per tenant in MariaDB
 
-The following values are editable by an authorized tenant owner or platform
-superuser at `/dotykacka/c/<tenant-slug>/settings/integrations`:
+The following values are tenant-owned. Non-secret settings are editable by an
+authorized tenant owner or platform superuser; Dotykačka Cloud IDs and Refresh
+Tokens are written only by the tenant-authorized Connector callback:
 
 | Provider | Non-secret configuration | Encrypted credentials |
 | --- | --- | --- |
-| Dotykačka | cloud ID, discount-group ID, enabled state | authorization token |
+| Dotykačka | cloud ID, discount-group ID, enabled state | Connector callback Refresh Token; primary tenant credential |
 | Brevo | list ID, default phone country code, enabled state | API key |
 | Google Wallet | issuer ID, class suffix, enabled state | none; signing remains platform-owned |
 
@@ -31,6 +32,7 @@ until all values have been re-encrypted with the new primary key.
 - database connection and SMTP transport credentials;
 - `TENANT_SECRETS_ENCRYPTION_KEYS`;
 - provider timeouts such as `DOTYKACKA_HTTP_TIMEOUT`;
+- Dotykačka Connector client ID/secret and provider endpoints;
 - Google service-account file/email and allowed Wallet origins;
 - Apple Wallet signing identifiers, certificate/key material, and template
   location used by the centralized platform issuer;
@@ -41,8 +43,8 @@ are not editable by a tenant.
 
 ## Marta one-time import
 
-Migration `0010_backfill_marta_tenant` reads the legacy client variables only
-to initialize the first tenant:
+Migration `0010_backfill_marta_tenant` originally read the following legacy
+variables to initialize the first tenant:
 
 - `DOTYKACKA_AUTHORIZATION_TOKEN`
 - `DOTYKACKA_CLOUD_ID`
@@ -53,11 +55,13 @@ to initialize the first tenant:
 - `GOOGLE_WALLET_ISSUER_ID`
 - `GOOGLE_WALLET_CLASS_SUFFIX`
 
-The migration makes no external calls. It encrypts secrets before writing them,
-then tenant-aware runtime code stops reading these legacy variables. Keep them
-available until migration and aggregate verification both succeed; remove their
-values from the deployment environment afterward through the normal secret
-management process.
+The migration makes no external calls and its historical behavior is unchanged.
+Migration `0014_promote_dotykacka_refresh_tokens` copies Marta's existing
+encrypted legacy authorization into the canonical tenant `refresh_token` key,
+strips only the HTTP `User ` scheme from the copied value, and preserves the
+legacy key for recovery. Runtime no longer reads `DOTYKACKA_AUTHORIZATION_TOKEN`.
+Cloud ID, discount group and Refresh Token are database-owned; legacy tenant
+values are not restored to the environment.
 
 ## Required deployment order
 

@@ -71,7 +71,7 @@ class Command(BaseCommand):
             "dotykacka_secret_configured": bool(
                 connections.get(IntegrationConnection.Provider.DOTYKACKA)
                 and connections[IntegrationConnection.Provider.DOTYKACKA].has_secret(
-                    "authorization_token"
+                    "refresh_token"
                 )
             ),
             "brevo_secret_configured": bool(

@@ -1,20 +1,28 @@
+import importlib
+import json
+
 from cryptography.fernet import Fernet
+from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TransactionTestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
+
+from dotykacka.models import IntegrationConnection
+
+from .base import create_tenant
 
 
 class MartaBackfillMigrationTests(TransactionTestCase):
     migrate_from = [("dotykacka", "0008_alter_klient_klient_id_unique")]
-    migrate_to = [("dotykacka", "0013_backfill_card_designs")]
+    migrate_to = [("dotykacka", "0014_promote_dotykacka_refresh_tokens")]
 
     def setUp(self):
         super().setUp()
         self.encryption_key = Fernet.generate_key().decode("ascii")
         self.settings_override = override_settings(
             TENANT_SECRETS_ENCRYPTION_KEYS=[self.encryption_key],
-            DOTYKACKA_AUTHORIZATION_TOKEN="legacy-dotykacka-secret",
+            DOTYKACKA_AUTHORIZATION_TOKEN="User legacy-dotykacka-secret",
             DOTYKACKA_CLOUD_ID=321,
             DOTYKACKA_DISCOUNT_GROUP_ID=654,
             BREVO_API_KEY="legacy-brevo-secret",
@@ -106,3 +114,51 @@ class MartaBackfillMigrationTests(TransactionTestCase):
         self.assertTrue(brevo.credentials_encrypted.startswith("fernet:v1:"))
         self.assertNotIn("legacy-dotykacka-secret", dotykacka.credentials_encrypted)
         self.assertNotIn("legacy-brevo-secret", brevo.credentials_encrypted)
+        encrypted_payload = dotykacka.credentials_encrypted.removeprefix(
+            "fernet:v1:"
+        )
+        credentials = json.loads(
+            Fernet(self.encryption_key.encode("ascii"))
+            .decrypt(encrypted_payload.encode("ascii"))
+            .decode("utf-8")
+        )
+        self.assertEqual(
+            credentials,
+            {
+                "authorization_token": "User legacy-dotykacka-secret",
+                "refresh_token": "legacy-dotykacka-secret",
+            },
+        )
+
+
+class RefreshTokenDataMigrationSafetyTests(TestCase):
+    def test_existing_refresh_token_is_never_overwritten(self):
+        tenant = create_tenant()
+        connection = IntegrationConnection.objects.create(
+            tenant=tenant,
+            provider=IntegrationConnection.Provider.DOTYKACKA,
+        )
+        connection.set_credentials(
+            {
+                "authorization_token": "User legacy-authorization",
+                "refresh_token": "existing-connector-refresh",
+            }
+        )
+        connection.save()
+        migration = importlib.import_module(
+            "dotykacka.migrations.0014_promote_dotykacka_refresh_tokens"
+        )
+
+        migration.promote_legacy_authorization_to_refresh_token(
+            django_apps,
+            schema_editor=None,
+        )
+
+        connection.refresh_from_db()
+        self.assertEqual(
+            connection.get_credentials(),
+            {
+                "authorization_token": "User legacy-authorization",
+                "refresh_token": "existing-connector-refresh",
+            },
+        )

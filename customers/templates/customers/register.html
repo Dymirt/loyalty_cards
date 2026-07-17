@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% get_media_prefix as media_prefix %}
+{% block title %}Rejestracja karty · {{ tenant.brand.public_name|default:tenant.name }}{% endblock %}
+{% block head_extra %}<script src="{% static 'vendor/zxing-library-0.21.3.min.js' %}" defer></script><script src="{% static 'js/card-scanner.v1.js' %}" defer></script>{% endblock %}
+{% block full_width_content %}
+<section class="relative isolate min-h-[calc(100vh-9rem)] overflow-hidden px-4 py-8 sm:py-12">
+    {% if tenant.brand.background_image_path %}<img src="{{ media_prefix }}{{ tenant.brand.background_image_path }}" alt="" class="absolute inset-0 -z-20 size-full object-cover"><div class="absolute inset-0 -z-10 bg-ink-950/55"></div>{% else %}<div class="absolute inset-0 -z-20 bg-gradient-to-br from-stone-900 via-stone-800 to-accent-700"></div>{% endif %}
+    <div class="mx-auto max-w-3xl"><div class="rounded-3xl border border-white/30 bg-white/95 p-6 shadow-2xl backdrop-blur sm:p-9">
+        <div class="text-center">{% if tenant.brand.logo_path %}<img src="{{ media_prefix }}{{ tenant.brand.logo_path }}" alt="{{ tenant.brand.public_name|default:tenant.name }}" class="mx-auto h-24 w-auto max-w-full object-contain">{% endif %}<p class="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">Rejestracja karty</p><h1 class="mt-2 text-3xl font-bold">Dołącz do programu</h1><p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-ink-700">Wpisz dane i kod z fizycznej karty. Skanowanie kamerą jest opcjonalne.</p></div>
+        {% if form.non_field_errors %}<div class="mt-6">{% for error in form.non_field_errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}</div>{% endif %}
+        <form action="{{ form_action }}" method="post" class="mt-8 space-y-6">{% csrf_token %}
+            <div class="grid gap-5 sm:grid-cols-2">{% include "components/form_field.html" with field=form.first_name %}{% include "components/form_field.html" with field=form.last_name %}{% include "components/form_field.html" with field=form.email %}{% include "components/form_field.html" with field=form.phone %}</div>
+            <div data-card-scanner data-card-prefix="{{ tenant.card_prefix }}" data-media-prefix="{{ media_prefix }}">
+                <label for="{{ form.barcode.id_for_label }}" class="portal-label">Kod karty</label><div class="flex flex-col gap-2 sm:flex-row"><div class="min-w-0 flex-1">{{ form.barcode }}</div><button type="button" class="portal-button-secondary hidden shrink-0" data-scan-trigger>Skanuj kamerą</button></div>
+                {% for error in form.barcode.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}<p class="portal-help">Format: {{ tenant.card_prefix }}-numer, na przykład {{ tenant.card_prefix }}-12.</p>
+                <div class="mt-4 hidden rounded-2xl bg-stone-950 p-3" data-camera-panel><video autoplay muted playsinline class="aspect-[1.586/1] w-full object-cover" data-camera-video></video><div class="mt-3 flex justify-between"><p class="text-sm text-white" data-scanner-status aria-live="polite">Ustaw kod karty w ramce.</p><button type="button" class="text-white" data-camera-close>Zamknij kamerę</button></div></div>
+                <div class="mt-4 hidden rounded-2xl bg-stone-50 p-4 text-center" data-card-preview-wrapper><img src="" alt="Podgląd karty" class="mx-auto max-h-52 max-w-full rounded-xl" data-card-preview></div>
+            </div>
+            <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4"><div class="flex items-start gap-3">{{ form.marketing_consent }}<label for="{{ form.marketing_consent.id_for_label }}" class="text-sm leading-6">{{ form.marketing_consent.label }}</label></div>{% for error in form.marketing_consent.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}</div>
+            <button type="submit" class="portal-button w-full">Zarejestruj kartę</button>
+        </form>
+    </div></div>
+</section>
+{% endblock %}

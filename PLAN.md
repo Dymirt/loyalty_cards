@@ -1,12 +1,12 @@
 # MB Studio Loyalty SaaS Conversion Plan
 
-Status: in progress — Phases 0–4 complete
+Status: in progress — Phases 0–5 complete
 
 Prepared: 2026-07-17
 
 Application: Django loyalty-card service at `mbstudio-loyalty-app`
 
-Progress: Phases 0–4 implemented and verified on the backed-up local MariaDB replica on 2026-07-17; migrations `0008` through `0013` are applied. Phase 4 activated the `loyalty_platform` project package, empty destination apps, compatibility redirects/imports, architecture tests, and a read-only extraction verifier without creating a migration or changing business data.
+Progress: Phases 0–5 implemented and verified on the backed-up local MariaDB replica on 2026-07-17. Historical `dotykacka` migrations `0001` through `0013` remain unchanged; additive `customers.0001` through `0003` and `card_artwork.0001` are applied. Phase 5 moved tenant, customer, card and artwork behavior/UI to their domain apps, retained legacy imports/routes, and added only `CustomerExternalIdentity`, append-only `ConsentRecord`, and immutable `CropPlan` tables. No existing table, row, primary key, content type, permission, URL name, command name, or media path was moved or rewritten.
 
 ## 1. Product outcome
 
@@ -43,16 +43,16 @@ The following was verified read-only against the running local replica on 2026-0
 
 | Area | Current state |
 | --- | --- |
-| Django | 5.2.1; `manage.py check` passes after Phase 3 |
-| Database | MariaDB replica with migrations `0008` through `0013` applied |
+| Django | 5.2.1; `manage.py check` passes after Phase 5 |
+| Database | MariaDB replica with historical `dotykacka.0001..0013` plus additive `customers.0001..0003` and `card_artwork.0001` applied |
 | Application users | 1 active user: `admin`; staff and superuser |
 | Loyalty customers | 267 `Klient` records |
 | Card identifiers | 267 valid `MB-*` numeric codes, range `MB-1` through `MB-494`; no duplicates and no empty IDs |
-| Cached POS tokens | 262 tenant-owned append-only `AccessToken` records after a normal refresh |
+| Cached POS tokens | 263 tenant-owned append-only `AccessToken` records after a normal refresh |
 | Physical card inventory | Complete assets for `MB-1` through `MB-600` |
 | Per-card legacy assets | front image, back image, barcode PNG, cropped background, and Apple `.pkpass` all present |
 | Expected imported inventory | 600 Marta cards: 267 assigned, 333 available |
-| Tests | 80 automated tests covering the legacy baseline, migrations, tenancy, roles, integrations, portal, deterministic generators, immutable artifacts, Wallet identity, and golden output |
+| Tests | 101 automated tests covering the legacy baseline, extraction boundaries, migrations, tenancy, roles, integrations, portal, deterministic crop plans/generators, immutable artifacts, consent evidence, Wallet identity, and golden output |
 | UI | Accessible server-rendered Django/HTMX portal with locally compiled Tailwind and no runtime CDN on active loyalty routes |
 | Working tree | Existing uncommitted Docker, configuration, README, and Wallet-path work must be preserved |
 
@@ -76,28 +76,28 @@ Existing CLI workflows will remain available as Django management commands, but 
 
 ### Data, tenancy, and boundaries
 
-- The tenant foundation and Marta backfill exist, but all business models still have the legacy `dotykacka` app label and most forms/views/admin/provider code remain in that one app.
-- `Klient` means a loyalty-program customer, not a SaaS client; use the code/UI term `Customer` before considering a risky model/table rename.
-- The current global customer/admin workflow still treats Dotykačka as a list source in places instead of consistently using the tenant-scoped local database as source of truth.
+- Existing business tables intentionally retain the legacy `dotykacka` model labels, while Phase 5 behavior, forms, views, templates, admin classes and tests now live in `tenants`, `customers`, `cards`, and `card_artwork` with compatibility imports.
+- `Klient` still means a loyalty-program customer at the historical model/table boundary; new code imports the code-facing `Customer` alias from `customers`.
+- The local tenant database is now the customer source of truth. Dotykačka/Brevo identifiers and per-customer sync status live in `CustomerExternalIdentity`; provider reads/writes are adapter or job concerns.
 - Existing uniqueness is globally strict for the verified prefix/code strategy. Any move to tenant-composite uniqueness must be a deliberate migration and must not weaken globally unique scannable card codes accidentally.
 
 ### Card, artwork, and Wallet generation
 
-- Phase 3 introduced versioned tenant design, stable Wallet identity and immutable artifacts, but the implementation is still under `dotykacka` and legacy standalone helpers remain parallel entry points.
-- Deterministic background variation exists, but the target editor still needs an explicit persisted `CropPlan`/sample-sheet workflow for exact source coordinates and operator review.
+- Phase 5 moved the physical renderer and artifact command to `card_artwork`; legacy standalone helpers and `dotykacka.services.card_designs` are deprecated wrappers over that one implementation.
+- The editor now accepts one master image, renders a deterministic HTMX sample sheet, and persists exact immutable `CropPlan` coordinates/source checksum/render version when a published design is rendered.
 - Legacy generated assets must remain readable while all new and production downloads move through tenant-authorized protected views.
-- Apple/Google implementation must be separated into provider apps with centralized platform signing/issuer secrets and tenant-owned visible content.
+- Apple/Google implementations now live in provider apps with centralized platform signing/issuer secrets, tenant-owned visible content and stable legacy `WalletPass` identities.
 
 ### Registration and operations
 
-- Registration form/code/race fixes exist, but versioned consent evidence is not yet a first-class record.
-- Daemon threads can still lose POS sync, Wallet generation, and email work when the web process restarts; durable database jobs are not implemented yet.
-- Tenant integration credentials are encrypted, but the `AccessToken` cache model still stores token text without explicit expiry/invalidation and must become connection/cloud scoped.
+- Registration delegates customer/card writes to owning services, records append-only hashed `ConsentRecord` evidence, and enqueues idempotent follow-up jobs only after the local transaction returns successfully; Phase 9 still adds the full consent lifecycle and authorized retry/resend UI.
+- Provider work is claimed transactionally from `IntegrationJob`; stale claims are recoverable and Compose supervises a management-command worker independently of Apache.
+- Historical `AccessToken` rows remain untouched for compatibility. New Dotykačka tokens are encrypted, explicitly expiring/invalidateable, connection- and cloud-scoped records in `pos_dotykacka`.
 - The portal shell is Tailwind/HTMX, but legacy routes and bulk views still coexist and need domain extraction plus consistent authorization/job behavior.
 
 ### Application structure and product operations
 
-- Nearly all domain models, forms, views, provider adapters, Wallet code, card generation, and admin behavior still live under the `dotykacka` app even after their services were stabilized.
+- Provider adapters and Wallet behavior are extracted to `pos_dotykacka`, `brevo`, `wallet_apple`, and `wallet_google`; `dotykacka` retains historical models/migrations and thin compatibility imports/bulk routes.
 - Deprecated project/app imports, `/turnkey/`, and `TURNKEY_ALLOWED_HOSTS_FILE` remain as bounded compatibility shims for one verified release; active configuration and deployment paths now use `loyalty_platform`.
 - There is no subscription, entitlement, metered-usage, price-book, quote, or card-pack model, so user limits and print overages cannot be enforced consistently.
 - Existing legacy cards have inventory state but no append-only printing/delivery record that an operator can safely backfill without altering assignment or regenerating files.
@@ -171,15 +171,16 @@ marketing reads only public published plan data from billing
 
 | Configuration | Owner and storage |
 | --- | --- |
-| Dotykačka refresh/authorization token returned for a tenant connection | Tenant-owned; encrypted in the database |
+| Dotykačka refresh token returned by a Connector callback | Encrypted on the tenant connection; primary credential for that tenant and never rendered |
 | Dotykačka cloud ID and discount-group ID | Tenant-owned; normal database configuration |
 | Dotykačka short-lived access token, cloud, and expiry | Tenant connection cache; encrypted in the database and replaceable without changing the refresh token |
 | Dotykačka Connector `client_id` and `client_secret` for this SaaS integrator | Platform-owned; `.env`/secret manager, never client-editable |
 | Brevo API key | Tenant-owned; encrypted in the database |
 | Brevo list ID, attribute mapping, enabled state | Tenant-owned; normal database configuration |
-| Tenant names, logos, text, colors, card/wallet content, class suffixes | Tenant-owned; versioned database records plus protected uploaded assets |
+| Tenant names, logos, text, colors and card/wallet content | Tenant-owned; versioned database records plus protected uploaded assets |
 | Apple signing certificate/private key/password, WWDR certificate, team/pass-type identifiers under a centralized issuer | Platform-owned; environment references and protected secret files, never database-editable from the client portal |
 | Google service-account key and central issuer ID | Platform-owned; environment/protected secret file |
+| Google Wallet tenant class suffix | Derived internally from the tenant's unique card prefix; never entered as integration configuration |
 | Django secret, database, SMTP, encryption keys, storage, allowed hosts | Platform-owned; `.env`/secret manager |
 
 If the product later permits a tenant to bring its own Apple/Google issuer account, that is a separate credential model and security review. The initial plan uses centralized platform issuers while all visible brand content remains tenant-versioned.
@@ -247,7 +248,7 @@ Names may be refined during implementation, but the boundaries and ownership mus
 Three roles are required:
 
 1. **Platform administrator/operator** — manages tenants, sees the global print queue, allocates batches, downloads print packages, records printing/fulfillment, and can support a tenant using an explicit tenant context.
-2. **Client owner** — manages only their tenant’s brand, design, staff, POS connection, customers, proofs, and print requests.
+2. **Client owner** — manages only their tenant’s brand, design, staff, POS business settings, customers, proofs, print requests, and provider-login authorization lifecycle. Platform operators own the shared POS Connector application credentials and redacted technical tests; tenant owners connect or disconnect only their own cloud.
 3. **Client staff** — operates customers and allowed day-to-day actions but cannot change credentials, ownership, or production design settings unless granted a specific permission.
 
 Implementation rules:
@@ -335,13 +336,14 @@ Create a provider interface with these initial operations:
 - normalize provider errors into redacted, user-safe statuses;
 - expose provider capabilities so the UI does not assume every POS supports the same functions.
 
-Implement `DotykackaAdapter` first by refactoring existing API behavior. Its cloud ID, discount group, refresh credential, access token, and remote IDs become tenant/connection scoped. Platform timeouts/base URLs remain environment/default configuration. No global tenant-business value such as `DOTYKACKA_CLOUD_ID` or `DOTYKACKA_DISCOUNT_GROUP_ID` may be used after the transition compatibility period.
+Implement `DotykackaAdapter` first by refactoring existing API behavior. Its refresh token, cloud ID, discount group, access token, and remote IDs become tenant/connection scoped. Connector application credentials, timeouts and base URLs remain platform environment configuration. No global tenant-business value such as `DOTYKACKA_AUTHORIZATION_TOKEN`, `DOTYKACKA_CLOUD_ID` or `DOTYKACKA_DISCOUNT_GROUP_ID` may be used after the transition compatibility period.
 
 ### Dotykačka contract based on the current official documentation
 
 - Use Connector v2 for new SaaS clients. The browser-facing connection request is a form POST signed with HMAC-SHA256 using the platform `client_id`/`client_secret`, timestamp, redirect URI, and a cryptographically random `state` value. Verify `state` and the tenant/session before accepting the redirect.
-- The redirect supplies a tenant refresh token and selected cloud ID. Encrypt the refresh token in the tenant’s Dotykačka connection and store the cloud ID as tenant configuration; never render the token again.
-- Exchange it at `POST /v2/signin/token` with JSON `{\"_cloudId\": ...}` and `Authorization: User <refresh-token>`. Use the resulting access token only as `Authorization: Bearer <access-token>` and only for that tenant/cloud.
+- The redirect supplies a refresh token and selected cloud ID. Encrypt the returned token on the tenant connection as that tenant's primary API credential and store the Cloud ID as tenant configuration; never render the token again.
+- Tenant owners initiate Connector from their integration settings page. Once connected, Cloud ID is read-only and a callback cannot replace it with a different cloud until the tenant explicitly disconnects; disconnect invalidates active access and pending connection state without deleting audit history.
+- Exchange that tenant Refresh Token at `POST /v2/signin/token` with JSON `{\"_cloudId\": ...}` and `Authorization: User <refresh-token>`. Use the resulting access token only as `Authorization: Bearer <access-token>` and only for that tenant/cloud.
 - Treat the documented one-hour access-token validity as an upper bound, not a guarantee. Store obtained/expected-expiry timestamps with a safety skew, refresh on expiry or one authorized `401`, and serialize refreshes per connection to prevent a token stampede.
 - Customer reads/writes use `/v2/clouds/{cloudId}/customers`; create payloads are arrays. Use a stable local external ID/idempotency mapping, the configured discount group, page/limit bounded to the documented maximum, supported filters, and ETag headers when useful.
 - Respect the published request limit and provider status. Prefer reconciliation/webhooks over aggressive polling; `429`, `5xx`, and network failures are retryable, while invalid configuration/authentication requires tenant action.
@@ -496,39 +498,39 @@ Acceptance gate: passed on 2026-07-17. Django reports no model changes and no pl
 
 ### Phase 5 — Extract tenants, customers, cards, and card artwork
 
-- [ ] Move tenant resolution/authorization/UI to `tenants`, customer forms/views/services to `customers`, card code/inventory behavior to `cards`, and renderer/design UI to `card_artwork`.
-- [ ] Keep existing model state/table ownership in `dotykacka` during the first behavior extraction. Add compatibility imports and unchanged URL names/command aliases.
-- [ ] Put any new models (`CustomerExternalIdentity`, `ConsentRecord`, `CropPlan`) directly in their final apps using additive migrations.
-- [ ] Extend the artwork workflow to upload one large master image, produce an HTMX sample sheet of deterministic varied crops, store exact crop plans, and apply the published tenant brand to each card.
-- [ ] Keep all generation paths unified: web, worker and CLI call the same `card_artwork` services; standalone scripts become deprecated wrappers only.
-- [ ] Move templates, admin classes and tests beside their owning domain and remove cross-domain writes from views.
+- [x] Move tenant resolution/authorization/UI to `tenants`, customer forms/views/services to `customers`, card code/inventory behavior to `cards`, and renderer/design UI to `card_artwork`.
+- [x] Keep existing model state/table ownership in `dotykacka` during the first behavior extraction. Add compatibility imports and unchanged URL names/command aliases.
+- [x] Put new `CustomerExternalIdentity`, `ConsentRecord`, and `CropPlan` models directly in their final apps using additive migrations.
+- [x] Extend the artwork workflow to upload one large master image, produce an HTMX sample sheet of deterministic varied crops, store exact crop plans, and apply the published tenant brand to each card.
+- [x] Keep all generation paths unified: web and CLI call the same `card_artwork` services; standalone scripts are deprecated wrappers only. The database worker remains a Phase 6 durability task.
+- [x] Move templates, admin classes and tests beside their owning domain and remove cross-domain writes from views.
 
-Acceptance gate: all active tenant/customer/card/artwork views import their application services from the destination apps; the Marta golden render and every legacy path/checksum remain stable; two identical crop inputs reproduce identical bytes and metadata; no existing table was copied, dropped, or renamed.
+Acceptance gate: passed on 2026-07-17. All active tenant/customer/card/artwork routes resolve to destination-app views and application services; every legacy `dotykacka:*` URL and compatibility import remains available. The Marta golden render is byte-identical, identical crop inputs reproduce identical bytes/metadata, retries reuse one immutable plan while publishing new artifact paths, and the upgraded verifier preserves 13 historical models/tables plus all 267 customers, 600 cards, 263 tokens, 267 Wallet identities and existing media. Only three empty additive tables were created; no existing table was copied, dropped, renamed or updated.
 
 ### Phase 6 — Extract integrations, Dotykačka, Brevo, and Wallet providers
 
-- [ ] Move encrypted connection/job primitives to `integrations`/`core`; create provider contracts in `pos`, `communications`, and `wallets`.
-- [ ] Implement `pos_dotykacka` against Connector v2: HMAC connection initiation, CSRF `state`, refresh-token callback, cloud-scoped access-token cache, safe refresh/401 behavior, customer upsert/reconcile, pagination, retry and provider contract tests.
-- [ ] Implement `brevo` contact upsert/list sync with tenant database credentials, consent gates, rate-limit headers, resumable jobs and no automatic force-merge.
-- [ ] Extract stable identity/orchestration to `wallets`, Apple package/signing to `wallet_apple`, and Google class/object/save-link behavior to `wallet_google`.
-- [ ] Normalize centralized Apple/Google issuer secrets to platform environment/protected files while retaining any legacy encrypted values unread/destructively unchanged until a separate cleanup is approved.
-- [ ] Add owner-only tenant settings and “connect/test/reconnect” flows using Django forms and HTMX status fragments. Secret fields remain masked and blank means retain.
-- [ ] Replace daemon-thread work with transactionally claimed database jobs and a supervised Django management-command worker.
-- [ ] Keep deprecated functions in `dotykacka.api_utils`, `dotykacka.brevo`, and Wallet modules as thin adapters until callers have migrated.
+- [x] Move encrypted connection/job primitives to `integrations`/`core`; create provider contracts in `pos`, `communications`, and `wallets`.
+- [x] Implement `pos_dotykacka` against Connector v2: HMAC connection initiation, CSRF `state`, refresh-token callback, cloud-scoped access-token cache, safe refresh/401 behavior, customer upsert/reconcile, pagination, retry and provider contract tests.
+- [x] Implement `brevo` contact upsert/list sync with tenant database credentials, consent gates, rate-limit headers, resumable jobs and no automatic force-merge.
+- [x] Extract stable identity/orchestration to `wallets`, Apple package/signing to `wallet_apple`, and Google class/object/save-link behavior to `wallet_google`.
+- [x] Normalize centralized Apple/Google issuer secrets to platform environment/protected files while retaining any legacy encrypted values unread/destructively unchanged until a separate cleanup is approved.
+- [x] Add owner-only tenant business settings and tenant-owned “connect/disconnect” authorization flows using Django forms and normal POST fallbacks. Shared Connector credentials and platform technical status are not exposed to client users; redacted system tests remain platform-only.
+- [x] Replace daemon-thread work with transactionally claimed database jobs and a supervised Django management-command worker.
+- [x] Keep deprecated functions in `dotykacka.api_utils`, `dotykacka.brevo`, and Wallet modules as thin adapters until callers have migrated.
 
-Acceptance gate: two synthetic tenants connect with different Dotykačka/Brevo configuration without credential, token, customer or list crossover; provider tests cover timeout/401/429/duplicate/retry paths; Apple/Google retries reuse stable identities; a web-process restart cannot silently lose work.
+Acceptance gate: passed on 2026-07-17. Two synthetic tenants use different encrypted Dotykačka/Brevo credentials, token caches, external identities and lists without crossover. Offline tests cover HMAC/state replay, timeout, 401 refresh, 429 headers, duplicate reconciliation, pagination, idempotency and stale-worker recovery. Apple serials and Google object IDs remain stable across retries. The supervised worker runs separately from Apache. The Marta upgrade preserved 267 customers, 600 cards, 263 historical tokens, 267 Wallet identities, three encrypted connections and all media; it added only three initially empty tables through migrations.
 
 ### Phase 7 — Subscription, entitlements, usage, and pricing
 
-- [ ] Add `billing` models through additive migrations: plan/version, tenant subscription, billing period, entitlement policy, append-only usage event, versioned price book, per-card tier, card pack, immutable quote and quote lines.
-- [ ] Define an active seat as an active `TenantMembership`; enforce the plan limit on invite/reactivation while never deactivating an existing user automatically.
-- [ ] Define card issuance as the first successful transition that activates/assigns a physical or digital card identity. Record it once through an idempotency key; proof generation and retries never consume quota.
-- [ ] Support a plan’s included issuance/print allowance, per-produced-card overage, and prepaid/bulk packs such as 100 cards. Resolve allowance → eligible pack balance → per-card tier deterministically and show the calculation before acceptance.
-- [ ] Store money as decimal amount plus ISO currency. Freeze plan/price/tax/shipping inputs in a quote; later price changes never alter an accepted print request.
-- [ ] Add owner and platform views for subscription, usage and pricing. Platform operators publish plan/price versions; tenant owners cannot edit commercial records.
-- [ ] Do not add Stripe, another payment processor, or automated invoicing in this phase. Record commercial obligations/quotes first; payment collection needs a separately approved provider and accounting flow.
+- [x] Add `billing` models through additive migrations: plan/version, tenant subscription, billing period, entitlement policy, append-only usage event, versioned price book, per-card tier, card pack, immutable quote and quote lines.
+- [x] Define an active seat as an active `TenantMembership`; enforce the plan limit on invite/reactivation while never deactivating an existing user automatically.
+- [x] Define card issuance as the first successful transition that activates/assigns a physical or digital card identity. Record it once through an idempotency key; proof generation and retries never consume quota.
+- [x] Support a plan’s included issuance/print allowance, per-produced-card overage, and prepaid/bulk packs such as 100 cards. Resolve allowance → eligible pack balance → per-card tier deterministically and show the calculation before acceptance.
+- [x] Store money as decimal amount plus ISO currency. Freeze plan/price/tax/shipping inputs in a quote; later price changes never alter an accepted print request.
+- [x] Add owner and platform views for subscription, usage and pricing. Platform operators publish plan/price versions; tenant owners cannot edit commercial records.
+- [x] Do not add Stripe, another payment processor, or automated invoicing in this phase. Record commercial obligations/quotes first; payment collection needs a separately approved provider and accounting flow.
 
-Acceptance gate: concurrent/retried actions create one usage event; seat/card limits are tenant-isolated; boundary tests cover included quota, 1-card overage, tier edge and 100-card pack; accepted quotes remain unchanged after a new price version is published.
+Acceptance gate: passed on 2026-07-17. Tenant-scoped usage keys and row locks make issuance retries converge on one append-only event; active membership signals enforce seat limits without modifying existing members. Tests cover tenant isolation, included quota, one-card overage, the quantity-tier edge, an exact 100-card pack, pack reservation and accepted-quote immutability after a later price publication. Marta remains in an explicit unmanaged compatibility state until an approved published plan is assigned, so no historical card or membership is inferred as billable usage.
 
 ### Phase 8 — Centralized print request, production, and fulfillment
 
@@ -608,14 +610,12 @@ Completed Phases 0–4 are not blocked by these. The named future phase must not
 2. Confirm whether card prefixes must be globally unique across tenants and whether Marta keeps `MB` permanently. The recommended answer is yes to both.
     prefix must be unique across tanants.
 3. **Resolved in Phase 4:** `loyalty_platform` is the active replacement configuration package name; deprecated import shims remain for one verified release.
-4. **Before Phase 7:** define the first plan(s), PLN/EUR currency, tax display, billing interval, included active seats, included card issuances/prints, whether unused quota rolls over, per-card overage, 100-card pack price/expiry, shipping and cancellation/refund rules.
-
-    Default curency shold be PLN, display tax, biling interwall each month, later there isll be wirtual carts so wirtual cards will be free for subscribrion only printed will be payed. for phisicall cards add shiping price.
+4. **Phase 7 foundation resolved:** PLN is the default, tax is displayed, monthly billing is supported, virtual identity issuance has no production price, and physical-card quotes include configured shipping. Exact plan limits, approved tax rate, per-card/pack prices, expiry and cancellation/refund terms remain commercial inputs that a platform operator must publish; Phase 7 seeds none of them.
 5. **Before Phase 7 payment work:** choose an invoicing/payment provider and accounting ownership. No provider is assumed by this plan.
 6. **Before Phase 8:** provide the printer’s finished size, bleed, safe area, DPI, color profile, sheet/imposition, crop marks, duplex orientation, preferred file type and naming convention.
 7. **Before Phases 8–9:** confirm the allocation rule: preprinted card scanned at registration, digital-first then printed, or both.
 8. **Before Phase 8:** confirm that tenant users receive low-resolution proofs only and platform operators alone download production files; this is the recommended policy.
-9. **Before Phase 6 production onboarding:** obtain/verify Dotykačka partner `client_id`/`client_secret`, redirect URI and production access; define who can reconnect a tenant.
+9. **Resolved after Phase 6:** Dotykačka partner `client_id`/`client_secret`, redirect URI and production access are platform configuration. An authorized tenant owner starts or disconnects their own provider-login authorization from tenant settings. Cloud ID is callback-owned and locked until explicit disconnect. Platform superusers retain redacted system tests; no client sees shared Connector credentials or token values.
 10. **Before Phase 6 points support:** define source of truth for customer fields, discounts, points/balance, transactions and conflict resolution. Initial scope should remain customer upsert/reconciliation only.
     source of truth shold be our database so if customer is syncronized with POS it shold get id grom a pos and sabe it to our database. also klient shold have status for each integration is that klient synchtonized or not.
 11. **Before Phase 6 Wallet production:** confirm centralized Apple Pass Type/Team and Google Wallet Issuer ownership; centralized MB Studio credentials are recommended.
@@ -626,15 +626,15 @@ Completed Phases 0–4 are not blocked by these. The named future phase must not
 
 ## 15. Recommended next implementation slice
 
-Start Phase 5 with behavior-only extraction:
+Start Phase 8 with additive print-request and fulfillment records:
 
-1. Move tenant context, membership authorization and tenant portal views/templates/tests to `tenants`, importing the existing `dotykacka` models temporarily.
-2. Move customer query/form services to `customers` and card-code/inventory services to `cards` without changing model labels or tables.
-3. Move design forms, views, templates and renderer services to `card_artwork`; keep the current management commands as compatibility adapters.
-4. Add no model move in the same release. Any new `CropPlan`, consent or external-identity schema must be additive and owned by its destination app.
-5. Run `verify_app_extraction --strict --expect-marta`, the upgraded/fresh migration checks, generator golden tests and the full suite after each bounded context.
+1. Confirm the printer specification and allocation rule from section 14 before producing any print files.
+2. Convert an accepted immutable quote into one idempotent tenant print request without recalculating its commercial snapshot.
+3. Allocate codes and consume reserved allowance/packs transactionally, then create durable production jobs and manifests.
+4. Keep production downloads platform-only and append fulfillment/correction events instead of rewriting status history.
+5. Add Marta’s dry-run legacy reconciliation report before any operator confirms already-printed/delivered cards.
 
-The `dotykacka` app remains installed as the historical model/migration owner throughout this slice.
+The `dotykacka` app remains installed as the historical table/migration owner; later phases must not delete or rewrite legacy credentials, token rows, Wallet paths, customer data or Phase 6 job history.
 
 ## 16. Documentation review basis
 

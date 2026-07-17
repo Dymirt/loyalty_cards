@@ -33,6 +33,28 @@ LEGACY_MODEL_TABLES = {
     "dotykacka.walletpass": "dotykacka_walletpass",
 }
 
+EXTRACTED_MODEL_TABLES = {
+    "billing.billingperiod": "billing_billingperiod",
+    "billing.cardpack": "billing_cardpack",
+    "billing.cardpackallocation": "billing_cardpackallocation",
+    "billing.cardpricetier": "billing_cardpricetier",
+    "billing.entitlementpolicy": "billing_entitlementpolicy",
+    "billing.plan": "billing_plan",
+    "billing.planversion": "billing_planversion",
+    "billing.pricebook": "billing_pricebook",
+    "billing.pricebookversion": "billing_pricebookversion",
+    "billing.quote": "billing_quote",
+    "billing.quoteline": "billing_quoteline",
+    "billing.tenantsubscription": "billing_tenantsubscription",
+    "billing.usageevent": "billing_usageevent",
+    "card_artwork.cropplan": "card_artwork_cropplan",
+    "customers.consentrecord": "customers_consentrecord",
+    "customers.customerexternalidentity": "customers_customerexternalidentity",
+    "integrations.integrationjob": "integrations_integrationjob",
+    "pos_dotykacka.dotykackaaccesstoken": "pos_dotykacka_dotykackaaccesstoken",
+    "pos_dotykacka.dotykackaconnectstate": "pos_dotykacka_dotykackaconnectstate",
+}
+
 LEGACY_ADMIN_MODELS = {
     "dotykacka.auditevent",
     "dotykacka.cardartifact",
@@ -76,6 +98,27 @@ LEGACY_URL_NAMES = {
     "dotykacka:send_passes_to_all",
 }
 
+EXTRACTED_URL_NAMES = {
+    "card_artwork:artifact_download",
+    "card_artwork:settings",
+    "cards:platform_print_center",
+    "customers:list",
+    "enrollment:register",
+    "enrollment:tenant_register",
+    "tenants:portal",
+    "integrations:settings",
+    "integrations:test",
+    "integrations:system_connections",
+    "integrations:test_system_connection",
+    "pos_dotykacka:connect",
+    "pos_dotykacka:disconnect",
+    "pos_dotykacka:callback",
+    "billing:tenant",
+    "billing:create_quote",
+    "billing:accept_quote",
+    "billing:platform",
+}
+
 MARTA_EXPECTED_ROWS = {
     "dotykacka.cardbatch": 1,
     "dotykacka.carddesign": 1,
@@ -103,6 +146,17 @@ LEGACY_DOTYKACKA_MIGRATIONS = {
     "0011_require_tenant_ownership",
     "0012_card_design_foundation",
     "0013_backfill_card_designs",
+    "0014_promote_dotykacka_refresh_tokens",
+}
+
+EXTRACTED_MIGRATIONS = {
+    ("card_artwork", "0001_crop_plan"),
+    ("customers", "0001_customer_domain_models"),
+    ("customers", "0002_external_identity_sync_status"),
+    ("customers", "0003_external_identity_pending_remote_id"),
+    ("integrations", "0001_initial"),
+    ("pos_dotykacka", "0001_initial"),
+    ("billing", "0001_initial"),
 }
 
 
@@ -224,7 +278,7 @@ def collect_extraction_inventory(*, include_rows=True):
         )
 
     return {
-        "schema_version": 1,
+        "schema_version": 4,
         "settings_module": os.environ.get("DJANGO_SETTINGS_MODULE", ""),
         "root_urlconf": settings.ROOT_URLCONF,
         "wsgi_application": settings.WSGI_APPLICATION,
@@ -268,13 +322,14 @@ def structural_errors(inventory, *, expect_marta=False):
         errors.append("The legacy dotykacka model-label inventory changed.")
 
     target_app_set = set(TARGET_APPS)
-    unexpected_target_models = sorted(
-        label for label in models if label.split(".", 1)[0] in target_app_set
-    )
-    if unexpected_target_models:
+    actual_target_models = {
+        label: models[label]["table"]
+        for label in models
+        if label.split(".", 1)[0] in target_app_set
+    }
+    if actual_target_models != EXTRACTED_MODEL_TABLES:
         errors.append(
-            "Phase 4 target apps unexpectedly own models: "
-            + ", ".join(unexpected_target_models)
+            "The extracted destination-model/table inventory changed."
         )
 
     content_types = {
@@ -291,16 +346,13 @@ def structural_errors(inventory, *, expect_marta=False):
     }
     if actual_legacy_content_types != set(LEGACY_MODEL_TABLES):
         errors.append("The legacy dotykacka content-type inventory changed.")
-    unexpected_target_content_types = sorted(
+    actual_target_content_types = {
         f"{app_label}.{model}"
         for app_label, model in content_types
         if app_label in target_app_set
-    )
-    if unexpected_target_content_types:
-        errors.append(
-            "Phase 4 target apps unexpectedly own content types: "
-            + ", ".join(unexpected_target_content_types)
-        )
+    }
+    if actual_target_content_types != set(EXTRACTED_MODEL_TABLES):
+        errors.append("The extracted destination content-type inventory changed.")
 
     permission_keys = {
         (item["app_label"], item["model"], item["codename"])
@@ -312,8 +364,16 @@ def structural_errors(inventory, *, expect_marta=False):
             key = (app_label, model, f"{action}_{model}")
             if key not in permission_keys:
                 errors.append(f"Missing permission {app_label}.{key[2]}.")
-    if any(app_label in target_app_set for app_label, _, _ in permission_keys):
-        errors.append("A Phase 4 target app unexpectedly owns permissions.")
+    expected_target_permissions = {
+        (app_label, model, f"{action}_{model}")
+        for app_label, model in (label.split(".", 1) for label in EXTRACTED_MODEL_TABLES)
+        for action in ("add", "change", "delete", "view")
+    }
+    actual_target_permissions = {
+        key for key in permission_keys if key[0] in target_app_set
+    }
+    if actual_target_permissions != expected_target_permissions:
+        errors.append("The extracted destination permission inventory changed.")
 
     expected_legacy_permissions = {
         ("dotykacka", model, f"{action}_{model}")
@@ -333,16 +393,41 @@ def structural_errors(inventory, *, expect_marta=False):
     }
     if applied_legacy_migrations != LEGACY_DOTYKACKA_MIGRATIONS:
         errors.append("The applied dotykacka migration inventory changed.")
+    applied_extracted_migrations = {
+        (item["app"], item["name"])
+        for item in inventory["migrations"]
+        if item["app"] in {
+            "billing",
+            "card_artwork",
+            "customers",
+            "integrations",
+            "pos_dotykacka",
+        }
+    }
+    if applied_extracted_migrations != EXTRACTED_MIGRATIONS:
+        errors.append("The applied extracted-app migration inventory changed.")
 
     command_names = {item["name"] for item in inventory["commands"]}
     missing_commands = sorted(LEGACY_COMMANDS - command_names)
     if missing_commands:
         errors.append("Missing legacy commands: " + ", ".join(missing_commands))
+    command_providers = {item["name"]: item["provider"] for item in inventory["commands"]}
+    if command_providers.get("generate_card_artifacts") != "card_artwork":
+        errors.append("The card artifact command is not owned by card_artwork.")
+    if command_providers.get("generate_wallet_passes") != "wallets":
+        errors.append("The Wallet command is not owned by wallets.")
+    if command_providers.get("run_integration_worker") != "integrations":
+        errors.append("The integration worker command is not owned by integrations.")
 
     url_names = {item["name"] for item in inventory["urls"] if item["name"]}
     missing_urls = sorted(LEGACY_URL_NAMES - url_names)
     if missing_urls:
         errors.append("Missing legacy URL names: " + ", ".join(missing_urls))
+    missing_extracted_urls = sorted(EXTRACTED_URL_NAMES - url_names)
+    if missing_extracted_urls:
+        errors.append(
+            "Missing canonical extraction URLs: " + ", ".join(missing_extracted_urls)
+        )
 
     admin_models = {item["model"] for item in inventory["admin"]["models"]}
     missing_admin_models = sorted(LEGACY_ADMIN_MODELS - admin_models)
@@ -352,16 +437,9 @@ def structural_errors(inventory, *, expect_marta=False):
         )
     if inventory["admin"]["site_actions"] != ["delete_selected"]:
         errors.append("The global Django admin action inventory changed.")
-    target_admin_log_references = sorted(
-        f"{item['app_label']}.{item['model']}"
-        for item in inventory["admin"]["log_references"]
-        if item["app_label"] in target_app_set
-    )
-    if target_admin_log_references:
-        errors.append(
-            "Phase 4 target apps unexpectedly own admin-log references: "
-            + ", ".join(target_admin_log_references)
-        )
+    extracted_admin_models = set(EXTRACTED_MODEL_TABLES)
+    if not extracted_admin_models.issubset(admin_models):
+        errors.append("Missing extracted destination admin registrations.")
 
     if inventory["root_urlconf"] != "loyalty_platform.urls":
         errors.append("The active root URLconf is not loyalty_platform.urls.")

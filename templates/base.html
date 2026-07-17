@@ -46,6 +46,10 @@
                     {% endif %}
                 {% endif %}
                 {% if user.is_superuser %}
+                    <a href="{% url 'integrations:system_connections' %}"
+                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Połączenia systemowe</a>
+                    <a href="{% url 'billing:platform' %}"
+                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Plany i ceny</a>
                     <a href="{% url 'dotykacka:platform_print_center' %}"
                        class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Centrum druku</a>
                     <a href="{% url 'dotykacka:customers' %}"

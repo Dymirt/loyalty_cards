@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Panel firmy · {{ tenant.name }}{% endblock %}
+{% block content %}
+{% include "tenants/partials/nav.html" %}
+<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div><p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Panel firmy</p><h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{{ tenant.brand.public_name|default:tenant.name }}</h1><p class="mt-2 max-w-2xl text-ink-700">Stan programu lojalnościowego i konfiguracji firmy.</p></div>
+    <a href="{% url 'dotykacka:tenant_register' tenant.slug %}" class="portal-button-secondary">Otwórz rejestrację</a>
+</div>
+<section class="mt-8 grid gap-4 sm:grid-cols-3" aria-label="Podsumowanie programu">
+    <article class="portal-card"><p class="text-sm font-semibold text-ink-700">Klienci</p><p class="mt-2 text-4xl font-bold tabular-nums">{{ customer_count }}</p></article>
+    <article class="portal-card"><p class="text-sm font-semibold text-ink-700">Karty przypisane</p><p class="mt-2 text-4xl font-bold tabular-nums">{{ assigned_card_count }}</p></article>
+    <article class="portal-card"><p class="text-sm font-semibold text-ink-700">Karty dostępne</p><p class="mt-2 text-4xl font-bold tabular-nums">{{ available_card_count }}</p></article>
+</section>
+<section class="mt-8" aria-labelledby="integration-summary-title">
+    <div class="flex items-center justify-between gap-4"><div><h2 id="integration-summary-title" class="text-2xl font-bold">Integracje</h2><p class="mt-1 text-sm text-ink-700">Stan połączeń należących do tej firmy.</p></div>{% if can_manage_integrations %}<a href="{% url 'dotykacka:integration_settings' tenant.slug %}" class="portal-button-secondary">Konfiguruj</a>{% endif %}</div>
+    <div class="mt-4 grid gap-4 md:grid-cols-3">
+        <article class="portal-card"><h3 class="font-bold">Dotykačka</h3><p class="portal-status mt-3 {% if integration_statuses.dotykacka %}bg-emerald-100 text-emerald-800{% else %}bg-stone-100 text-stone-700{% endif %}">{% if integration_statuses.dotykacka %}Aktywna{% else %}Nieaktywna{% endif %}</p></article>
+        <article class="portal-card"><h3 class="font-bold">Brevo</h3><p class="portal-status mt-3 {% if integration_statuses.brevo %}bg-emerald-100 text-emerald-800{% else %}bg-stone-100 text-stone-700{% endif %}">{% if integration_statuses.brevo %}Aktywna{% else %}Nieaktywna{% endif %}</p></article>
+        <article class="portal-card"><h3 class="font-bold">Google Wallet</h3><p class="portal-status mt-3 {% if integration_statuses.google_wallet %}bg-emerald-100 text-emerald-800{% else %}bg-stone-100 text-stone-700{% endif %}">{% if integration_statuses.google_wallet %}Aktywna{% else %}Nieaktywna{% endif %}</p></article>
+    </div>
+</section>
+{% endblock %}
