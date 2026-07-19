@@ -28,6 +28,7 @@ staticfiles/
 static/admin
 var/logs/*
 !var/logs/.gitkeep
+var/print-packages/
 *.log
 *.pkpass
 send_passes_log.csv

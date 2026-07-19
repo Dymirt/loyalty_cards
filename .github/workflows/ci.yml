@@ -1,0 +1,70 @@
+name: Loyalty platform CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: loyalty-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      DJANGO_SECRET_KEY: ci-only-9e53f07c0cae4a398ff58efc38d095952cbe8af4d31a4f7e89c624b90d155f31
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: testserver,localhost
+      DJANGO_CSRF_TRUSTED_ORIGINS: https://testserver
+      DJANGO_SECURE_SSL_REDIRECT: "True"
+      DJANGO_SESSION_COOKIE_SECURE: "True"
+      DJANGO_CSRF_COOKIE_SECURE: "True"
+      DJANGO_SECURE_HSTS_SECONDS: "31536000"
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+      DJANGO_SECURE_HSTS_PRELOAD: "True"
+      APP_BASE_URL: https://testserver
+      DB_ENGINE: django.db.backends.sqlite3
+      DB_NAME: /tmp/loyalty-ci.sqlite3
+      EMAIL_BACKEND: django.core.mail.backends.locmem.EmailBackend
+      LOYALTY_LOG_LEVEL: WARNING
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install Python dependencies and audit tool
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-production.txt pip-audit
+          python -m pip check
+      - name: Install pinned frontend build dependencies
+        run: npm ci
+      - name: Django schema and deployment checks
+        run: |
+          python manage.py check
+          python manage.py check --deploy --fail-level WARNING
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --noinput
+          python manage.py migrate --plan
+          python manage.py verify_app_extraction --strict
+      - name: Test application with external calls blocked
+        run: python manage.py test --noinput
+      - name: Build committed static assets
+        run: |
+          npm run build
+          git diff --exit-code -- static/css/portal.v1.css static/vendor
+      - name: Dependency vulnerability checks
+        run: |
+          pip-audit -r requirements-production.txt
+          npm audit --audit-level=high
+
