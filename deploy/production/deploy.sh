@@ -15,6 +15,10 @@ WORKER_UNITS=(
     loyalty-print-worker.service
     loyalty-monitor.service
 )
+BACKUP_UNITS=(
+    loyalty-backup.service
+    loyalty-backup.timer
+)
 
 log() {
     printf '[loyalty-deploy] %s\n' "$*"
@@ -251,6 +255,9 @@ a2enmod headers >/dev/null
 for unit in "${WORKER_UNITS[@]}"; do
     install -m 0644 -o root -g root "$RELEASE/deploy/production/$unit" "/etc/systemd/system/$unit"
 done
+for unit in "${BACKUP_UNITS[@]}"; do
+    install -m 0644 -o root -g root "$RELEASE/deploy/systemd/$unit" "/etc/systemd/system/$unit"
+done
 
 workers_stopped=false
 systemctl daemon-reload
@@ -300,6 +307,14 @@ for unit in "${WORKER_UNITS[@]}"; do
         fail "$unit is not active"
     }
 done
+if ! systemctl enable --now loyalty-backup.timer; then
+    rollback_code
+    fail "the nightly backup timer could not be enabled"
+fi
+systemctl is-active --quiet loyalty-backup.timer || {
+    rollback_code
+    fail "the nightly backup timer is not active"
+}
 
 printf '%s\n' "$SHA" > "$STATE/current-sha"
 if [[ -n "$previous_release" ]]; then

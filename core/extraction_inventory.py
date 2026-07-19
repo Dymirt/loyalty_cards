@@ -176,7 +176,7 @@ EXTRACTED_URL_NAMES = {
     "printing:legacy_confirm",
 }
 
-MARTA_EXPECTED_ROWS = {
+MARTA_BASELINE_ROWS = {
     "dotykacka.cardbatch": 1,
     "dotykacka.carddesign": 1,
     "dotykacka.integrationconnection": 3,
@@ -553,10 +553,12 @@ def structural_errors(inventory, *, expect_marta=False):
         errors.append("Missing target apps: " + ", ".join(missing_apps))
 
     if expect_marta:
-        for label, expected in MARTA_EXPECTED_ROWS.items():
+        for label, expected_minimum in MARTA_BASELINE_ROWS.items():
             actual = models.get(label, {}).get("rows")
-            if actual != expected:
-                errors.append(f"{label} rows: expected {expected}, found {actual}.")
+            if actual is None or actual < expected_minimum:
+                errors.append(
+                    f"{label} rows: expected at least {expected_minimum}, found {actual}."
+                )
         token_rows = models.get("dotykacka.accesstoken", {}).get("rows")
         if token_rows is None or token_rows < 261:
             errors.append(

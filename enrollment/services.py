@@ -69,9 +69,7 @@ def published_brand_release(tenant):
                 else live_brand.logo_path
             ),
             "background_image_path": (
-                design.background_source.name
-                if design and design.background_source
-                else live_brand.background_image_path
+                live_brand.background_image_path
             ),
         }
     )

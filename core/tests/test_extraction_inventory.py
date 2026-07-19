@@ -14,6 +14,7 @@ from core.extraction_inventory import (
     LEGACY_URL_NAMES,
     EXTRACTED_MODEL_TABLES,
     EXTRACTED_URL_NAMES,
+    MARTA_BASELINE_ROWS,
     collect_extraction_inventory,
     structural_errors,
 )
@@ -108,3 +109,18 @@ class ExtractionInventoryTests(TestCase):
         self.assertTrue(report["verification"]["passed"])
         self.assertFalse(report["verification"]["marta_counts_checked"])
         self.assertEqual(report["verification"]["errors"], [])
+
+    def test_marta_row_gate_allows_growth_but_rejects_baseline_loss(self):
+        inventory = collect_extraction_inventory(include_rows=True)
+        models = {item["label"]: item for item in inventory["models"]}
+        for label, minimum in MARTA_BASELINE_ROWS.items():
+            models[label]["rows"] = minimum + 2
+        models["dotykacka.accesstoken"]["rows"] = 264
+
+        self.assertEqual(structural_errors(inventory, expect_marta=True), [])
+
+        models["dotykacka.klient"]["rows"] = 266
+        self.assertIn(
+            "dotykacka.klient rows: expected at least 267, found 266.",
+            structural_errors(inventory, expect_marta=True),
+        )

@@ -9,6 +9,7 @@ from dotykacka.tests.base import (
     create_physical_card,
     create_tenant,
     create_tenant_owner,
+    default_tenant,
 )
 from enrollment.links import issue_access_link, token_for_link
 from enrollment.models import EnrollmentAccessLink
@@ -20,6 +21,16 @@ from .test_enrollment_services import cleaned_registration
 
 
 class EnrollmentViewTests(TestCase):
+    def test_marta_registration_renders_the_public_web_background(self):
+        tenant = default_tenant()
+
+        response = self.client.get(
+            reverse("enrollment:tenant_register", args=[tenant.slug])
+        )
+
+        self.assertContains(response, "/media/obraz_com.jpg")
+        self.assertNotContains(response, "Marta Banaszek - Obraz II.jpg")
+
     def test_database_allows_only_one_primary_domain_per_tenant(self):
         tenant = create_tenant(name="Primary Café", slug="primary-cafe", card_prefix="PR")
         TenantDomain.objects.create(

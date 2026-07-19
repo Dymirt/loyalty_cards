@@ -16,6 +16,7 @@ from dotykacka.tests.base import (
     create_physical_card,
     create_tenant,
     create_tenant_owner,
+    default_tenant,
 )
 from enrollment.jobs import enqueue_enrollment_followups
 from enrollment.links import (
@@ -31,6 +32,7 @@ from enrollment.models import (
     EnrollmentFollowUp,
 )
 from enrollment.services import (
+    registration_brand_for_tenant,
     register_customer_with_card,
     resend_enrollment_email,
     retry_enrollment_followup,
@@ -50,6 +52,21 @@ def cleaned_registration(code):
 
 
 class EnrollmentServiceTests(TestCase):
+    def test_registration_uses_the_public_web_background_not_the_card_master(self):
+        tenant = default_tenant()
+        design = tenant.card_designs.get(version=1)
+        self.assertNotEqual(
+            tenant.brand.background_image_path,
+            design.background_source.name,
+        )
+
+        release = registration_brand_for_tenant(tenant)
+
+        self.assertEqual(
+            release["background_image_path"],
+            tenant.brand.background_image_path,
+        )
+
     def test_registration_uses_domain_services_and_records_consent(self):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(

@@ -5,14 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=loyalty
-Group=loyalty
-WorkingDirectory=/var/www/loyalty_platform
-EnvironmentFile=/etc/loyalty-platform.env
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/loyalty_platform/current
 UMask=0077
-ExecStart=/var/www/loyalty_platform/.venv/bin/python manage.py create_platform_backup --label scheduled
+ExecStart=/var/www/loyalty_platform/current/.venv/bin/python manage.py create_platform_backup --label scheduled
 ExecStartPost=/usr/bin/find /var/backups/loyalty-platform -type f -mtime +35 -print
 
 # Retention is report-only by design. Review the printed paths and move approved
 # expired archives to protected offline retention; this unit never deletes data.
-

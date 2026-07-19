@@ -652,6 +652,37 @@ def design_snapshot_values(values):
     return {field: values.get(field, "") for field in fields}
 
 
+def _publish_registration_background(*, tenant, version, source_bytes):
+    """Publish a bounded web derivative without changing the master artwork."""
+
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    relative_path = Path(
+        f"tenants/{tenant.slug}/registration/backgrounds/"
+        f"v{version:04d}-{uuid4().hex}.jpg"
+    )
+    target = (media_root / relative_path).resolve()
+    if media_root not in target.parents:
+        raise ValidationError(_("Niedozwolona ścieżka tła strony rejestracji."))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{uuid4().hex}.partial")
+    try:
+        with Image.open(BytesIO(source_bytes)) as opened:
+            image = ImageOps.exif_transpose(opened).convert("RGB")
+            image.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+            image.save(
+                temporary,
+                format="JPEG",
+                quality=82,
+                optimize=True,
+                progressive=True,
+            )
+        temporary.chmod(0o640)
+        os.link(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return relative_path.as_posix()
+
+
 @transaction.atomic
 def publish_card_design(
     *,
@@ -729,7 +760,11 @@ def publish_card_design(
     for field, value in brand_data.items():
         setattr(current_brand, field, value)
     current_brand.logo_path = design.logo.name
-    current_brand.background_image_path = design.background_source.name
+    current_brand.background_image_path = _publish_registration_background(
+        tenant=locked_tenant,
+        version=version,
+        source_bytes=spec.background_bytes,
+    )
     current_brand.save()
     return design
 

@@ -1,6 +1,6 @@
 # Loyalty Studio SaaS Rollout Plan
 
-Status: technical platform complete; first-tenant launch approval pending
+Status: Phase 12 production audit active; Apple/off-host/human approval pending
 
 Updated: 2026-07-19
 
@@ -22,14 +22,15 @@ backups, central printing and signed tenant acceptance.
 
 ## Current baseline
 
-- Phases 0–11 are implemented and the current MariaDB suite passes all 228
+- Phases 0–11 are implemented and the current MariaDB suite passes all 240
   automated tests; the earlier SQLite baseline has three expected
   database-specific skips.
 - The active public, tenant and platform interfaces use Polish; native Django
   locale middleware and translation catalogs are the extension point for future
   languages. No second language is exposed before its catalog is complete.
-- Marta Banaszek Atelier-Café owns 267 customers and 600 physical cards: 267
-  assigned and 333 available. Existing business and media data remain intact.
+- Marta Banaszek Atelier-Café retains the protected 267-customer historical
+  baseline. The production audit observed 269 customers and 600 physical cards:
+  269 assigned and 331 available. Existing business and media data remain intact.
 - The platform, integration, print and monitor processes are healthy; backup and
   restore drills pass.
 - No plan, price book, payment provider or historical fulfillment event has been
@@ -39,10 +40,12 @@ backups, central printing and signed tenant acceptance.
 ## Launch blockers
 
 1. Marta has not completed the human acceptance checklist.
-2. Marta's Brevo connection retains the redacted status `brevo_unauthorized` and
-   needs an explicit platform test or tenant-key replacement.
-3. Apple, Google Wallet, SMTP and Dotykačka must pass the production system
-   checks at launch time; configuration presence alone is not approval.
+2. Marta's Brevo connection passed its explicit production test on 2026-07-19;
+   the prior redacted `brevo_unauthorized` result is resolved without moving the
+   tenant key to `.env`.
+3. Google Wallet, SMTP, Dotykačka Connector and Marta's Dotykačka cloud passed
+   on 2026-07-19. Apple Wallet remains blocked by the Pass Type certificate that
+   expired on 2026-06-25 and must be renewed before acceptance.
 4. The real printer specification and one supervised production proof/package
    have not been approved.
 5. Plan limits, prices, tax, shipping, invoicing/payment ownership and legal
@@ -52,13 +55,14 @@ backups, central printing and signed tenant acceptance.
 
 ## Phase 12 — Marta launch acceptance
 
-- [ ] Create and verify a current database/runtime backup, and confirm a recent
-  encrypted off-host generation exists.
-- [ ] Verify production host, HTTPS, HSTS, secure-cookie, trusted-proxy, CSRF,
+- [x] Create and verify a current database/runtime backup.
+- [ ] Confirm a recent encrypted off-host generation exists.
+- [x] Verify production host, HTTPS, HSTS, secure-cookie, trusted-proxy, CSRF,
   storage and supervisor settings using the deployment gate in `README.md`.
 - [ ] Run the platform system checks for Apple Wallet, Google Wallet, SMTP and
-  Dotykačka; expose no secret or token values in evidence.
-- [ ] Run the explicit Brevo connection test. If it fails, replace only Marta's
+  Dotykačka; all pass except the expired Apple certificate. Expose no secret or
+  token values in evidence.
+- [x] Run the explicit Brevo connection test. If it fails, replace only Marta's
   encrypted tenant API key and retest; never move the key back to `.env`.
 - [ ] Marta verifies brand/legal/contact data, tenant isolation and portal access.
 - [ ] Perform one controlled enrollment with an approved unused card and test
@@ -67,6 +71,9 @@ backups, central printing and signed tenant acceptance.
   production or delivery unless separately authorized.
 - [ ] Record acceptance date, approver, results and safe references without
   credentials or customer data.
+
+Technical evidence and the remaining blockers are recorded in
+`docs/phase-12-marta-launch-acceptance.md`.
 
 Acceptance gate: every applicable item in
 `docs/runbooks/marta-acceptance.md` is signed; all critical health checks are

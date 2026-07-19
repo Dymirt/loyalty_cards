@@ -1,11 +1,12 @@
 # MB Studio Loyalty SaaS
 
 Django loyalty-card SaaS whose first tenant is Marta Banaszek Atelier-Café. The
-legacy live service is available at [club.mbstudio.online](https://club.mbstudio.online).
+production service is available at [club.mbstudio.online](https://club.mbstudio.online).
 
 This repository began as a source-only recovery from `/var/www/loyalty_platform`
 and now contains the modular SaaS conversion completed through Phase 11. Local
-repository work is not automatically deployed to the legacy production service.
+uncommitted work is not deployed; a pushed `main` release deploys only after the
+configured SQLite/build/audit and MariaDB CI gates pass.
 Production secrets, customer data, generated cards, Wallet passes, virtual
 environments, databases, logs, and nested Git metadata are intentionally
 excluded.
@@ -15,10 +16,10 @@ excluded.
 | Area | Current state |
 | --- | --- |
 | Technical conversion | Phases 0–11 complete; modular Django platform and operational safety controls implemented |
-| Automated baseline | 228 isolated tests pass on MariaDB; the earlier SQLite baseline has three expected database-specific skips |
-| First tenant | Marta Banaszek Atelier-Café: 267 customers and 600 cards, of which 267 are assigned and 333 are available |
+| Automated baseline | 240 isolated tests pass on MariaDB; the earlier SQLite baseline has three expected database-specific skips |
+| First tenant | Marta Banaszek Atelier-Café: protected historical minimum 267; the 2026-07-19 production audit observed 269 customers and 600 cards, of which 269 were assigned and 331 available |
 | Rollout | Additional paying tenants remain disabled until Marta completes the human acceptance checklist |
-| Known provider issue | Marta's last stored Brevo result is `brevo_unauthorized`; it requires an explicit test or replacement of only her encrypted tenant key |
+| Provider acceptance | Brevo, Dotykačka, Google Wallet and SMTP passed on 2026-07-19; Apple Wallet is blocked by its expired Pass Type certificate |
 | Commercial/production inputs | Real printer specification, prices, limits, tax/shipping/payment ownership, and historical fulfillment ranges still require approval |
 
 The current rollout work is tracked in [PLAN.md](PLAN.md). The completed
@@ -27,6 +28,8 @@ Phase 0–11 implementation history is preserved in
 Phase 11 evidence and the first-tenant checklist are in
 [docs/phase-11-production-hardening.md](docs/phase-11-production-hardening.md)
 and [docs/runbooks/marta-acceptance.md](docs/runbooks/marta-acceptance.md).
+The live production audit is in
+[docs/phase-12-marta-launch-acceptance.md](docs/phase-12-marta-launch-acceptance.md).
 
 ## Product model and terminology
 

@@ -306,6 +306,20 @@ class CardDesignPortalTests(TestCase):
                 )
             )
             self.assertNotIn("background.png", design.background_source.name)
+            self.tenant.brand.refresh_from_db()
+            public_background = Path(directory) / self.tenant.brand.background_image_path
+            self.assertTrue(
+                self.tenant.brand.background_image_path.startswith(
+                    "tenants/second-cafe/registration/backgrounds/v0001-"
+                )
+            )
+            self.assertTrue(public_background.is_file())
+            self.assertNotEqual(
+                self.tenant.brand.background_image_path,
+                design.background_source.name,
+            )
+            with Image.open(public_background) as image:
+                self.assertLessEqual(max(image.size), 1920)
             self.assertEqual(
                 CardArtifact.objects.filter(tenant=self.tenant, design=design).count(),
                 4,

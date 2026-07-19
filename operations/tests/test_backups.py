@@ -18,6 +18,23 @@ from operations.backups import (
 
 
 class BackupVerificationTests(SimpleTestCase):
+    def test_production_timer_uses_the_active_release_and_is_deployed(self):
+        project_root = Path(__file__).parents[2]
+        service = (
+            project_root / "deploy/systemd/loyalty-backup.service"
+        ).read_text(encoding="utf-8")
+        deployment = (
+            project_root / "deploy/production/deploy.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("User=www-data", service)
+        self.assertIn("WorkingDirectory=/var/www/loyalty_platform/current", service)
+        self.assertIn(
+            "/var/www/loyalty_platform/current/.venv/bin/python", service
+        )
+        self.assertIn("loyalty-backup.timer", deployment)
+        self.assertIn("systemctl enable --now loyalty-backup.timer", deployment)
+
     def test_backup_root_cannot_overlap_runtime_sources(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)

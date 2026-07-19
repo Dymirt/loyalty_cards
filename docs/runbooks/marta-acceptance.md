@@ -4,6 +4,10 @@ Technical automation passed on 2026-07-18. Human approval remains pending;
 additional paying tenants must stay disabled until every applicable item below
 is completed and the approver/date is recorded.
 
+The live 2026-07-19 audit is recorded in
+`docs/phase-12-marta-launch-acceptance.md`. It does not replace Marta's human
+approval.
+
 ## Automated read-only gate
 
 Run:
@@ -13,10 +17,12 @@ python manage.py verify_saas_rollout --expect-marta
 python manage.py verify_app_extraction --strict --expect-marta
 ```
 
-The first command checks the protected first tenant's customer, inventory,
-token, membership, integration and Wallet aggregate invariants and resolves the
-marketing, registration, portal and operations routes. It never creates a lead,
-enrollment, quote, print request, provider job or external call.
+The first command protects Marta's historical minimums and verifies current
+customer/card/Wallet relations, encrypted credential presence and tenant
+isolation while allowing legitimate registrations and token refreshes to grow
+the append-only aggregates. It resolves the marketing, registration, portal and
+operations routes. It never creates a lead, enrollment, quote, print request,
+provider job or external call.
 
 ## Human acceptance checklist
 
