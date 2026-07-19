@@ -34,6 +34,14 @@ class BackupVerificationTests(SimpleTestCase):
         )
         self.assertIn("loyalty-backup.timer", deployment)
         self.assertIn("systemctl enable --now loyalty-backup.timer", deployment)
+        self.assertIn(
+            '"$RELEASE/deploy/production/deploy.sh" /usr/local/sbin/loyalty-deploy',
+            deployment,
+        )
+        self.assertIn(
+            '"$RELEASE/deploy/production/rollback.sh" /usr/local/sbin/loyalty-rollback',
+            deployment,
+        )
 
     def test_backup_root_cannot_overlap_runtime_sources(self):
         with TemporaryDirectory() as directory:

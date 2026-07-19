@@ -27,9 +27,11 @@ overwritten or reconciled during this audit.
   `phase12-launch-acceptance-20260719-143821-495369.manifest.json`.
   The checksummed database archive and 3,625-member runtime archive passed
   `verify_platform_backup` with format version 1.
-- No scheduled backup timer was installed on the host. The Phase 12 repair makes
-  deployment install and enable `loyalty-backup.timer` against the active
-  release. Its calendar was validated for 02:30 Europe/Warsaw.
+- No scheduled backup timer was installed at the start of the audit. The Phase
+  12 repair installed and enabled `loyalty-backup.timer` against the active
+  release. Its calendar is active for 02:30 Europe/Warsaw with a bounded random
+  delay. The deployment/rollback operator scripts now refresh from each tested
+  release so future unit changes are not stranded in the bootstrap copy.
 - The repository and host do not provide evidence of a copied, encrypted
   off-host generation. This remains an operator action; the audit did not copy
   production data to an unapproved destination.

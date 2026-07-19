@@ -103,7 +103,9 @@ audit.
 6. Static assets are collected, the `current` symlink switches atomically,
    Apache restarts and the integration, print and monitor workers start under
    systemd.
-7. Internal liveness/readiness and external public health checks must pass.
+7. Internal liveness/readiness and external public health checks must pass. The
+   nightly verified-backup timer is enabled and the narrowly scoped deployment
+   and rollback scripts are refreshed from that same tested release.
 
 Only the active and immediately previous versioned releases are retained. The
 legacy tree, database, customer media, Wallet files and backups are never

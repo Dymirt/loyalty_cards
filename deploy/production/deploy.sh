@@ -315,6 +315,10 @@ systemctl is-active --quiet loyalty-backup.timer || {
     rollback_code
     fail "the nightly backup timer is not active"
 }
+install -m 0755 -o root -g root \
+    "$RELEASE/deploy/production/deploy.sh" /usr/local/sbin/loyalty-deploy
+install -m 0755 -o root -g root \
+    "$RELEASE/deploy/production/rollback.sh" /usr/local/sbin/loyalty-rollback
 
 printf '%s\n' "$SHA" > "$STATE/current-sha"
 if [[ -n "$previous_release" ]]; then
