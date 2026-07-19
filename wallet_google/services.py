@@ -11,6 +11,7 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.translation import gettext as _
 
 from integrations.contracts import (
     IntegrationAuthenticationError,
@@ -360,8 +361,8 @@ def system_connection_check():
     test_connection()
     return SystemCheckResult(
         ok=True,
-        summary="Uwierzytelnienie i odczyt API Google Wallet działają.",
-        details=(f"Centralny ID wydawcy: {issuer_id}",),
+        summary=_("Uwierzytelnienie i odczyt API Google Wallet działają."),
+        details=(_("Centralny ID wydawcy: %(issuer)s") % {"issuer": issuer_id},),
     )
 
 

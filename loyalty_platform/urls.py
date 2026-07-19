@@ -3,10 +3,16 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.utils.translation import gettext_lazy as _
 
 from marketing import views as marketing_views
 from operations.media import protected_media
 from operations import views as operations_views
+
+
+admin.site.site_header = _("Administracja Loyalty Studio")
+admin.site.site_title = _("Loyalty Studio")
+admin.site.index_title = _("Zarządzanie platformą")
 
 
 turnkey_compat_patterns = (
@@ -16,6 +22,7 @@ turnkey_compat_patterns = (
 
 
 urlpatterns = [
+    path("i18n/", include("django.conf.urls.i18n")),
     path("health/live", operations_views.liveness, name="health_live"),
     path("health/ready", operations_views.readiness, name="health_ready"),
     path("media/<path:path>", protected_media, name="protected_media"),

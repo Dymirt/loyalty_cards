@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.shortcuts import redirect, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods
 
 from billing.public_catalog import published_public_catalog
@@ -91,7 +92,9 @@ def contact(request):
                     "marketing/partials/contact_success.html",
                     _context(),
                 )
-            messages.success(request, "Dziękujemy. Zapytanie zostało bezpiecznie zapisane.")
+            messages.success(
+                request, _("Dziękujemy. Zapytanie zostało bezpiecznie zapisane.")
+            )
             return redirect("marketing:contact_thanks")
     return _contact_form_response(
         request,

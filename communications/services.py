@@ -8,6 +8,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from integrations.contracts import IntegrationError, SystemCheckResult
 
@@ -198,13 +199,13 @@ def smtp_system_check():
     if settings.EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
         return SystemCheckResult(
             ok=False,
-            summary="Backend SMTP nie jest aktywny.",
-            details=("Skonfiguruj EMAIL_BACKEND dla SMTP.",),
+            summary=_("Backend SMTP nie jest aktywny."),
+            details=(_("Skonfiguruj EMAIL_BACKEND dla SMTP."),),
         )
     if not settings.EMAIL_HOST:
         return SystemCheckResult(
             ok=False,
-            summary="Serwer SMTP nie jest skonfigurowany.",
+            summary=_("Serwer SMTP nie jest skonfigurowany."),
         )
     connection = get_connection(fail_silently=False)
     try:
@@ -212,14 +213,14 @@ def smtp_system_check():
         if opened is False:
             return SystemCheckResult(
                 ok=False,
-                summary="Nie udało się otworzyć połączenia SMTP.",
+                summary=_("Nie udało się otworzyć połączenia SMTP."),
             )
     finally:
         connection.close()
     return SystemCheckResult(
         ok=True,
-        summary="Logowanie do serwera SMTP działa.",
-        details=("Nie wysłano wiadomości testowej.",),
+        summary=_("Logowanie do serwera SMTP działa."),
+        details=(_("Nie wysłano wiadomości testowej."),),
     )
 
 

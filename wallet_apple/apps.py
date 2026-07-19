@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.utils.translation import gettext_lazy as _
 
 
 class WalletAppleConfig(AppConfig):
@@ -21,7 +22,7 @@ class WalletAppleConfig(AppConfig):
             SystemConnectionCheck(
                 key="apple-wallet",
                 title="Apple Wallet",
-                description=(
+                description=_(
                     "Identyfikatory platformy, certyfikat, klucz prywatny i certyfikat WWDR."
                 ),
                 checker=system_connection_check,

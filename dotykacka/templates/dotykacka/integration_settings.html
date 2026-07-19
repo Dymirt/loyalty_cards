@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Integracje · {{ tenant.name }}{% endblock %}
+{% block title %}{% blocktranslate with tenant_name=tenant.name %}Integracje · {{ tenant_name }}{% endblocktranslate %}{% endblock %}
 {% block page_messages %}{% endblock %}
 
 {% block content %}
@@ -9,19 +10,27 @@
     {% include "dotykacka/partials/tenant_nav.html" %}
 
     <div>
-        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Ustawienia firmy</p>
-        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Integracje</h1>
-        <p class="mt-2 max-w-3xl text-ink-700">Konfiguracja należy wyłącznie do {{ tenant.name }}. Sekrety są szyfrowane i po zapisaniu widoczny jest tylko ich status.</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Ustawienia firmy" %}</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Integracje" %}</h1>
+        <p class="mt-2 max-w-3xl text-ink-700">{% blocktranslate with tenant_name=tenant.name %}Konfiguracja należy wyłącznie do {{ tenant_name }}. Sekrety są szyfrowane i po zapisaniu widoczny jest tylko ich status.{% endblocktranslate %}</p>
     </div>
 
+    {% translate "Dotykačka" as dotykacka_title %}
+    {% translate "Połączenie POS, grupa rabatowa i uwierzytelnianie chmury." as dotykacka_description %}
+    {% translate "Token" as token_label %}
+    {% translate "Brevo" as brevo_title %}
+    {% translate "Lista kontaktów marketingowych i domyślny kod kraju." as brevo_description %}
+    {% translate "Klucz API" as api_key_label %}
+    {% translate "Google Wallet" as google_wallet_title %}
+    {% translate "Identyfikator wydawcy i klasa programu tej firmy. Konto podpisujące pozostaje po stronie platformy." as google_wallet_description %}
     <div class="mt-8 grid gap-5 lg:grid-cols-2">
-        {% include "dotykacka/partials/integration_panel.html" with provider="dotykacka" title="Dotykačka" description="Połączenie POS, grupa rabatowa i uwierzytelnianie chmury." form=forms.dotykacka connection=connections.dotykacka secret_label="Token" secret_configured=secret_status.dotykacka %}
-        {% include "dotykacka/partials/integration_panel.html" with provider="brevo" title="Brevo" description="Lista kontaktów marketingowych i domyślny kod kraju." form=forms.brevo connection=connections.brevo secret_label="Klucz API" secret_configured=secret_status.brevo %}
-        {% include "dotykacka/partials/integration_panel.html" with provider="google_wallet" title="Google Wallet" description="Identyfikator wydawcy i klasa programu tej firmy. Konto podpisujące pozostaje po stronie platformy." form=forms.google_wallet connection=connections.google_wallet %}
+        {% include "dotykacka/partials/integration_panel.html" with provider="dotykacka" title=dotykacka_title description=dotykacka_description form=forms.dotykacka connection=connections.dotykacka secret_label=token_label secret_configured=secret_status.dotykacka %}
+        {% include "dotykacka/partials/integration_panel.html" with provider="brevo" title=brevo_title description=brevo_description form=forms.brevo connection=connections.brevo secret_label=api_key_label secret_configured=secret_status.brevo %}
+        {% include "dotykacka/partials/integration_panel.html" with provider="google_wallet" title=google_wallet_title description=google_wallet_description form=forms.google_wallet connection=connections.google_wallet %}
     </div>
 
     <noscript>
-        <p class="mt-6 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">JavaScript jest wyłączony. Formularze nadal działają jako zwykłe formularze Django i przeładują całą stronę.</p>
+        <p class="mt-6 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">{% translate "JavaScript jest wyłączony. Formularze nadal działają jako zwykłe formularze Django i przeładują całą stronę." %}</p>
     </noscript>
 </div>
 {% endblock %}

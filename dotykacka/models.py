@@ -5,6 +5,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from .tenant_secrets import decrypt_credentials, encrypt_credentials
 
@@ -42,7 +43,7 @@ class Tenant(models.Model):
     def clean(self):
         self.card_prefix = (self.card_prefix or "").strip().upper()
         if not re.fullmatch(r"[A-Z][A-Z0-9]{0,9}", self.card_prefix):
-            raise ValidationError({"card_prefix": "Use 1-10 uppercase letters or digits."})
+            raise ValidationError({"card_prefix": _("Użyj od 1 do 10 wielkich liter lub cyfr.")})
 
     def save(self, *args, **kwargs):
         self.card_prefix = (self.card_prefix or "").strip().upper()
@@ -54,8 +55,8 @@ class Tenant(models.Model):
 
 class TenantMembership(models.Model):
     class Role(models.TextChoices):
-        OWNER = "owner", "Owner"
-        STAFF = "staff", "Staff"
+        OWNER = "owner", _("Właściciel")
+        STAFF = "staff", _("Pracownik")
 
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="memberships")
     user = models.ForeignKey(
@@ -97,11 +98,11 @@ class ImmutableVersionMixin:
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Published version records are immutable; create a new version.")
+            raise ValidationError(_("Opublikowanych wersji nie można zmieniać; utwórz nową wersję."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Published version records cannot be deleted.")
+        raise ValidationError(_("Opublikowanych wersji nie można usuwać."))
 
 
 class TenantBrandRevision(ImmutableVersionMixin, models.Model):
@@ -145,13 +146,13 @@ class TenantBrandRevision(ImmutableVersionMixin, models.Model):
 
 class CardDesign(ImmutableVersionMixin, models.Model):
     class CropMode(models.TextChoices):
-        CENTER = "center", "Center crop"
-        FOCAL = "focal", "Focal point"
-        DETERMINISTIC = "deterministic", "Deterministic variation"
+        CENTER = "center", _("Kadrowanie centralne")
+        FOCAL = "focal", _("Punkt centralny")
+        DETERMINISTIC = "deterministic", _("Powtarzalne zróżnicowanie")
 
     class LayoutPreset(models.TextChoices):
-        MARTA_LEGACY = "marta_legacy", "Legacy logo and text"
-        CENTERED = "centered", "Centered logo and text"
+        MARTA_LEGACY = "marta_legacy", _("Historyczny układ logo i tekstu")
+        CENTERED = "centered", _("Wyśrodkowane logo i tekst")
 
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="card_designs")
     brand_revision = models.ForeignKey(
@@ -231,9 +232,9 @@ class CardDesign(ImmutableVersionMixin, models.Model):
             "barcode_background_color",
         ):
             if not re.fullmatch(r"#[0-9A-Fa-f]{6}", getattr(self, field_name, "")):
-                errors[field_name] = "Use a six-digit hexadecimal color, for example #000000."
+                errors[field_name] = _("Użyj sześciocyfrowego koloru szesnastkowego, na przykład #000000.")
         if self.brand_revision_id and self.brand_revision.tenant_id != self.tenant_id:
-            errors["brand_revision"] = "Brand revision must belong to the same tenant."
+            errors["brand_revision"] = _("Wersja marki musi należeć do tej samej firmy.")
         if errors:
             raise ValidationError(errors)
 
@@ -310,9 +311,9 @@ class Klient(models.Model):
 
 class CardBatch(models.Model):
     class Status(models.TextChoices):
-        LEGACY = "legacy", "Legacy imported"
-        DRAFT = "draft", "Draft"
-        GENERATED = "generated", "Generated"
+        LEGACY = "legacy", _("Import historyczny")
+        DRAFT = "draft", _("Szkic")
+        GENERATED = "generated", _("Wygenerowana")
 
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="card_batches")
     design = models.ForeignKey(
@@ -341,10 +342,10 @@ class CardBatch(models.Model):
 
 class PhysicalCard(models.Model):
     class Status(models.TextChoices):
-        AVAILABLE = "available", "Available"
-        ASSIGNED = "assigned", "Assigned"
-        PRINTED = "printed", "Printed"
-        VOID = "void", "Void"
+        AVAILABLE = "available", _("Dostępna")
+        ASSIGNED = "assigned", _("Przypisana")
+        PRINTED = "printed", _("Wydrukowana")
+        VOID = "void", _("Unieważniona")
 
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="physical_cards")
     batch = models.ForeignKey(CardBatch, on_delete=models.PROTECT, related_name="cards")
@@ -381,14 +382,14 @@ class PhysicalCard(models.Model):
 
 class CardArtifact(ImmutableVersionMixin, models.Model):
     class Kind(models.TextChoices):
-        PROOF_FRONT = "proof_front", "Proof front"
-        PROOF_BACK = "proof_back", "Proof back"
-        CARD_FRONT = "card_front", "Card front"
-        CARD_BACK = "card_back", "Card back"
-        BARCODE = "barcode", "Barcode"
-        MANIFEST = "manifest", "Manifest"
-        APPLE_PASS = "apple_pass", "Apple Wallet pass"
-        GOOGLE_METADATA = "google_metadata", "Google Wallet metadata"
+        PROOF_FRONT = "proof_front", _("Próbka przodu")
+        PROOF_BACK = "proof_back", _("Próbka tyłu")
+        CARD_FRONT = "card_front", _("Przód karty")
+        CARD_BACK = "card_back", _("Tył karty")
+        BARCODE = "barcode", _("Kod kreskowy")
+        MANIFEST = "manifest", _("Manifest")
+        APPLE_PASS = "apple_pass", _("Karta Apple Wallet")
+        GOOGLE_METADATA = "google_metadata", _("Metadane Google Wallet")
 
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="card_artifacts")
     design = models.ForeignKey(CardDesign, on_delete=models.PROTECT, related_name="artifacts")
@@ -420,11 +421,11 @@ class CardArtifact(ImmutableVersionMixin, models.Model):
     def clean(self):
         errors = {}
         if self.design_id and self.design.tenant_id != self.tenant_id:
-            errors["design"] = "Design must belong to the artifact tenant."
+            errors["design"] = _("Projekt musi należeć do firmy przypisanej do pliku.")
         if self.batch_id and self.batch.tenant_id != self.tenant_id:
-            errors["batch"] = "Batch must belong to the artifact tenant."
+            errors["batch"] = _("Partia musi należeć do firmy przypisanej do pliku.")
         if self.physical_card_id and self.physical_card.tenant_id != self.tenant_id:
-            errors["physical_card"] = "Card must belong to the artifact tenant."
+            errors["physical_card"] = _("Karta musi należeć do firmy przypisanej do pliku.")
         if errors:
             raise ValidationError(errors)
 
@@ -459,9 +460,9 @@ class WalletPass(models.Model):
     def clean(self):
         errors = {}
         if self.customer_id and self.customer.tenant_id != self.tenant_id:
-            errors["customer"] = "Customer must belong to the Wallet tenant."
+            errors["customer"] = _("Klient musi należeć do firmy przypisanej do Wallet.")
         if self.physical_card_id and self.physical_card.tenant_id != self.tenant_id:
-            errors["physical_card"] = "Card must belong to the Wallet tenant."
+            errors["physical_card"] = _("Karta musi należeć do firmy przypisanej do Wallet.")
         if errors:
             raise ValidationError(errors)
 
@@ -470,16 +471,19 @@ class WalletPass(models.Model):
             previous = type(self).objects.get(pk=self.pk)
             for field_name in ("tenant_id", "customer_id", "physical_card_id", "apple_serial"):
                 if getattr(previous, field_name) != getattr(self, field_name):
-                    raise ValidationError(f"Wallet identity field {field_name} is immutable.")
+                    raise ValidationError(
+                        _("Pola tożsamości Wallet %(field)s nie można zmieniać.")
+                        % {"field": field_name}
+                    )
             if (
                 previous.google_object_id
                 and self.google_object_id != previous.google_object_id
             ):
-                raise ValidationError("Google Wallet object identity is immutable.")
+                raise ValidationError(_("Tożsamości obiektu Google Wallet nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Wallet identity records cannot be deleted.")
+        raise ValidationError(_("Zapisów tożsamości Wallet nie można usuwać."))
 
 
 class AuditEvent(models.Model):

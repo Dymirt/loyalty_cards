@@ -4,6 +4,7 @@ from pathlib import Path
 
 from decouple import AutoConfig
 from django.core.management.utils import get_random_secret_key
+from django.utils.translation import gettext_lazy as _
 
 from .configuration import config_with_legacy_alias
 
@@ -75,6 +76,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "operations.middleware.PlatformSecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -131,7 +133,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "pl-pl"
+LANGUAGE_CODE = "pl"
+LANGUAGES = [
+    ("pl", _("Polski")),
+]
+LOCALE_PATHS = [BASE_DIR / "locale"]
 TIME_ZONE = config("DJANGO_TIME_ZONE", default="Europe/Warsaw")
 USE_I18N = True
 USE_TZ = True
@@ -176,6 +182,7 @@ EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=15, cast=int)
 
 # Legacy first-tenant import aliases. Runtime tenant configuration is database-owned;
 # these values are read only by historical migrations/verification.
+DOTYKACKA_AUTHORIZATION_TOKEN = config("DOTYKACKA_AUTHORIZATION_TOKEN", default="")
 DOTYKACKA_CLOUD_ID = config("DOTYKACKA_CLOUD_ID", default=0, cast=int)
 DOTYKACKA_DISCOUNT_GROUP_ID = config("DOTYKACKA_DISCOUNT_GROUP_ID", default=0, cast=int)
 DOTYKACKA_HTTP_TIMEOUT = config("DOTYKACKA_HTTP_TIMEOUT", default=15, cast=int)

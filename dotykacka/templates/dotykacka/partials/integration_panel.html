@@ -1,3 +1,4 @@
+{% load i18n %}
 <section class="portal-card" aria-labelledby="{{ provider }}-title">
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -5,9 +6,9 @@
             <p class="mt-1 text-sm leading-6 text-ink-700">{{ description }}</p>
         </div>
         {% if connection.enabled %}
-            <span class="portal-status bg-emerald-100 text-emerald-800">Aktywna</span>
+            <span class="portal-status bg-emerald-100 text-emerald-800">{% translate "Aktywna" %}</span>
         {% else %}
-            <span class="portal-status bg-stone-100 text-stone-700">Nieaktywna</span>
+            <span class="portal-status bg-stone-100 text-stone-700">{% translate "Nieaktywna" %}</span>
         {% endif %}
     </div>
 
@@ -31,7 +32,7 @@
                 <div class="flex items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
                     {{ field }}
                     <div>
-                        <label for="{{ field.id_for_label }}" class="font-semibold">Włącz integrację</label>
+                        <label for="{{ field.id_for_label }}" class="font-semibold">{% translate "Włącz integrację" %}</label>
                         {% for error in field.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
                     </div>
                 </div>
@@ -40,8 +41,8 @@
             {% endif %}
         {% endfor %}
         <button type="submit" class="portal-button">
-            <span>Zapisz {{ title }}</span>
-            <span id="{{ provider }}-indicator" class="htmx-indicator ml-2" aria-live="polite">Zapisywanie…</span>
+            <span>{% blocktranslate %}Zapisz {{ title }}{% endblocktranslate %}</span>
+            <span id="{{ provider }}-indicator" class="htmx-indicator ml-2" aria-live="polite">{% translate "Zapisywanie…" %}</span>
         </button>
     </form>
 </section>

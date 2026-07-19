@@ -8,17 +8,18 @@ their final app and contain identifiers only, never provider secrets.
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from dotykacka.models import IntegrationConnection
 
 
 class IntegrationJob(models.Model):
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        RUNNING = "running", "Running"
-        RETRY = "retry", "Retry scheduled"
-        SUCCEEDED = "succeeded", "Succeeded"
-        FAILED = "failed", "Failed"
+        PENDING = "pending", _("Oczekuje")
+        RUNNING = "running", _("W toku")
+        RETRY = "retry", _("Zaplanowano ponowienie")
+        SUCCEEDED = "succeeded", _("Zakończono")
+        FAILED = "failed", _("Błąd")
 
     tenant = models.ForeignKey(
         "dotykacka.Tenant",
@@ -69,13 +70,13 @@ class IntegrationJob(models.Model):
     def clean(self):
         if self.connection_id and self.connection.tenant_id != self.tenant_id:
             raise ValidationError(
-                {"connection": "Job and integration connection must share a tenant."}
+                {"connection": _("Zadanie i połączenie integracji muszą należeć do tej samej firmy.")}
             )
         if self.attempts > self.max_attempts:
-            raise ValidationError({"attempts": "Attempts cannot exceed max attempts."})
+            raise ValidationError({"attempts": _("Liczba prób nie może przekraczać limitu.")})
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Integration job history cannot be deleted.")
+        raise ValidationError(_("Historii zadań integracji nie można usuwać."))
 
 
 __all__ = ["IntegrationConnection", "IntegrationJob"]

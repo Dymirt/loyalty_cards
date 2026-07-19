@@ -17,6 +17,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import transaction
+from django.utils.translation import gettext as _
 from PIL import Image
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
@@ -148,9 +149,9 @@ def _write_zip(source_dir: Path, target: Path):
 
 def build_apple_pass(*, customer, wallet: WalletPass, design: CardDesign):
     if customer.tenant_id != design.tenant_id or wallet.tenant_id != design.tenant_id:
-        raise ValidationError("Customer, Wallet identity and design must share a tenant.")
+        raise ValidationError(_("Klient, tożsamość Wallet i projekt muszą należeć do tej samej firmy."))
     if not settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER or not settings.APPLE_WALLET_TEAM_IDENTIFIER:
-        raise ImproperlyConfigured("Apple Wallet platform identifiers are not configured.")
+        raise ImproperlyConfigured(_("Identyfikatory platformy Apple Wallet nie są skonfigurowane."))
     rendered = render_card(spec_from_design(design), customer.klient_id)
     run_id = uuid4().hex
     relative_root = Path(
@@ -160,7 +161,7 @@ def build_apple_pass(*, customer, wallet: WalletPass, design: CardDesign):
     media_root = Path(settings.MEDIA_ROOT).resolve()
     final_root = (media_root / relative_root).resolve()
     if media_root not in final_root.parents:
-        raise ValidationError("Unsafe Apple Wallet artifact path.")
+        raise ValidationError(_("Niedozwolona ścieżka pliku Apple Wallet."))
     final_root.parent.mkdir(parents=True, exist_ok=True)
     temporary_root = Path(tempfile.mkdtemp(prefix=".generating-", dir=final_root.parent))
     pass_dir = temporary_root / "pass"
@@ -237,7 +238,7 @@ class AppleWalletIssuer:
         design = CardDesign.objects.filter(tenant=customer.tenant).first()
         if design is None:
             raise ImproperlyConfigured(
-                "No published card design exists for this tenant."
+                _("Ta firma nie ma opublikowanego projektu karty.")
             )
         builder = builder or build_apple_pass
         updater = updater or update_wallet_apple_artifact
@@ -257,7 +258,7 @@ def system_connection_check():
     if not settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER or not settings.APPLE_WALLET_TEAM_IDENTIFIER:
         return SystemCheckResult(
             ok=False,
-            summary="Identyfikatory Apple Wallet nie są kompletne.",
+            summary=_("Identyfikatory Apple Wallet nie są kompletne."),
         )
     template_dir = Path(settings.APPLE_WALLET_TEMPLATE_DIR)
     required = ("AppleWWDR.pem", "certificate.pem", "key.pem")
@@ -265,8 +266,10 @@ def system_connection_check():
     if missing:
         return SystemCheckResult(
             ok=False,
-            summary="Brakuje materiałów podpisujących Apple Wallet.",
-            details=tuple(f"Brak pliku: {name}" for name in missing),
+            summary=_("Brakuje materiałów podpisujących Apple Wallet."),
+            details=tuple(
+                _("Brak pliku: %(name)s") % {"name": name} for name in missing
+            ),
         )
     certificate = x509.load_pem_x509_certificate(
         (template_dir / "certificate.pem").read_bytes()
@@ -286,7 +289,7 @@ def system_connection_check():
     if certificate_public_key != private_public_key:
         return SystemCheckResult(
             ok=False,
-            summary="Certyfikat Apple Wallet nie pasuje do klucza prywatnego.",
+            summary=_("Certyfikat Apple Wallet nie pasuje do klucza prywatnego."),
         )
     pass_type_attributes = certificate.subject.get_attributes_for_oid(NameOID.USER_ID)
     certificate_pass_type = (
@@ -295,9 +298,10 @@ def system_connection_check():
     if certificate_pass_type != settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER:
         return SystemCheckResult(
             ok=False,
-            summary="Certyfikat Apple Wallet należy do innego Pass Type ID.",
+            summary=_("Certyfikat Apple Wallet należy do innego Pass Type ID."),
             details=(
-                f"Oczekiwany Pass Type ID: {settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER}",
+                _("Oczekiwany Pass Type ID: %(identifier)s")
+                % {"identifier": settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER},
             ),
         )
     team_attributes = certificate.subject.get_attributes_for_oid(
@@ -307,8 +311,11 @@ def system_connection_check():
     if certificate_team != settings.APPLE_WALLET_TEAM_IDENTIFIER:
         return SystemCheckResult(
             ok=False,
-            summary="Certyfikat Apple Wallet należy do innego zespołu Apple.",
-            details=(f"Oczekiwany Team ID: {settings.APPLE_WALLET_TEAM_IDENTIFIER}",),
+            summary=_("Certyfikat Apple Wallet należy do innego zespołu Apple."),
+            details=(
+                _("Oczekiwany Team ID: %(identifier)s")
+                % {"identifier": settings.APPLE_WALLET_TEAM_IDENTIFIER},
+            ),
         )
     expires_at = getattr(certificate, "not_valid_after_utc", None)
     if expires_at is None:
@@ -316,17 +323,22 @@ def system_connection_check():
     if expires_at <= datetime.now(timezone.utc):
         return SystemCheckResult(
             ok=False,
-            summary="Certyfikat Apple Wallet wygasł.",
+            summary=_("Certyfikat Apple Wallet wygasł."),
             details=(
-                f"Pass Type ID: {settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER}",
-                f"Certyfikat wygasł: {expires_at:%Y-%m-%d %H:%M UTC}",
-                "Utwórz nowy Pass Type ID Certificate w Apple Developer i zainstaluj go z pasującym kluczem prywatnym.",
+                _("Pass Type ID: %(identifier)s")
+                % {"identifier": settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER},
+                _("Certyfikat wygasł: %(expires)s")
+                % {"expires": expires_at.strftime("%Y-%m-%d %H:%M UTC")},
+                _("Utwórz nowy Pass Type ID Certificate w Apple Developer i zainstaluj go z pasującym kluczem prywatnym."),
             ),
         )
     return SystemCheckResult(
         ok=True,
-        summary="Identyfikatory i materiały podpisujące Apple Wallet są prawidłowe.",
-        details=(f"Certyfikat ważny do: {expires_at:%Y-%m-%d}",),
+        summary=_("Identyfikatory i materiały podpisujące Apple Wallet są prawidłowe."),
+        details=(
+            _("Certyfikat ważny do: %(expires)s")
+            % {"expires": expires_at.strftime("%Y-%m-%d")},
+        ),
     )
 
 

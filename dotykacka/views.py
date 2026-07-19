@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods, require_POST
 
 import dotykacka.api_utils as dotykacka_api
@@ -117,16 +118,16 @@ def send_pass(request, barcode):
         customer = Customer.objects.get(tenant=tenant, klient_id=normalized_barcode)
         send_pass_email(customer)
     except CardCodeError:
-        messages.error(request, "Nieprawidłowy numer karty.")
+        messages.error(request, _("Nieprawidłowy numer karty."))
     except Customer.DoesNotExist:
-        messages.error(request, "Nie znaleziono klienta.")
+        messages.error(request, _("Nie znaleziono klienta."))
     except FileNotFoundError:
-        messages.error(request, "Nie znaleziono pliku karty.")
+        messages.error(request, _("Nie znaleziono pliku karty."))
     except Exception as exc:
         logger.error("single_pass_email_failed", extra={"error_type": type(exc).__name__})
-        messages.error(request, "Nie udało się wysłać karty.")
+        messages.error(request, _("Nie udało się wysłać karty."))
     else:
-        messages.success(request, "Karta została wysłana.")
+        messages.success(request, _("Karta została wysłana."))
     return redirect("dotykacka:customers")
 
 
@@ -146,7 +147,11 @@ def add_all_to_brevo(request):
                 "brevo_contact_sync_failed",
                 extra={"klient_pk": customer.pk, "error_type": type(exc).__name__},
             )
-    messages.success(request, f"Zsynchronizowano {success_count} kontaktów (nieudane: {fail_count}).")
+    messages.success(
+        request,
+        _("Zsynchronizowano %(success)s kontaktów (nieudane: %(failed)s).")
+        % {"success": success_count, "failed": fail_count},
+    )
     return redirect("dotykacka:customers")
 
 
@@ -168,7 +173,11 @@ def generate_jwt_passes(request):
                 "google_wallet_generation_failed",
                 extra={"klient_pk": customer.pk, "error_type": type(exc).__name__},
             )
-    messages.success(request, f"Wygenerowano {success_count} kart Google Wallet (nieudane: {fail_count}).")
+    messages.success(
+        request,
+        _("Wygenerowano %(success)s kart Google Wallet (nieudane: %(failed)s).")
+        % {"success": success_count, "failed": fail_count},
+    )
     return redirect("dotykacka:customers")
 
 
@@ -194,7 +203,11 @@ def send_all_passes(request):
         "bulk_pass_email_completed",
         extra={"success_count": success_count, "fail_count": fail_count},
     )
-    messages.success(request, f"Wysłano {success_count} kart (nieudane: {fail_count}).")
+    messages.success(
+        request,
+        _("Wysłano %(success)s kart (nieudane: %(failed)s).")
+        % {"success": success_count, "failed": fail_count},
+    )
     return redirect("dotykacka:customers")
 
 

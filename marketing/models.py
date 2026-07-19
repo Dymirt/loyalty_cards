@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class MarketingLead(models.Model):
@@ -24,11 +25,11 @@ class MarketingLead(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Marketing leads are append-only.")
+            raise ValidationError(_("Zgłoszenia marketingowe są tylko do dopisywania."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Marketing leads cannot be deleted.")
+        raise ValidationError(_("Zgłoszeń marketingowych nie można usuwać."))
 
     def __str__(self):
         return f"{self.company_name} · {self.created_at:%Y-%m-%d}"

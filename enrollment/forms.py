@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from cards.codes import CardCodeError, parse_card_code
 from cards.services import card_is_available
@@ -12,8 +13,10 @@ from tenants.forms import style_portal_form
 
 
 class LoyaltyCustomerRegistrationForm(CustomerProfileForm):
-    barcode = forms.CharField(max_length=60, label="Barcode")
-    marketing_consent = forms.BooleanField(required=True, label="Zgoda marketingowa")
+    barcode = forms.CharField(max_length=60, label=_("Kod karty"))
+    marketing_consent = forms.BooleanField(
+        required=True, label=_("Zgoda marketingowa")
+    )
     tenant_confirmation = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, tenant, brand_snapshot=None, **kwargs):
@@ -35,11 +38,15 @@ class LoyaltyCustomerRegistrationForm(CustomerProfileForm):
                 max_number=2_147_483_647,
             ).value
         except CardCodeError as exc:
-            raise forms.ValidationError("Nieprawidłowy format kodu kreskowego.") from exc
+            raise forms.ValidationError(
+                _("Nieprawidłowy format kodu kreskowego.")
+            ) from exc
         if Customer.objects.filter(tenant=self.tenant, klient_id=barcode).exists():
-            raise forms.ValidationError("Ta karta już istnieje w bazie danych.")
+            raise forms.ValidationError(_("Ta karta już istnieje w bazie danych."))
         if not card_is_available(tenant=self.tenant, code=barcode):
-            raise forms.ValidationError("Ta karta nie należy do dostępnej puli kart.")
+            raise forms.ValidationError(
+                _("Ta karta nie należy do dostępnej puli kart.")
+            )
         return barcode
 
 
@@ -56,7 +63,7 @@ def registration_form_data(post_data):
 
 class FollowUpActionForm(forms.Form):
     reason = forms.CharField(
-        label="Powód operacji",
+        label=_("Powód operacji"),
         widget=forms.Textarea(attrs={"rows": 2}),
     )
     idempotency_key = forms.CharField(widget=forms.HiddenInput)

@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Połączenia systemowe · Loyalty Studio{% endblock %}
+{% block title %}{% translate "Połączenia systemowe · Loyalty Studio" %}{% endblock %}
 
 {% block content %}
 <div id="system-connections-content">
     <div class="flex flex-wrap items-end justify-between gap-4">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Panel administratora</p>
-            <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Połączenia systemowe</h1>
-            <p class="mt-2 max-w-3xl text-ink-700">Bezpieczne testy infrastruktury platformy oraz aktywnych połączeń firm. Wyniki nie pokazują kluczy, tokenów ani haseł.</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Panel administratora" %}</p>
+            <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Połączenia systemowe" %}</h1>
+            <p class="mt-2 max-w-3xl text-ink-700">{% translate "Bezpieczne testy infrastruktury platformy oraz aktywnych połączeń firm. Wyniki nie pokazują kluczy, tokenów ani haseł." %}</p>
         </div>
         <form method="post"
               action="{% url 'integrations:test_system_connection' 'all' %}"
@@ -18,7 +19,7 @@
               hx-swap="outerHTML"
               hx-disabled-elt="find button">
             {% csrf_token %}
-            <button type="submit" class="portal-button">Testuj wszystkie</button>
+            <button type="submit" class="portal-button">{% translate "Testuj wszystkie" %}</button>
         </form>
     </div>
 
@@ -38,7 +39,7 @@
                       hx-swap="innerHTML"
                       hx-disabled-elt="find button">
                     {% csrf_token %}
-                    <button type="submit" class="portal-button-secondary">Testuj połączenie</button>
+                    <button type="submit" class="portal-button-secondary">{% translate "Testuj połączenie" %}</button>
                 </form>
             </section>
         {% endfor %}

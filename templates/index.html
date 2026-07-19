@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 
 <html lang="en">
@@ -6,7 +7,7 @@
         <meta http-equiv="Content-Style-Type" content="text/css">
         <meta http-equiv="Content-Script-Type" content="text/javascript">
 
-        <title>TurnKey Django</title>
+        <title>{% translate "TurnKey Django" %}</title>
 
         <link rel="stylesheet" href="static/css/ui.tabs.css" type="text/css" media="print, projection, screen">
         <link rel="stylesheet" href="static/css/base.css" type="text/css">
@@ -22,42 +23,42 @@
     </head>
 
     <body>
-        <h1>TurnKey Django, Hello World!</h1>
+        <h1>{% translate "TurnKey Django, Hello World!" %}</h1>
 
         <div id="container-1">
             <ul>
-                <li><a href="#cp"><span>Control Panel</span></a></li>
+                <li><a href="#cp"><span>{% translate "Control Panel" %}</span></a></li>
             </ul>
 
             <div id="cp">
                 <div class="fragment-content">
                     <div>
                         <a href="/admin"><img
-                        src="static/images/django.png"/>Administration</a>
+                        src="static/images/django.png"/>{% translate "Administration" %}</a>
                     </div>
                     <div>
                         <a href="https://{{ http_host }}:12320"><img
-                        src="static/images/shell.png"/>Web Shell</a>
+                        src="static/images/shell.png"/>{% translate "Web Shell" %}</a>
                     </div>
                     <div>
                         <a href="https://{{ http_host }}:12321"><img
-                        src="static/images/webmin.png"/>Webmin</a>
+                        src="static/images/webmin.png"/>{% translate "Webmin" %}</a>
                     </div>
                     <div></div>
                     <div></div>
 
-                    <h2>Resources and references</h2>
+                    <h2>{% translate "Resources and references" %}</h2>
                     <ul>
-                        <li>Log into the Django Admin interface as
-                        <b>admin</b> and take a look around...
+                        <li>{% translate "Log into the Django Admin interface as" %}
+                        <b>{% translate "admin" %}</b> {% translate "and take a look around..." %}
 
-                        <li>Django documentation
-                        (<a href="/doc/index.html">offline</a>,
-                        <a href="https://docs.djangoproject.com/en/1.7/">online</a>)
+                        <li>{% translate "Django documentation
+                        (" %}<a href="/doc/index.html">{% translate "offline" %}</a>,
+                        <a href="https://docs.djangoproject.com/en/1.7/">{% translate "online" %}</a>)
                         </li>
 
                         <li><a href="https://www.turnkeylinux.org/django">
-                        TurnKey Django release notes</a></li>
+                        {% translate "TurnKey Django release notes" %}</a></li>
                     </ul>
 
                 </div>

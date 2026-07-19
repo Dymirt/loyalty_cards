@@ -2,6 +2,7 @@
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from dotykacka.models import Klient, Tenant
 
@@ -15,10 +16,10 @@ class CustomerExternalIdentity(models.Model):
     """Stable mapping between a local customer and one external provider."""
 
     class SyncStatus(models.TextChoices):
-        PENDING = "pending", "Pending"
-        SYNCED = "synced", "Synced"
-        FAILED = "failed", "Failed"
-        DISABLED = "disabled", "Disabled"
+        PENDING = "pending", _("Oczekuje")
+        SYNCED = "synced", _("Zsynchronizowano")
+        FAILED = "failed", _("Błąd")
+        DISABLED = "disabled", _("Wyłączona")
 
     tenant = models.ForeignKey(
         Tenant,
@@ -61,7 +62,7 @@ class CustomerExternalIdentity(models.Model):
     def clean(self):
         if self.customer_id and self.tenant_id != self.customer.tenant_id:
             raise ValidationError(
-                {"customer": "Customer and external identity must share a tenant."}
+                {"customer": _("Klient i tożsamość zewnętrzna muszą należeć do tej samej firmy.")}
             )
 
 
@@ -94,16 +95,16 @@ class ConsentRecord(models.Model):
     def clean(self):
         if self.customer_id and self.tenant_id != self.customer.tenant_id:
             raise ValidationError(
-                {"customer": "Customer and consent record must share a tenant."}
+                {"customer": _("Klient i zapis zgody muszą należeć do tej samej firmy.")}
             )
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Consent evidence is append-only; create a new record.")
+            raise ValidationError(_("Historii zgód nie można zmieniać; utwórz nowy zapis."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Consent evidence cannot be deleted.")
+        raise ValidationError(_("Historii zgód nie można usuwać."))
 
 
 __all__ = [

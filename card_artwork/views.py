@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 
 from tenants.authorization import can_manage_card_designs
@@ -69,7 +70,9 @@ def card_design_settings(request, tenant_slug):
         is_active=True,
     )
     if not can_manage_card_designs(request.user, tenant):
-        return HttpResponseForbidden("Nie masz uprawnień do projektu kart tej firmy.")
+        return HttpResponseForbidden(
+            _("Nie masz uprawnień do projektu kart tej firmy.")
+        )
     current_design = CardDesign.objects.filter(tenant=tenant).first()
     if request.method == "GET":
         return render(
@@ -130,7 +133,11 @@ def card_design_settings(request, tenant_slug):
                     background_upload=design_form.cleaned_data.get("background_image"),
                     logo_upload=design_form.cleaned_data.get("logo_image"),
                 )
-                messages.success(request, f"Opublikowano projekt karty v{design.version}.")
+                messages.success(
+                    request,
+                    _("Opublikowano projekt karty v%(version)s.")
+                    % {"version": design.version},
+                )
                 target = reverse(
                     "dotykacka:card_design_settings",
                     kwargs={"tenant_slug": tenant.slug},
@@ -164,11 +171,11 @@ def card_design_settings(request, tenant_slug):
 def card_artifact_download(request, tenant_slug, artifact_id):
     tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
     if not can_manage_card_designs(request.user, tenant):
-        return HttpResponseForbidden("Nie masz dostępu do plików tej firmy.")
+        return HttpResponseForbidden(_("Nie masz dostępu do plików tej firmy."))
     artifact = get_object_or_404(CardArtifact, pk=artifact_id, tenant=tenant)
     path = resolve_artifact_path(artifact)
     if not path.is_file():
-        raise Http404("Plik artefaktu nie istnieje.")
+        raise Http404(_("Plik artefaktu nie istnieje."))
     content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     return FileResponse(
         path.open("rb"),

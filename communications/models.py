@@ -2,18 +2,19 @@
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class CommunicationDelivery(models.Model):
     """One guarded email attempt; ambiguous outcomes are never auto-replayed."""
 
     class Channel(models.TextChoices):
-        EMAIL = "email", "Email"
+        EMAIL = "email", _("E-mail")
 
     class Status(models.TextChoices):
-        SENDING = "sending", "Sending"
-        SENT = "sent", "Sent"
-        OUTCOME_UNKNOWN = "outcome_unknown", "Outcome unknown"
+        SENDING = "sending", _("Wysyłanie")
+        SENT = "sent", _("Wysłano")
+        OUTCOME_UNKNOWN = "outcome_unknown", _("Wynik nieznany")
 
     tenant = models.ForeignKey(
         "dotykacka.Tenant",
@@ -55,9 +56,9 @@ class CommunicationDelivery(models.Model):
     def clean(self):
         errors = {}
         if self.customer_id and self.customer.tenant_id != self.tenant_id:
-            errors["customer"] = "Customer and delivery must share a tenant."
+            errors["customer"] = _("Klient i dostarczenie muszą należeć do tej samej firmy.")
         if self.integration_job_id and self.integration_job.tenant_id != self.tenant_id:
-            errors["integration_job"] = "Job and delivery must share a tenant."
+            errors["integration_job"] = _("Zadanie i dostarczenie muszą należeć do tej samej firmy.")
         if errors:
             raise ValidationError(errors)
 
@@ -76,18 +77,18 @@ class CommunicationDelivery(models.Model):
                 "started_at",
             )
             if any(getattr(previous, name) != getattr(self, name) for name in immutable):
-                raise ValidationError("Communication delivery terms are immutable.")
+                raise ValidationError(_("Warunków dostarczenia wiadomości nie można zmieniać."))
             allowed = {
                 self.Status.SENDING: {self.Status.SENT, self.Status.OUTCOME_UNKNOWN},
                 self.Status.SENT: set(),
                 self.Status.OUTCOME_UNKNOWN: set(),
             }
             if self.status != previous.status and self.status not in allowed[previous.status]:
-                raise ValidationError("Invalid communication delivery transition.")
+                raise ValidationError(_("Niedozwolona zmiana stanu dostarczenia wiadomości."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Communication delivery history cannot be deleted.")
+        raise ValidationError(_("Historii dostarczenia wiadomości nie można usuwać."))
 
 
 __all__ = ["CommunicationDelivery"]

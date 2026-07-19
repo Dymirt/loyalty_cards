@@ -8,6 +8,7 @@ from django.db import IntegrityError
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from cards.models import PhysicalCard
@@ -116,8 +117,10 @@ def register_customer_form(request, tenant_slug=None):
         )
         form.add_error(
             None,
-            "Rozpoznaliśmy program z kodu karty. Sprawdź markę i warunki zgody, "
-            "a następnie potwierdź rejestrację.",
+            _(
+                "Rozpoznaliśmy program z kodu karty. Sprawdź markę i warunki zgody, "
+                "a następnie potwierdź rejestrację."
+            ),
         )
         return _render_registration(
             request,
@@ -141,7 +144,7 @@ def register_customer_form(request, tenant_slug=None):
         if isinstance(exc, ValidationError) and not isinstance(exc, IntegrityError):
             form.add_error(None, "; ".join(exc.messages))
         else:
-            form.add_error("barcode", "Ta karta już istnieje w bazie danych.")
+            form.add_error("barcode", _("Ta karta już istnieje w bazie danych."))
         return _render_registration(
             request,
             form,
@@ -150,7 +153,9 @@ def register_customer_form(request, tenant_slug=None):
             tenant_slug=tenant_slug,
             status=409,
         )
-    messages.success(request, "Zarejestrowano kartę. Integracje są realizowane w tle.")
+    messages.success(
+        request, _("Zarejestrowano kartę. Integracje są realizowane w tle.")
+    )
     return redirect("enrollment:public_status", token=result.access_token)
 
 
@@ -159,11 +164,11 @@ def _resolve_public_link_or_response(token):
         return resolve_access_link(token), None
     except EnrollmentLinkExpired:
         return None, HttpResponse(
-            "Ten bezpieczny link wygasł. Poproś firmę o ponowne wysłanie.",
+            _("Ten bezpieczny link wygasł. Poproś firmę o ponowne wysłanie."),
             status=410,
         )
     except EnrollmentLinkError:
-        raise Http404("Nieprawidłowy link rejestracji.")
+        raise Http404(_("Nieprawidłowy link rejestracji."))
 
 
 def _public_status_context(link):
@@ -212,7 +217,7 @@ def public_apple_pass(request, token):
         create_identity=False,
     )
     if not path.is_file():
-        raise Http404("Karta Apple Wallet nie jest jeszcze gotowa.")
+        raise Http404(_("Karta Apple Wallet nie jest jeszcze gotowa."))
     return FileResponse(
         path.open("rb"),
         as_attachment=True,
@@ -229,7 +234,7 @@ def _tenant_or_forbidden(request, tenant_slug):
     )
     if not can_manage_integrations(request.user, tenant):
         return tenant, HttpResponseForbidden(
-            "Nie masz uprawnień do rejestracji tej firmy."
+            _("Nie masz uprawnień do rejestracji tej firmy.")
         )
     return tenant, None
 
@@ -336,7 +341,9 @@ def retry_followup(request, tenant_slug, followup_id):
         else:
             messages.success(
                 request,
-                "Zaplanowano ponowną próbę." if created else "Ta próba została już zaplanowana.",
+                _("Zaplanowano ponowną próbę.")
+                if created
+                else _("Ta próba została już zaplanowana."),
             )
     if request.headers.get("HX-Request") == "true":
         return _followup_partial(request, followup.enrollment)
@@ -367,9 +374,9 @@ def resend_email(request, tenant_slug, enrollment_id):
         else:
             messages.success(
                 request,
-                "Utworzono nowe, jawnie zlecone wysłanie wiadomości."
+                _("Utworzono nowe, jawnie zlecone wysłanie wiadomości.")
                 if created
-                else "To wysłanie zostało już zlecone.",
+                else _("To wysłanie zostało już zlecone."),
             )
     if request.headers.get("HX-Request") == "true":
         return _followup_partial(request, enrollment)
@@ -398,7 +405,7 @@ def ensure_followups(request, tenant_slug, enrollment_id):
             object_id=str(enrollment.pk),
             metadata={"job_count": len(jobs)},
         )
-        messages.success(request, "Sprawdzono i dopisano brakujące zadania.")
+        messages.success(request, _("Sprawdzono i dopisano brakujące zadania."))
     if request.headers.get("HX-Request") == "true":
         return _followup_partial(request, enrollment)
     return redirect(
@@ -427,9 +434,9 @@ def request_domain(request, tenant_slug):
         else:
             messages.success(
                 request,
-                "Zgłoszono domenę do weryfikacji operatora."
+                _("Zgłoszono domenę do weryfikacji operatora.")
                 if created
-                else "Ta domena jest już zgłoszona.",
+                else _("Ta domena jest już zgłoszona."),
             )
             return redirect("enrollment:manage", tenant_slug=tenant.slug)
     return render(

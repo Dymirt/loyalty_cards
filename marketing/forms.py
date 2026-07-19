@@ -1,20 +1,23 @@
 from uuid import uuid4
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 
 class MarketingLeadForm(forms.Form):
-    full_name = forms.CharField(label="Imię i nazwisko", max_length=120)
-    company_name = forms.CharField(label="Nazwa firmy", max_length=160)
-    email = forms.EmailField(label="E-mail służbowy", max_length=254)
-    phone = forms.CharField(label="Telefon (opcjonalnie)", max_length=40, required=False)
+    full_name = forms.CharField(label=_("Imię i nazwisko"), max_length=120)
+    company_name = forms.CharField(label=_("Nazwa firmy"), max_length=160)
+    email = forms.EmailField(label=_("E-mail służbowy"), max_length=254)
+    phone = forms.CharField(
+        label=_("Telefon (opcjonalnie)"), max_length=40, required=False
+    )
     message = forms.CharField(
-        label="Jakiego programu lojalnościowego potrzebujesz?",
+        label=_("Jakiego programu lojalnościowego potrzebujesz?"),
         max_length=4000,
         widget=forms.Textarea(attrs={"rows": 5}),
     )
     privacy_consent = forms.BooleanField(
-        label="Wyrażam zgodę na kontakt w sprawie zapytania.",
+        label=_("Wyrażam zgodę na kontakt w sprawie zapytania."),
     )
     submission_id = forms.UUIDField(widget=forms.HiddenInput)
     website = forms.CharField(required=False, widget=forms.HiddenInput)
@@ -32,7 +35,7 @@ class MarketingLeadForm(forms.Form):
     def clean_website(self):
         value = self.cleaned_data.get("website", "")
         if value:
-            raise forms.ValidationError("Nie udało się wysłać formularza.")
+            raise forms.ValidationError(_("Nie udało się wysłać formularza."))
         return value
 
 

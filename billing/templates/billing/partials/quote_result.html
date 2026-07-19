@@ -1,12 +1,13 @@
+{% load i18n %}
 {% if quote %}
     {% include "billing/partials/quote_card.html" %}
 {% else %}
     <div class="portal-card border-red-200 bg-red-50">
-        <h3 class="font-bold text-red-900">Nie udało się obliczyć ceny</h3>
+        <h3 class="font-bold text-red-900">{% translate "Nie udało się obliczyć ceny" %}</h3>
         <form method="post" action="{% url 'billing:create_quote' tenant.slug %}" hx-post="{% url 'billing:create_quote' tenant.slug %}" hx-target="#quote-result" hx-swap="innerHTML" class="mt-4">
             {% csrf_token %}
             {% include "billing/partials/form_fields.html" with form=form %}
-            <button type="submit" class="portal-button">Oblicz ponownie</button>
+            <button type="submit" class="portal-button">{% translate "Oblicz ponownie" %}</button>
         </form>
     </div>
 {% endif %}

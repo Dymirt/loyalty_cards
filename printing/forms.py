@@ -4,6 +4,7 @@ from uuid import uuid4
 
 from django import forms
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from billing.models import Quote
 from card_artwork.models import CardDesign
@@ -24,32 +25,32 @@ class StyledFormMixin:
 class PrintRequestForm(StyledFormMixin, forms.Form):
     design = forms.ModelChoiceField(
         queryset=CardDesign.objects.none(),
-        label="Opublikowany projekt",
+        label=_("Opublikowany projekt"),
     )
     quote = forms.ModelChoiceField(
         queryset=Quote.objects.none(),
-        label="Zaakceptowana kalkulacja",
+        label=_("Zaakceptowana kalkulacja"),
     )
     proof_approved = forms.BooleanField(
-        label="Akceptuję dokładnie ten zamrożony projekt i jego sumę kontrolną",
+        label=_("Akceptuję dokładnie ten zamrożony projekt i jego sumę kontrolną"),
     )
-    delivery_name = forms.CharField(max_length=160, label="Odbiorca")
-    delivery_address_line1 = forms.CharField(max_length=240, label="Adres")
+    delivery_name = forms.CharField(max_length=160, label=_("Odbiorca"))
+    delivery_address_line1 = forms.CharField(max_length=240, label=_("Adres"))
     delivery_address_line2 = forms.CharField(
         max_length=240,
         required=False,
-        label="Druga linia adresu",
+        label=_("Druga linia adresu"),
     )
-    delivery_postal_code = forms.CharField(max_length=24, label="Kod pocztowy")
-    delivery_city = forms.CharField(max_length=120, label="Miasto")
+    delivery_postal_code = forms.CharField(max_length=24, label=_("Kod pocztowy"))
+    delivery_city = forms.CharField(max_length=120, label=_("Miasto"))
     delivery_country = forms.RegexField(
         regex=r"^[A-Za-z]{2}$",
         initial="PL",
-        label="Kod kraju",
+        label=_("Kod kraju"),
     )
     notes = forms.CharField(
         required=False,
-        label="Uwagi dla operatora",
+        label=_("Uwagi dla operatora"),
         widget=forms.Textarea(attrs={"rows": 4}),
     )
     idempotency_key = forms.CharField(widget=forms.HiddenInput)
@@ -77,10 +78,10 @@ class PrintRequestForm(StyledFormMixin, forms.Form):
         cleaned = super().clean()
         quote = cleaned.get("quote")
         if quote and quote.tenant_id != self.tenant.pk:
-            self.add_error("quote", "Kalkulacja należy do innej firmy.")
+            self.add_error("quote", _("Kalkulacja należy do innej firmy."))
         design = cleaned.get("design")
         if design and design.tenant_id != self.tenant.pk:
-            self.add_error("design", "Projekt należy do innej firmy.")
+            self.add_error("design", _("Projekt należy do innej firmy."))
         return cleaned
 
 
@@ -88,45 +89,45 @@ class PlatformQueueFilterForm(StyledFormMixin, forms.Form):
     tenant = forms.ModelChoiceField(
         queryset=Tenant.objects.filter(is_active=True),
         required=False,
-        label="Firma",
+        label=_("Firma"),
     )
     status = forms.ChoiceField(
-        choices=(("", "Wszystkie statusy"), *PrintRequest.Status.choices),
+        choices=(("", _("Wszystkie statusy")), *PrintRequest.Status.choices),
         required=False,
-        label="Status",
+        label=_("Status"),
     )
 
 
 class OperatorReasonForm(StyledFormMixin, forms.Form):
     reason = forms.CharField(
         required=False,
-        label="Notatka operatora",
+        label=_("Notatka operatora"),
         widget=forms.Textarea(attrs={"rows": 3}),
     )
 
 
 class RequiredReasonForm(OperatorReasonForm):
     reason = forms.CharField(
-        label="Powód",
+        label=_("Powód"),
         widget=forms.Textarea(attrs={"rows": 3}),
     )
 
 
 class FulfillmentForm(StyledFormMixin, forms.Form):
-    event_type = forms.ChoiceField(label="Następny etap")
+    event_type = forms.ChoiceField(label=_("Następny etap"))
     occurred_at = forms.DateTimeField(
-        label="Data i czas",
+        label=_("Data i czas"),
         initial=timezone.now,
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
     )
     reference = forms.CharField(
         max_length=160,
         required=False,
-        label="Numer przesyłki / referencja",
+        label=_("Numer przesyłki / referencja"),
     )
     notes = forms.CharField(
         required=False,
-        label="Uwagi",
+        label=_("Uwagi"),
         widget=forms.Textarea(attrs={"rows": 3}),
     )
     idempotency_key = forms.CharField(widget=forms.HiddenInput)
@@ -147,13 +148,15 @@ class FulfillmentForm(StyledFormMixin, forms.Form):
 
 class CorrectionForm(StyledFormMixin, forms.Form):
     reason = forms.CharField(
-        label="Powód korekty",
+        label=_("Powód korekty"),
         widget=forms.Textarea(attrs={"rows": 3}),
     )
-    reference = forms.CharField(max_length=160, required=False, label="Referencja")
+    reference = forms.CharField(
+        max_length=160, required=False, label=_("Referencja")
+    )
     notes = forms.CharField(
         required=False,
-        label="Wyjaśnienie",
+        label=_("Wyjaśnienie"),
         widget=forms.Textarea(attrs={"rows": 3}),
     )
     idempotency_key = forms.CharField(widget=forms.HiddenInput)
@@ -167,26 +170,26 @@ class CorrectionForm(StyledFormMixin, forms.Form):
 class LegacyPreviewForm(StyledFormMixin, forms.Form):
     tenant = forms.ModelChoiceField(
         queryset=Tenant.objects.filter(is_active=True),
-        label="Firma",
+        label=_("Firma"),
     )
     batch = forms.ModelChoiceField(
         queryset=CardBatch.objects.filter(cards__is_legacy=True).distinct(),
-        label="Historyczna partia",
+        label=_("Historyczna partia"),
     )
-    start_number = forms.IntegerField(min_value=1, label="Pierwszy numer")
-    end_number = forms.IntegerField(min_value=1, label="Ostatni numer")
+    start_number = forms.IntegerField(min_value=1, label=_("Pierwszy numer"))
+    end_number = forms.IntegerField(min_value=1, label=_("Ostatni numer"))
 
     def clean(self):
         cleaned = super().clean()
         tenant, batch = cleaned.get("tenant"), cleaned.get("batch")
         if tenant and batch and batch.tenant_id != tenant.pk:
-            self.add_error("batch", "Partia należy do innej firmy.")
+            self.add_error("batch", _("Partia należy do innej firmy."))
         if (
             cleaned.get("start_number")
             and cleaned.get("end_number")
             and cleaned["start_number"] > cleaned["end_number"]
         ):
-            self.add_error("end_number", "Ostatni numer nie może być mniejszy.")
+            self.add_error("end_number", _("Ostatni numer nie może być mniejszy."))
         return cleaned
 
 
@@ -198,25 +201,27 @@ class LegacyConfirmForm(StyledFormMixin, forms.Form):
     expected_count = forms.IntegerField(widget=forms.HiddenInput)
     confirmation_count = forms.IntegerField(
         min_value=1,
-        label="Wpisz dokładną liczbę kart z podglądu",
+        label=_("Wpisz dokładną liczbę kart z podglądu"),
     )
     event_types = forms.MultipleChoiceField(
         choices=(
-            (FulfillmentEvent.Kind.PRINTED, "Wydrukowane"),
-            (FulfillmentEvent.Kind.DELIVERED, "Dostarczone"),
+            (FulfillmentEvent.Kind.PRINTED, _("Wydrukowane")),
+            (FulfillmentEvent.Kind.DELIVERED, _("Dostarczone")),
         ),
         widget=forms.CheckboxSelectMultiple,
-        label="Dopisz zdarzenia",
+        label=_("Dopisz zdarzenia"),
     )
     occurred_at = forms.DateTimeField(
         initial=timezone.now,
-        label="Data zdarzenia/dostawy",
+        label=_("Data zdarzenia/dostawy"),
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
     )
-    reference = forms.CharField(max_length=160, required=False, label="Referencja")
+    reference = forms.CharField(
+        max_length=160, required=False, label=_("Referencja")
+    )
     notes = forms.CharField(
         required=False,
-        label="Uwagi",
+        label=_("Uwagi"),
         widget=forms.Textarea(attrs={"rows": 3}),
     )
 
@@ -229,7 +234,7 @@ class LegacyConfirmForm(StyledFormMixin, forms.Form):
         ):
             self.add_error(
                 "confirmation_count",
-                "Wpisana liczba musi być identyczna z podglądem.",
+                _("Wpisana liczba musi być identyczna z podglądem."),
             )
         return cleaned
 

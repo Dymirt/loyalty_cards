@@ -1,10 +1,11 @@
 from django.apps import AppConfig
+from django.utils.translation import gettext_lazy as _
 
 
 class CommunicationsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "communications"
-    verbose_name = "Communications"
+    verbose_name = _("Komunikacja")
 
     def ready(self):
         from integrations.registry import (
@@ -19,7 +20,7 @@ class CommunicationsConfig(AppConfig):
             SystemConnectionCheck(
                 key="smtp",
                 title="SMTP",
-                description=(
+                description=_(
                     "Logowanie do serwera pocztowego bez wysyłania wiadomości testowej."
                 ),
                 checker=smtp_system_check,

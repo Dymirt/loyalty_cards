@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.utils.translation import gettext_lazy as _
 
 
 class BrevoConfig(AppConfig):
@@ -23,18 +24,18 @@ class BrevoConfig(AppConfig):
             SettingsProvider(
                 provider="brevo",
                 title="Brevo",
-                description="Lista kontaktów i klucz API należące do tej firmy.",
+                description=_("Lista kontaktów i klucz API należące do tej firmy."),
                 form_class=BrevoIntegrationForm,
                 tester=test_connection,
                 secret_name="api_key",
-                secret_label="Klucz API",
+                secret_label=_("Klucz API"),
             )
         )
         register_system_connection_check(
             SystemConnectionCheck(
                 key="brevo-tenants",
-                title="Brevo — połączenia firm",
-                description=(
+                title=_("Brevo — połączenia firm"),
+                description=_(
                     "Dostęp do konta Brevo z kluczy API zapisanych oddzielnie dla aktywnych firm."
                 ),
                 checker=system_connection_check,

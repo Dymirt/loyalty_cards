@@ -1,3 +1,4 @@
+{% load i18n %}
 <div id="contact-form">
     {% if form.non_field_errors %}<div class="mb-5">{% for error in form.non_field_errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}</div>{% endif %}
     <form method="post" action="{% url 'marketing:contact' %}" hx-post="{% url 'marketing:contact' %}" hx-target="#contact-form" hx-swap="outerHTML" class="space-y-5">
@@ -10,13 +11,13 @@
         </div>
         {% include "components/form_field.html" with field=form.message %}
         <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4">
-            <div class="flex items-start gap-3">{{ form.privacy_consent }}<label for="{{ form.privacy_consent.id_for_label }}" class="text-sm leading-6">{{ privacy_consent_text }} <a href="{% url 'marketing:privacy' %}" class="font-semibold text-accent-700 underline">Otwórz politykę prywatności</a>.</label></div>
+            <div class="flex items-start gap-3">{{ form.privacy_consent }}<label for="{{ form.privacy_consent.id_for_label }}" class="text-sm leading-6">{{ privacy_consent_text }} <a href="{% url 'marketing:privacy' %}" class="font-semibold text-accent-700 underline">{% translate "Otwórz politykę prywatności" %}</a>.</label></div>
             {% for error in form.privacy_consent.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
         </div>
         <div class="flex flex-wrap items-center gap-4">
-            <button type="submit" class="portal-button">Wyślij zapytanie</button>
-            <span class="htmx-indicator text-sm text-ink-700" role="status">Zapisywanie…</span>
-            <p class="text-sm text-ink-700">Nie uruchamiamy subskrypcji ani płatności przez ten formularz.</p>
+            <button type="submit" class="portal-button">{% translate "Wyślij zapytanie" %}</button>
+            <span class="htmx-indicator text-sm text-ink-700" role="status">{% translate "Zapisywanie…" %}</span>
+            <p class="text-sm text-ink-700">{% translate "Nie uruchamiamy subskrypcji ani płatności przez ten formularz." %}</p>
         </div>
     </form>
 </div>

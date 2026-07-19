@@ -1,6 +1,7 @@
 """Tenant profile forms and shared portal form styling."""
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from .models import TenantBrand, TenantDomain
 
@@ -42,15 +43,15 @@ class TenantBrandForm(forms.ModelForm):
             "marketing_consent_text",
         )
         labels = {
-            "public_name": "Nazwa publiczna",
-            "tagline": "Hasło marki",
-            "address": "Adres",
-            "phone": "Telefon",
-            "email": "E-mail",
-            "website_url": "Strona WWW",
-            "email_subject": "Temat wiadomości z kartą",
-            "email_signature": "Podpis wiadomości",
-            "marketing_consent_text": "Treść zgody marketingowej",
+            "public_name": _("Nazwa publiczna"),
+            "tagline": _("Hasło marki"),
+            "address": _("Adres"),
+            "phone": _("Telefon"),
+            "email": _("E-mail"),
+            "website_url": _("Strona WWW"),
+            "email_subject": _("Temat wiadomości z kartą"),
+            "email_signature": _("Podpis wiadomości"),
+            "marketing_consent_text": _("Treść zgody marketingowej"),
         }
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
@@ -66,9 +67,9 @@ class TenantDomainRequestForm(forms.ModelForm):
     class Meta:
         model = TenantDomain
         fields = ("hostname",)
-        labels = {"hostname": "Domena rejestracji"}
+        labels = {"hostname": _("Domena rejestracji")}
         help_texts = {
-            "hostname": (
+            "hostname": _(
                 "Podaj samą nazwę hosta, np. club.example.com. Operator platformy "
                 "musi później potwierdzić DNS, TLS i dozwolony host."
             )

@@ -1,6 +1,7 @@
 """Legacy/provider registrations plus Phase 5 owner-admin imports."""
 
 from django.contrib import admin
+from django.utils.translation import gettext_lazy as _
 
 # Importing the owner modules preserves the historical model registrations even
 # though ``dotykacka`` is first in INSTALLED_APPS and is autodiscovered first.
@@ -19,7 +20,7 @@ class IntegrationConnectionAdmin(admin.ModelAdmin):
     exclude = ("credentials_encrypted",)
     readonly_fields = ("last_error_code",)
 
-    @admin.display(boolean=True, description="Secret configured")
+    @admin.display(boolean=True, description=_("Sekret skonfigurowany"))
     def secret_configured(self, obj):
         return bool(obj.credentials_encrypted)
 

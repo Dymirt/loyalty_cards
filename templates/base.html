@@ -1,13 +1,14 @@
-{% load static %}
+{% load static i18n %}
 {% get_media_prefix as media_prefix %}
+{% get_current_language as LANGUAGE_CODE %}
 <!doctype html>
-<html lang="pl" class="h-full">
+<html lang="{{ LANGUAGE_CODE }}" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
-    <title>{% block title %}Loyalty Studio{% endblock %}</title>
-    {% block head_metadata %}<meta name="description" content="Loyalty Studio — platforma kart lojalnościowych dla firm.">{% endblock %}
+    <title>{% block title %}{% translate "Loyalty Studio" %}{% endblock %}</title>
+    {% block head_metadata %}<meta name="description" content="{% translate 'Loyalty Studio — platforma kart lojalnościowych dla firm.' %}">{% endblock %}
     <link rel="stylesheet" href="{% static 'css/portal.v1.css' %}">
     <script src="{% static 'vendor/htmx-2.0.10.min.js' %}"
             integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
@@ -17,66 +18,66 @@
 <body class="flex min-h-full flex-col bg-canvas">
     <a href="#main-content"
        class="sr-only z-50 rounded-lg bg-white px-4 py-3 font-semibold focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
-        Przejdź do treści
+        {% translate "Przejdź do treści" %}
     </a>
 
     <header class="border-b border-stone-200 bg-paper/95">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <a href="{% url 'index' %}" class="flex min-w-0 items-center gap-3" aria-label="Strona główna">
+            <a href="{% url 'index' %}" class="flex min-w-0 items-center gap-3" aria-label="{% translate 'Strona główna' %}">
                 {% if tenant and tenant.brand.logo_path %}
                     <img src="{{ media_prefix }}{{ tenant.brand.logo_path }}"
                          alt="" class="size-11 rounded-xl object-contain">
                 {% else %}
-                    <span class="grid size-11 place-items-center rounded-xl bg-ink-950 text-sm font-black text-white">LS</span>
+                    <span class="grid size-11 place-items-center rounded-xl bg-ink-950 text-sm font-black text-white">{% translate "LS" %}</span>
                 {% endif %}
                 <span class="min-w-0">
-                    <span class="block truncate text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">Loyalty Studio</span>
+                    <span class="block truncate text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Loyalty Studio" %}</span>
                     <span class="block truncate text-base font-bold text-ink-950">
-                        {% if tenant %}{{ tenant.brand.public_name|default:tenant.name }}{% elif marketing_page %}Karty lojalnościowe dla firm{% else %}Panel platformy{% endif %}
+                        {% if tenant %}{{ tenant.brand.public_name|default:tenant.name }}{% elif marketing_page %}{% translate "Karty lojalnościowe dla firm" %}{% else %}{% translate "Panel platformy" %}{% endif %}
                     </span>
                 </span>
             </a>
 
-            <nav aria-label="Główna nawigacja" class="flex flex-wrap items-center justify-end gap-1 text-sm font-semibold">
+            <nav aria-label="{% translate 'Główna nawigacja' %}" class="flex flex-wrap items-center justify-end gap-1 text-sm font-semibold">
                 {% if marketing_page %}
-                    <a href="{% url 'marketing:features' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Funkcje</a>
-                    <a href="{% url 'marketing:integrations' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Integracje</a>
-                    <a href="{% url 'marketing:pricing' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Cennik</a>
-                    <a href="{% url 'marketing:contact' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Kontakt</a>
+                    <a href="{% url 'marketing:features' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Funkcje" %}</a>
+                    <a href="{% url 'marketing:integrations' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Integracje" %}</a>
+                    <a href="{% url 'marketing:pricing' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Cennik" %}</a>
+                    <a href="{% url 'marketing:contact' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Kontakt" %}</a>
                     {% if user.is_superuser %}
-                        <a href="{% url 'integrations:system_connections' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Panel platformy</a>
+                        <a href="{% url 'integrations:system_connections' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Panel platformy" %}</a>
                     {% endif %}
                 {% else %}
                     {% if tenant %}
                         <a href="{% url 'dotykacka:tenant_register' tenant.slug %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Rejestracja</a>
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Rejestracja" %}</a>
                         {% if user.is_authenticated %}
                             <a href="{% url 'dotykacka:tenant_portal' tenant.slug %}"
-                               class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Panel firmy</a>
+                               class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Panel firmy" %}</a>
                         {% endif %}
                     {% endif %}
                     {% if user.is_superuser %}
                         <a href="{% url 'integrations:system_connections' %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Połączenia systemowe</a>
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Połączenia systemowe" %}</a>
                         <a href="{% url 'operations:dashboard' %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Operacje</a>
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Operacje" %}</a>
                         <a href="{% url 'billing:platform' %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Plany i ceny</a>
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Plany i ceny" %}</a>
                         <a href="{% url 'printing:platform_queue' %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Centrum druku</a>
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Centrum druku" %}</a>
                         <a href="{% url 'dotykacka:customers' %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Klienci</a>
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Klienci" %}</a>
                         <a href="{% url 'admin:index' %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Administracja</a>
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Administracja" %}</a>
                     {% endif %}
                 {% endif %}
                 {% if user.is_authenticated %}
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
-                        <button type="submit" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Wyloguj</button>
+                        <button type="submit" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Wyloguj" %}</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'login' %}" class="portal-button-secondary ml-1">Zaloguj</a>
+                    <a href="{% url 'login' %}" class="portal-button-secondary ml-1">{% translate "Zaloguj" %}</a>
                 {% endif %}
             </nav>
         </div>
@@ -93,12 +94,12 @@
 
     <footer class="border-t border-stone-200 bg-paper">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 text-sm text-ink-700 sm:px-6 lg:px-8">
-            <p>Loyalty Studio · bezpieczny panel kart lojalnościowych</p>
+            <p>{% translate "Loyalty Studio · bezpieczny panel kart lojalnościowych" %}</p>
             <div class="flex flex-wrap items-center gap-4">
                 {% if marketing_page %}
-                    <a href="{% url 'marketing:privacy' %}" class="hover:text-ink-950">Polityka prywatności</a>
-                    <a href="{% url 'marketing:terms' %}" class="hover:text-ink-950">Regulamin</a>
-                    <a href="{% url 'marketing:contact' %}" class="hover:text-ink-950">Kontakt</a>
+                    <a href="{% url 'marketing:privacy' %}" class="hover:text-ink-950">{% translate "Polityka prywatności" %}</a>
+                    <a href="{% url 'marketing:terms' %}" class="hover:text-ink-950">{% translate "Regulamin" %}</a>
+                    <a href="{% url 'marketing:contact' %}" class="hover:text-ink-950">{% translate "Kontakt" %}</a>
                 {% elif tenant %}<p>{{ tenant.brand.public_name|default:tenant.name }}</p>{% endif %}
             </div>
         </div>

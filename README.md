@@ -15,7 +15,7 @@ excluded.
 | Area | Current state |
 | --- | --- |
 | Technical conversion | Phases 0–11 complete; modular Django platform and operational safety controls implemented |
-| Automated baseline | 219 isolated tests pass on fresh SQLite and MariaDB; SQLite has three expected database-specific skips |
+| Automated baseline | 227 isolated tests pass on MariaDB; the earlier SQLite baseline has three expected database-specific skips |
 | First tenant | Marta Banaszek Atelier-Café: 267 customers and 600 cards, of which 267 are assigned and 333 are available |
 | Rollout | Additional paying tenants remain disabled until Marta completes the human acceptance checklist |
 | Known provider issue | Marta's last stored Brevo result is `brevo_unauthorized`; it requires an explicit test or replacement of only her encrypted tenant key |
@@ -230,6 +230,16 @@ Node is used only to compile/version static assets. It is not part of the Django
 production runtime. The compiled CSS and pinned vendor scripts are committed so
 the Apache container can run without Node. See `docs/phase-2-portal-shell.md`.
 
+## Interface language
+
+The launch interface is entirely Polish and `pl` is the only enabled language.
+Django locale middleware, translation markers in active templates/Python UI
+messages, and a project locale directory are already in place so another
+language can be added without changing domain data or the frontend stack. The
+language selector remains hidden until a complete second catalog is approved.
+See [docs/localization.md](docs/localization.md) for the catalog workflow and
+review rules.
+
 ## Mac replica of the deployed service
 
 For development against a local copy of the deployed database and media, use
@@ -280,6 +290,20 @@ The Apple Wallet generator calls the `openssl` and `zip` command-line tools.
 Apache must load `loyalty_platform.wsgi` from the project virtual environment
 and serve only collected static assets directly. Runtime media is authorized by
 Django; do not add a broad Apache `/media/` alias.
+
+## Continuous delivery
+
+GitHub Actions runs the full isolated CI suite on every pull request and push to
+`main`, including a MariaDB 10.11 job matching production. After the exact
+`main` commit passes CI, the production workflow can deploy it through a
+dedicated least-privilege SSH account.
+
+The deployment uses versioned releases, keeps production secrets and runtime
+data only on the server, creates a verified backup before migration, validates
+before/after tenant aggregates, switches Apache atomically, supervises all
+workers with systemd, checks public health, and restores the previous code if
+startup fails. See [docs/runbooks/deployment.md](docs/runbooks/deployment.md)
+for bootstrap, GitHub settings, release flow and rollback instructions.
 
 ## Configuration
 
@@ -493,7 +517,7 @@ exclusion, truthful empty pricing, ordinary/HTMX form paths, idempotent consent
 evidence, append-only enforcement, legal configuration checks and direct legacy redirects.
 Operations coverage adds safe headers/log redaction, authorization-aware media,
 rate limits, redacted health, alert lifecycle, heartbeat handling and backup
-checksum/archive verification. The complete suite currently contains 219 tests.
+checksum/archive verification. The complete suite currently contains 227 tests.
 
 Safe bounded generator commands replace the former standalone loops:
 

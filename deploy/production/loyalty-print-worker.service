@@ -1,0 +1,19 @@
+[Unit]
+Description=Loyalty platform print worker
+After=network-online.target mariadb.service apache2.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/loyalty_platform/current
+Environment=PYTHONUNBUFFERED=1
+UMask=0027
+ExecStart=/var/www/loyalty_platform/current/.venv/bin/python manage.py run_print_worker
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -20,6 +20,7 @@ from django.db import connection as database_connection
 from django.db import transaction
 from django.db.models import F, Max, Q
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from PIL import Image
 
 from billing.models import Quote
@@ -190,7 +191,7 @@ def _latest_proofs(*, tenant, design):
     ).first()
     if front is None or back is None:
         raise ValidationError(
-            "The selected design needs immutable front and back proof artifacts."
+            _("Wybrany projekt wymaga niezmiennych próbek przodu i tyłu.")
         )
     return front, back
 
@@ -201,7 +202,8 @@ def _transition_request(*, print_request, to_status, actor=None, reason="", meta
     allowed = REQUEST_TRANSITIONS.get(print_request.status, set())
     if to_status not in allowed:
         raise ValidationError(
-            f"Print request cannot move from {print_request.status} to {to_status}."
+            _("Nie można zmienić stanu zamówienia z %(source)s na %(target)s.")
+            % {"source": print_request.status, "target": to_status}
         )
     previous = print_request.status
     print_request.status = to_status
@@ -235,7 +237,7 @@ def submit_print_request(
     notes="",
 ):
     if not proof_approved:
-        raise ValidationError("The tenant owner must approve the frozen proof.")
+        raise ValidationError(_("Właściciel firmy musi zatwierdzić niezmienną próbkę."))
     tenant = Tenant.objects.select_for_update().get(pk=tenant.pk)
     existing = PrintRequest.objects.filter(
         tenant=tenant,
@@ -244,7 +246,7 @@ def submit_print_request(
     if existing:
         if existing.design_id != design.pk or existing.quote_id != quote.pk:
             raise ValidationError(
-                "This print-request idempotency key was used for another request."
+                _("Ten klucz idempotencji został użyty dla innego zamówienia druku.")
             )
         return existing, False
     design = CardDesign.objects.select_related("brand_revision").get(
@@ -258,9 +260,9 @@ def submit_print_request(
         .get(pk=quote.pk, tenant=tenant)
     )
     if quote.status != Quote.Status.ACCEPTED or not quote.accepted_at:
-        raise ValidationError("Select an accepted immutable print quote.")
+        raise ValidationError(_("Wybierz zaakceptowaną, niezmienną kalkulację druku."))
     if PrintRequest.objects.filter(quote=quote).exists():
-        raise ValidationError("This accepted quote already belongs to a print request.")
+        raise ValidationError(_("Ta zaakceptowana kalkulacja jest już przypisana do zamówienia druku."))
     front, back = _latest_proofs(tenant=tenant, design=design)
     proof_checksum = _canonical_sha256(
         {"front": front.sha256, "back": back.sha256}
@@ -353,7 +355,7 @@ def approve_print_request(*, print_request, actor, reason=""):
 @transaction.atomic
 def reject_print_request(*, print_request, actor, reason):
     if not reason.strip():
-        raise ValidationError("A rejection reason is required.")
+        raise ValidationError(_("Podaj powód odrzucenia."))
     print_request = PrintRequest.objects.select_for_update().get(pk=print_request.pk)
     result = _transition_request(
         print_request=print_request,
@@ -385,7 +387,7 @@ def allocate_print_run(*, print_request, actor):
     except PrintRun.DoesNotExist:
         pass
     if print_request.status != PrintRequest.Status.APPROVED:
-        raise ValidationError("Only an approved print request can be allocated.")
+        raise ValidationError(_("Karty można przydzielić tylko do zatwierdzonego zamówienia druku."))
     tenant = Tenant.objects.select_for_update().get(pk=print_request.tenant_id)
     highest = (
         PhysicalCard.objects.filter(tenant=tenant).aggregate(value=Max("number"))[
@@ -494,7 +496,7 @@ def allocate_print_run(*, print_request, actor):
 @transaction.atomic
 def cancel_print_request(*, print_request, actor, reason):
     if not reason.strip():
-        raise ValidationError("A cancellation reason is required.")
+        raise ValidationError(_("Podaj powód anulowania."))
     print_request = PrintRequest.objects.select_for_update().get(pk=print_request.pk)
     if print_request.status not in {
         PrintRequest.Status.SUBMITTED,
@@ -502,11 +504,11 @@ def cancel_print_request(*, print_request, actor, reason):
         PrintRequest.Status.ALLOCATED,
         PrintRequest.Status.READY,
     }:
-        raise ValidationError("This request can no longer be cancelled.")
+        raise ValidationError(_("Tego zamówienia nie można już anulować."))
     if hasattr(print_request, "print_run"):
         run = PrintRun.objects.select_for_update().get(pk=print_request.print_run.pk)
         if run.status == PrintRun.Status.GENERATING:
-            raise ValidationError("A generating run cannot be cancelled.")
+            raise ValidationError(_("Nie można anulować serii w trakcie generowania."))
         PrintJob.objects.filter(
             print_run=run,
             status__in=(PrintJob.Status.PENDING, PrintJob.Status.RETRY),
@@ -623,19 +625,28 @@ def claim_next_print_job(*, worker_id, stale_after=timedelta(minutes=15)):
 def _validate_image(content, *, width, height, dpi, label):
     with Image.open(BytesIO(content)) as image:
         if image.size != (width, height):
-            raise ValidationError(f"{label} has unexpected dimensions.")
+            raise ValidationError(
+                _("Plik %(label)s ma nieprawidłowe wymiary.") % {"label": label}
+            )
         stored_dpi = image.info.get("dpi", (0, 0))
         if not stored_dpi or any(abs(float(value) - dpi) > 2 for value in stored_dpi[:2]):
-            raise ValidationError(f"{label} has unexpected DPI metadata.")
+            raise ValidationError(
+                _("Plik %(label)s ma nieprawidłową informację DPI.") % {"label": label}
+            )
 
 
 def _artifact_content(artifact):
     path = resolve_artifact_path(artifact)
     if not path.is_file():
-        raise ValidationError(f"Missing production artifact {artifact.pk}.")
+        raise ValidationError(
+            _("Brakuje pliku produkcyjnego %(artifact)s.") % {"artifact": artifact.pk}
+        )
     content = path.read_bytes()
     if len(content) != artifact.size_bytes or bytes_sha256(content) != artifact.sha256:
-        raise ValidationError(f"Production artifact {artifact.pk} failed checksum validation.")
+        raise ValidationError(
+            _("Plik produkcyjny %(artifact)s nie przeszedł kontroli sumy.")
+            % {"artifact": artifact.pk}
+        )
     return content
 
 
@@ -657,12 +668,12 @@ def _publish_package_file(relative_path, content):
     package_root = Path(settings.PRINT_PACKAGE_ROOT).resolve()
     final_path = (package_root / relative_path).resolve()
     if package_root not in final_path.parents:
-        raise ValidationError("Unsafe print-package path.")
+        raise ValidationError(_("Niedozwolona ścieżka pakietu produkcyjnego."))
     final_path.parent.mkdir(parents=True, exist_ok=True)
     if final_path.exists():
         existing = final_path.read_bytes()
         if bytes_sha256(existing) != bytes_sha256(content):
-            raise ValidationError("An immutable package path already contains different bytes.")
+            raise ValidationError(_("Niezmienna ścieżka pakietu zawiera już inne dane."))
         return final_path
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=".production-",
@@ -680,7 +691,7 @@ def _publish_package_file(relative_path, content):
             existing = final_path.read_bytes()
             if bytes_sha256(existing) != bytes_sha256(content):
                 raise ValidationError(
-                    "An immutable package path already contains different bytes."
+                    _("Niezmienna ścieżka pakietu zawiera już inne dane.")
                 )
     finally:
         if os.path.exists(temporary_name):
@@ -702,7 +713,7 @@ def generate_print_package(*, job):
     except PrintPackage.DoesNotExist:
         pass
     if job.status != PrintJob.Status.RUNNING:
-        raise ValidationError("Only a claimed print job can generate a package.")
+        raise ValidationError(_("Pakiet może wygenerować tylko przejęte zadanie druku."))
     if print_request.status == PrintRequest.Status.ALLOCATED:
         _transition_request(
             print_request=print_request,
@@ -713,7 +724,7 @@ def generate_print_package(*, job):
         PrintRequest.Status.GENERATING,
         PrintRequest.Status.FAILED,
     }:
-        raise ValidationError("Print request is not ready for package generation.")
+        raise ValidationError(_("Zamówienie druku nie jest gotowe do wygenerowania pakietu."))
     if print_request.status == PrintRequest.Status.FAILED:
         _transition_request(
             print_request=print_request,
@@ -733,9 +744,9 @@ def generate_print_package(*, job):
         .order_by("position")
     )
     if len(run_cards) != run.quantity:
-        raise ValidationError("Allocated card count does not match the run quantity.")
+        raise ValidationError(_("Liczba przydzielonych kart nie odpowiada wielkości serii."))
     if len({item.code_snapshot for item in run_cards}) != run.quantity:
-        raise ValidationError("Allocated card codes are not unique.")
+        raise ValidationError(_("Kody przydzielonych kart nie są unikalne."))
 
     for run_card in run_cards:
         artifacts = generate_card_artifacts(
@@ -770,14 +781,14 @@ def generate_print_package(*, job):
             width=run.design.width_px,
             height=run.design.height_px,
             dpi=run.design.dpi,
-            label=f"{run_card.code_snapshot} front",
+            label=_("%(code)s przód") % {"code": run_card.code_snapshot},
         )
         _validate_image(
             contents["back.jpg"],
             width=run.design.width_px,
             height=run.design.height_px,
             dpi=run.design.dpi,
-            label=f"{run_card.code_snapshot} back",
+            label=_("%(code)s tył") % {"code": run_card.code_snapshot},
         )
         file_rows = {}
         for filename, content in sorted(contents.items()):
@@ -991,7 +1002,7 @@ def resolve_package_path(package):
     package_root = Path(settings.PRINT_PACKAGE_ROOT).resolve()
     path = (package_root / package.storage_path).resolve()
     if package_root not in path.parents:
-        raise ValidationError("Unsafe print-package path.")
+        raise ValidationError(_("Niedozwolona ścieżka pakietu produkcyjnego."))
     return path
 
 
@@ -1007,7 +1018,7 @@ def record_fulfillment(
     notes="",
 ):
     if event_type not in FULFILLMENT_TRANSITIONS:
-        raise ValidationError("Unsupported fulfillment transition.")
+        raise ValidationError(_("Niedozwolona zmiana etapu realizacji."))
     print_request = PrintRequest.objects.select_for_update().get(pk=print_request.pk)
     source, target = FULFILLMENT_TRANSITIONS[event_type]
     existing = FulfillmentEvent.objects.filter(
@@ -1018,7 +1029,8 @@ def record_fulfillment(
         return existing, False
     if print_request.status != source:
         raise ValidationError(
-            f"Fulfillment {event_type} requires request status {source}."
+            _("Etap realizacji %(event)s wymaga stanu zamówienia %(status)s.")
+            % {"event": event_type, "status": source}
         )
     run = PrintRun.objects.select_for_update().get(print_request=print_request)
     event = FulfillmentEvent(
@@ -1060,7 +1072,7 @@ def record_fulfillment(
 @transaction.atomic
 def correct_fulfillment(*, event, actor, idempotency_key, reason, notes="", reference=""):
     if not reason.strip():
-        raise ValidationError("A correction reason is required.")
+        raise ValidationError(_("Podaj powód korekty."))
     event = FulfillmentEvent.objects.select_for_update().get(pk=event.pk)
     existing = FulfillmentEvent.objects.filter(
         tenant=event.tenant,
@@ -1069,7 +1081,7 @@ def correct_fulfillment(*, event, actor, idempotency_key, reason, notes="", refe
     if existing:
         return existing, False
     if hasattr(event, "correction_event"):
-        raise ValidationError("This fulfillment event already has a correction.")
+        raise ValidationError(_("To zdarzenie realizacji ma już korektę."))
     correction = FulfillmentEvent(
         tenant=event.tenant,
         print_request=event.print_request,
@@ -1100,9 +1112,9 @@ def correct_fulfillment(*, event, actor, idempotency_key, reason, notes="", refe
 
 def legacy_reconciliation_preview(*, tenant, batch, start_number, end_number):
     if batch.tenant_id != tenant.pk:
-        raise ValidationError("Legacy batch must belong to the selected tenant.")
+        raise ValidationError(_("Historyczna partia musi należeć do wybranej firmy."))
     if start_number > end_number:
-        raise ValidationError("Legacy range start cannot exceed its end.")
+        raise ValidationError(_("Początek historycznego zakresu nie może przekraczać końca."))
     cards = PhysicalCard.objects.filter(
         tenant=tenant,
         batch=batch,
@@ -1155,7 +1167,7 @@ def confirm_legacy_reconciliation(
     event_types = tuple(dict.fromkeys(event_types))
     allowed = {FulfillmentEvent.Kind.PRINTED, FulfillmentEvent.Kind.DELIVERED}
     if not event_types or set(event_types) - allowed:
-        raise ValidationError("Choose printed and/or delivered for legacy reconciliation.")
+        raise ValidationError(_("Dla historycznego uzgodnienia wybierz wydruk i/lub dostarczenie."))
     preview = legacy_reconciliation_preview(
         tenant=tenant,
         batch=batch,
@@ -1169,10 +1181,10 @@ def confirm_legacy_reconciliation(
     )
     if expected_count != len(cards) or expected_count != preview["count"]:
         raise ValidationError(
-            "The confirmed card count no longer matches the dry-run preview."
+            _("Potwierdzona liczba kart nie odpowiada już wcześniejszemu podglądowi.")
         )
     if expected_count <= 0:
-        raise ValidationError("The selected legacy range contains no cards.")
+        raise ValidationError(_("Wybrany historyczny zakres nie zawiera kart."))
     created = []
     for card in cards:
         for event_type in event_types:

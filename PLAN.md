@@ -22,8 +22,12 @@ backups, central printing and signed tenant acceptance.
 
 ## Current baseline
 
-- Phases 0–11 are implemented with 219 automated tests passing on fresh SQLite
-  and MariaDB; SQLite has three expected database-specific skips.
+- Phases 0–11 are implemented and the current MariaDB suite passes all 227
+  automated tests; the earlier SQLite baseline has three expected
+  database-specific skips.
+- The active public, tenant and platform interfaces use Polish; native Django
+  locale middleware and translation catalogs are the extension point for future
+  languages. No second language is exposed before its catalog is complete.
 - Marta Banaszek Atelier-Café owns 267 customers and 600 physical cards: 267
   assigned and 333 available. Existing business and media data remain intact.
 - The platform, integration, print and monitor processes are healthy; backup and

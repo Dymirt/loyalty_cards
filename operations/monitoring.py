@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.db.models import Count, Sum
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from billing.models import BillingPeriod, CardPack, TenantSubscription, UsageEvent
 from cards.models import PhysicalCard
@@ -58,8 +59,9 @@ def scan_operational_alerts(*, now=None):
             category="integration_job",
             severity=OperationalAlert.Severity.CRITICAL,
             tenant=job.tenant,
-            title="Zadanie integracji zakończone błędem",
-            safe_summary=f"Zadanie {job.kind} wymaga kontroli operatora.",
+            title=_("Zadanie integracji zakończone błędem"),
+            safe_summary=_("Zadanie %(kind)s wymaga kontroli operatora.")
+            % {"kind": job.kind},
             source_type="IntegrationJob",
             source_id=job.pk,
             safe_snapshot={"kind": job.kind, "error_code": job.last_error_code},
@@ -75,8 +77,8 @@ def scan_operational_alerts(*, now=None):
             category="print_job",
             severity=OperationalAlert.Severity.CRITICAL,
             tenant=job.print_run.tenant,
-            title="Generowanie pakietu druku nie powiodło się",
-            safe_summary="Pakiet produkcyjny wymaga kontroli i bezpiecznego ponowienia.",
+            title=_("Generowanie pakietu druku nie powiodło się"),
+            safe_summary=_("Pakiet produkcyjny wymaga kontroli i bezpiecznego ponowienia."),
             source_type="PrintJob",
             source_id=job.pk,
             safe_snapshot={"error_code": job.last_error_code},
@@ -93,8 +95,8 @@ def scan_operational_alerts(*, now=None):
             category="print_job",
             severity=OperationalAlert.Severity.CRITICAL,
             tenant=print_request.tenant,
-            title="Zamówienie druku ma status błędu",
-            safe_summary="Zamówienie wymaga kontroli operatora przed kolejną operacją.",
+            title=_("Zamówienie druku ma status błędu"),
+            safe_summary=_("Zamówienie wymaga kontroli operatora przed kolejną operacją."),
             source_type="PrintRequest",
             source_id=print_request.pk,
             now=now,
@@ -114,8 +116,9 @@ def scan_operational_alerts(*, now=None):
                 category="inventory",
                 severity=OperationalAlert.Severity.WARNING,
                 tenant=tenant,
-                title="Niski zapas nieprzypisanych kart",
-                safe_summary=f"Pozostało {available} dostępnych kart.",
+                title=_("Niski zapas nieprzypisanych kart"),
+                safe_summary=_("Pozostało %(count)s dostępnych kart.")
+                % {"count": available},
                 source_type="Tenant",
                 source_id=tenant.pk,
                 safe_snapshot={"available": available},
@@ -132,8 +135,9 @@ def scan_operational_alerts(*, now=None):
                 category="pack_balance",
                 severity=OperationalAlert.Severity.WARNING,
                 tenant=pack.tenant,
-                title="Niski stan pakietu kart",
-                safe_summary=f"W pakiecie pozostało {remaining} z {pack.purchased_quantity} kart.",
+                title=_("Niski stan pakietu kart"),
+                safe_summary=_("W pakiecie pozostało %(remaining)s z %(total)s kart.")
+                % {"remaining": remaining, "total": pack.purchased_quantity},
                 source_type="CardPack",
                 source_id=pack.pk,
                 safe_snapshot={"remaining": remaining, "purchased": pack.purchased_quantity},
@@ -173,8 +177,9 @@ def scan_operational_alerts(*, now=None):
                     category="entitlement",
                     severity=OperationalAlert.Severity.WARNING,
                     tenant=subscription.tenant,
-                    title="Limit wydań kart zbliża się do końca",
-                    safe_summary=f"Wykorzystano {issued} z {policy.card_issuance_limit} wydań.",
+                    title=_("Limit wydań kart zbliża się do końca"),
+                    safe_summary=_("Wykorzystano %(used)s z %(limit)s wydań.")
+                    % {"used": issued, "limit": policy.card_issuance_limit},
                     source_type="BillingPeriod",
                     source_id=period.pk,
                     safe_snapshot={"used": issued, "limit": policy.card_issuance_limit},
@@ -193,8 +198,9 @@ def scan_operational_alerts(*, now=None):
                     category="entitlement",
                     severity=OperationalAlert.Severity.WARNING,
                     tenant=subscription.tenant,
-                    title="Limit użytkowników zbliża się do końca",
-                    safe_summary=f"Aktywnych jest {seats} z {policy.active_seat_limit} użytkowników.",
+                    title=_("Limit użytkowników zbliża się do końca"),
+                    safe_summary=_("Aktywnych jest %(used)s z %(limit)s użytkowników.")
+                    % {"used": seats, "limit": policy.active_seat_limit},
                     source_type="TenantSubscription",
                     source_id=subscription.pk,
                     safe_snapshot={"used": seats, "limit": policy.active_seat_limit},
@@ -226,10 +232,13 @@ def scan_operational_alerts(*, now=None):
             category="provider_auth",
             severity=OperationalAlert.Severity.CRITICAL,
             tenant=tenant,
-            title="Powtarzające się błędy autoryzacji integracji",
+            title=_("Powtarzające się błędy autoryzacji integracji"),
             safe_summary=(
-                f"Integracja {row['connection__provider']} zgłosiła "
-                f"{row['failures']} błędy autoryzacji w ciągu 24 godzin."
+                _("Integracja %(provider)s zgłosiła %(count)s błędy autoryzacji w ciągu 24 godzin.")
+                % {
+                    "provider": row["connection__provider"],
+                    "count": row["failures"],
+                }
             ),
             source_type="IntegrationConnection",
             source_id=row["connection_id"],
@@ -252,8 +261,9 @@ def scan_operational_alerts(*, now=None):
                 fingerprint=f"worker-stale:{worker_type}",
                 category="worker",
                 severity=OperationalAlert.Severity.CRITICAL,
-                title="Brak aktualnego sygnału procesu roboczego",
-                safe_summary=f"Proces {worker_type} nie zgłosił aktualnego heartbeat.",
+                title=_("Brak aktualnego sygnału procesu roboczego"),
+                safe_summary=_("Proces %(worker)s nie zgłosił aktualnego sygnału.")
+                % {"worker": worker_type},
                 source_type="WorkerHeartbeat",
                 source_id=worker_type,
                 safe_snapshot={"age_seconds": status.get("age_seconds")},

@@ -2,6 +2,7 @@
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from dotykacka.models import (
     CardArtifact,
@@ -67,24 +68,24 @@ class CropPlan(models.Model):
     def clean(self):
         errors = {}
         if self.design_id and self.design.tenant_id != self.tenant_id:
-            errors["design"] = "Design and crop plan must share a tenant."
+            errors["design"] = _("Projekt i plan kadrowania muszą należeć do tej samej firmy.")
         if self.physical_card_id:
             if self.physical_card.tenant_id != self.tenant_id:
-                errors["physical_card"] = "Card and crop plan must share a tenant."
+                errors["physical_card"] = _("Karta i plan kadrowania muszą należeć do tej samej firmy.")
             if self.physical_card.code != self.card_code:
-                errors["card_code"] = "Crop-plan code must match its physical card."
+                errors["card_code"] = _("Kod planu kadrowania musi odpowiadać karcie fizycznej.")
         if self.crop_right <= self.crop_left or self.crop_bottom <= self.crop_top:
-            errors["crop_right"] = "Crop coordinates must describe a positive rectangle."
+            errors["crop_right"] = _("Współrzędne kadrowania muszą wyznaczać poprawny prostokąt.")
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Crop plans are immutable; create a new render version.")
+            raise ValidationError(_("Planów kadrowania nie można zmieniać; utwórz nową wersję renderowania."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Crop plans cannot be deleted.")
+        raise ValidationError(_("Planów kadrowania nie można usuwać."))
 
 
 __all__ = [

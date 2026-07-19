@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 
 currency_validator = RegexValidator(
@@ -21,11 +22,11 @@ class AppendOnlyMixin:
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Historical records are append-only.")
+            raise ValidationError(_("Zapisy historyczne są tylko do dopisywania."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Historical records cannot be deleted.")
+        raise ValidationError(_("Zapisów historycznych nie można usuwać."))
 
 
 class Plan(models.Model):
@@ -44,13 +45,13 @@ class Plan(models.Model):
 
 class PlanVersion(models.Model):
     class BillingInterval(models.TextChoices):
-        MONTHLY = "monthly", "Monthly"
-        YEARLY = "yearly", "Yearly"
+        MONTHLY = "monthly", _("Miesięcznie")
+        YEARLY = "yearly", _("Rocznie")
 
     class TaxDisplay(models.TextChoices):
-        INCLUSIVE = "inclusive", "Tax included"
-        EXCLUSIVE = "exclusive", "Tax added"
-        NOT_APPLICABLE = "not_applicable", "Tax not applicable"
+        INCLUSIVE = "inclusive", _("Podatek wliczony")
+        EXCLUSIVE = "exclusive", _("Podatek doliczany")
+        NOT_APPLICABLE = "not_applicable", _("Podatek nie dotyczy")
 
     plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="versions")
     version = models.PositiveIntegerField()
@@ -79,7 +80,7 @@ class PlanVersion(models.Model):
         decimal_places=4,
         default=Decimal("0.0000"),
         validators=[MinValueValidator(Decimal("0.0000"))],
-        help_text="Decimal rate, for example 0.2300 for 23%.",
+        help_text=_("Stawka dziesiętna, na przykład 0.2300 dla 23%."),
     )
     published_at = models.DateTimeField(blank=True, null=True)
     created_by = models.ForeignKey(
@@ -103,19 +104,19 @@ class PlanVersion(models.Model):
     def clean(self):
         self.currency = (self.currency or "").upper()
         if self.tax_rate > Decimal("1.0000"):
-            raise ValidationError({"tax_rate": "Tax rate cannot exceed 100%."})
+            raise ValidationError({"tax_rate": _("Stawka podatku nie może przekraczać 100%.")})
 
     def save(self, *args, **kwargs):
         self.currency = (self.currency or "").upper()
         if self.pk:
             previous = type(self).objects.get(pk=self.pk)
             if previous.published_at:
-                raise ValidationError("Published plan versions are immutable.")
+                raise ValidationError(_("Opublikowanych wersji planu nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.published_at:
-            raise ValidationError("Published plan versions cannot be deleted.")
+            raise ValidationError(_("Opublikowanych wersji planu nie można usuwać."))
         return super().delete(*args, **kwargs)
 
     def __str__(self):
@@ -138,14 +139,14 @@ class EntitlementPolicy(models.Model):
         if self.pk:
             previous = type(self).objects.select_related("plan_version").get(pk=self.pk)
             if previous.plan_version.published_at:
-                raise ValidationError("A published entitlement policy is immutable.")
+                raise ValidationError(_("Opublikowanych zasad limitów nie można zmieniać."))
         elif self.plan_version_id and self.plan_version.published_at:
-            raise ValidationError("Add the entitlement policy before publishing the plan.")
+            raise ValidationError(_("Dodaj zasady limitów przed opublikowaniem planu."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.plan_version.published_at:
-            raise ValidationError("A published entitlement policy cannot be deleted.")
+            raise ValidationError(_("Opublikowanych zasad limitów nie można usuwać."))
         return super().delete(*args, **kwargs)
 
     def __str__(self):
@@ -154,10 +155,10 @@ class EntitlementPolicy(models.Model):
 
 class TenantSubscription(models.Model):
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
-        ACTIVE = "active", "Active"
-        PAUSED = "paused", "Paused"
-        CANCELLED = "cancelled", "Cancelled"
+        DRAFT = "draft", _("Szkic")
+        ACTIVE = "active", _("Aktywna")
+        PAUSED = "paused", _("Wstrzymana")
+        CANCELLED = "cancelled", _("Anulowana")
 
     tenant = models.ForeignKey(
         "dotykacka.Tenant",
@@ -181,9 +182,9 @@ class TenantSubscription(models.Model):
     def clean(self):
         errors = {}
         if self.ends_at and self.ends_at <= self.starts_at:
-            errors["ends_at"] = "End must be after start."
+            errors["ends_at"] = _("Data zakończenia musi być późniejsza niż data rozpoczęcia.")
         if self.status == self.Status.ACTIVE and not self.plan_version.published_at:
-            errors["plan_version"] = "Only a published plan version can be activated."
+            errors["plan_version"] = _("Można aktywować tylko opublikowaną wersję planu.")
         if self.status == self.Status.ACTIVE and self.tenant_id and self.starts_at:
             overlaps = type(self).objects.filter(
                 tenant_id=self.tenant_id,
@@ -193,7 +194,7 @@ class TenantSubscription(models.Model):
                 overlaps = overlaps.filter(starts_at__lt=self.ends_at)
             overlaps = overlaps.filter(Q(ends_at__isnull=True) | Q(ends_at__gt=self.starts_at))
             if overlaps.exists():
-                errors["status"] = "This tenant already has an overlapping active subscription."
+                errors["status"] = _("Ta firma ma już aktywną subskrypcję w tym okresie.")
         if errors:
             raise ValidationError(errors)
 
@@ -203,12 +204,12 @@ class TenantSubscription(models.Model):
             for field_name in ("tenant_id", "plan_version_id", "starts_at"):
                 if getattr(previous, field_name) != getattr(self, field_name):
                     raise ValidationError(
-                        "Subscription tenant, plan version, and start are immutable."
+                        _("Firmy, wersji planu i początku subskrypcji nie można zmieniać.")
                     )
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Subscriptions cannot be deleted.")
+        raise ValidationError(_("Subskrypcji nie można usuwać."))
 
     def __str__(self):
         return f"{self.tenant}: {self.plan_version}"
@@ -216,8 +217,8 @@ class TenantSubscription(models.Model):
 
 class BillingPeriod(models.Model):
     class Status(models.TextChoices):
-        OPEN = "open", "Open"
-        CLOSED = "closed", "Closed"
+        OPEN = "open", _("Otwarty")
+        CLOSED = "closed", _("Zamknięty")
 
     subscription = models.ForeignKey(
         TenantSubscription,
@@ -250,18 +251,18 @@ class BillingPeriod(models.Model):
             previous = type(self).objects.get(pk=self.pk)
             for field_name in ("subscription_id", "starts_at", "ends_at"):
                 if getattr(previous, field_name) != getattr(self, field_name):
-                    raise ValidationError("Billing-period boundaries are immutable.")
+                    raise ValidationError(_("Granic okresu rozliczeniowego nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Billing periods cannot be deleted.")
+        raise ValidationError(_("Okresów rozliczeniowych nie można usuwać."))
 
 
 class UsageEvent(AppendOnlyMixin, models.Model):
     class Kind(models.TextChoices):
-        PHYSICAL_CARD_ISSUED = "physical_card_issued", "Physical card issued"
-        VIRTUAL_CARD_ISSUED = "virtual_card_issued", "Virtual card issued"
-        PHYSICAL_CARD_PRODUCED = "physical_card_produced", "Physical card produced"
+        PHYSICAL_CARD_ISSUED = "physical_card_issued", _("Wydano kartę fizyczną")
+        VIRTUAL_CARD_ISSUED = "virtual_card_issued", _("Wydano kartę cyfrową")
+        PHYSICAL_CARD_PRODUCED = "physical_card_produced", _("Wyprodukowano kartę fizyczną")
 
     tenant = models.ForeignKey(
         "dotykacka.Tenant",
@@ -303,12 +304,12 @@ class UsageEvent(AppendOnlyMixin, models.Model):
     def clean(self):
         errors = {}
         if self.subscription_id and self.subscription.tenant_id != self.tenant_id:
-            errors["subscription"] = "Subscription must belong to the usage tenant."
+            errors["subscription"] = _("Subskrypcja musi należeć do firmy rejestrującej użycie.")
         if (
             self.billing_period_id
             and self.billing_period.subscription_id != self.subscription_id
         ):
-            errors["billing_period"] = "Billing period must belong to the subscription."
+            errors["billing_period"] = _("Okres rozliczeniowy musi należeć do subskrypcji.")
         if errors:
             raise ValidationError(errors)
 
@@ -377,19 +378,19 @@ class PriceBookVersion(models.Model):
     def clean(self):
         self.currency = (self.currency or "").upper()
         if self.tax_rate > Decimal("1.0000"):
-            raise ValidationError({"tax_rate": "Tax rate cannot exceed 100%."})
+            raise ValidationError({"tax_rate": _("Stawka podatku nie może przekraczać 100%.")})
 
     def save(self, *args, **kwargs):
         self.currency = (self.currency or "").upper()
         if self.pk:
             previous = type(self).objects.get(pk=self.pk)
             if previous.published_at:
-                raise ValidationError("Published price-book versions are immutable.")
+                raise ValidationError(_("Opublikowanych wersji cennika nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.published_at:
-            raise ValidationError("Published price-book versions cannot be deleted.")
+            raise ValidationError(_("Opublikowanych wersji cennika nie można usuwać."))
         return super().delete(*args, **kwargs)
 
     def __str__(self):
@@ -432,14 +433,14 @@ class CardPriceTier(models.Model):
         if self.pk:
             previous = type(self).objects.select_related("price_book_version").get(pk=self.pk)
             if previous.price_book_version.published_at:
-                raise ValidationError("Published price tiers are immutable.")
+                raise ValidationError(_("Opublikowanych progów cenowych nie można zmieniać."))
         elif self.price_book_version_id and self.price_book_version.published_at:
-            raise ValidationError("Add tiers before publishing the price book.")
+            raise ValidationError(_("Dodaj progi cenowe przed opublikowaniem cennika."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.price_book_version.published_at:
-            raise ValidationError("Published price tiers cannot be deleted.")
+            raise ValidationError(_("Opublikowanych progów cenowych nie można usuwać."))
         return super().delete(*args, **kwargs)
 
 
@@ -484,9 +485,9 @@ class CardPack(models.Model):
         self.currency = (self.currency or "").upper()
         errors = {}
         if self.price_book_version_id and self.currency != self.price_book_version.currency:
-            errors["currency"] = "Pack currency must match its price-book version."
+            errors["currency"] = _("Waluta pakietu musi odpowiadać walucie wersji cennika.")
         if self.consumed_quantity > self.purchased_quantity:
-            errors["consumed_quantity"] = "Consumed quantity exceeds the pack size."
+            errors["consumed_quantity"] = _("Wykorzystana liczba kart przekracza wielkość pakietu.")
         if errors:
             raise ValidationError(errors)
 
@@ -504,19 +505,19 @@ class CardPack(models.Model):
                 "expires_at",
             ):
                 if getattr(previous, field_name) != getattr(self, field_name):
-                    raise ValidationError("Purchased card-pack terms are immutable.")
+                    raise ValidationError(_("Warunków kupionego pakietu kart nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Purchased card packs cannot be deleted.")
+        raise ValidationError(_("Kupionych pakietów kart nie można usuwać."))
 
 
 class Quote(models.Model):
     class Status(models.TextChoices):
-        DRAFT = "draft", "Draft"
-        ACCEPTED = "accepted", "Accepted"
-        EXPIRED = "expired", "Expired"
-        CANCELLED = "cancelled", "Cancelled"
+        DRAFT = "draft", _("Szkic")
+        ACCEPTED = "accepted", _("Zaakceptowana")
+        EXPIRED = "expired", _("Wygasła")
+        CANCELLED = "cancelled", _("Anulowana")
 
     tenant = models.ForeignKey(
         "dotykacka.Tenant",
@@ -586,13 +587,13 @@ class Quote(models.Model):
         self.currency = (self.currency or "").upper()
         errors = {}
         if self.subscription_id and self.subscription.tenant_id != self.tenant_id:
-            errors["subscription"] = "Subscription must belong to the quote tenant."
+            errors["subscription"] = _("Subskrypcja musi należeć do firmy wskazanej w kalkulacji.")
         if self.billing_period_id and self.billing_period.subscription_id != self.subscription_id:
-            errors["billing_period"] = "Billing period must belong to the subscription."
+            errors["billing_period"] = _("Okres rozliczeniowy musi należeć do subskrypcji.")
         if self.price_book_version_id and self.currency != self.price_book_version.currency:
-            errors["currency"] = "Quote currency must match the price book."
+            errors["currency"] = _("Waluta kalkulacji musi odpowiadać walucie cennika.")
         if self.included_quantity + self.pack_quantity + self.billable_quantity != self.quantity:
-            errors["quantity"] = "Quote allocations must equal its quantity."
+            errors["quantity"] = _("Suma przydziałów kalkulacji musi odpowiadać liczbie kart.")
         if errors:
             raise ValidationError(errors)
 
@@ -601,20 +602,20 @@ class Quote(models.Model):
         if self.pk:
             previous = type(self).objects.get(pk=self.pk)
             if previous.status == self.Status.ACCEPTED:
-                raise ValidationError("Accepted quotes are immutable.")
+                raise ValidationError(_("Zaakceptowanych kalkulacji nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Quotes cannot be deleted.")
+        raise ValidationError(_("Kalkulacji nie można usuwać."))
 
 
 class QuoteLine(AppendOnlyMixin, models.Model):
     class Kind(models.TextChoices):
-        INCLUDED = "included", "Included allowance"
-        PACK = "pack", "Card pack"
-        PRODUCTION = "production", "Card production"
-        SHIPPING = "shipping", "Shipping"
-        TAX = "tax", "Tax"
+        INCLUDED = "included", _("Limit w planie")
+        PACK = "pack", _("Pakiet kart")
+        PRODUCTION = "production", _("Produkcja kart")
+        SHIPPING = "shipping", _("Wysyłka")
+        TAX = "tax", _("Podatek")
 
     quote = models.ForeignKey(Quote, on_delete=models.PROTECT, related_name="lines")
     position = models.PositiveSmallIntegerField()
@@ -707,13 +708,13 @@ class PrintQuoteConsumption(AppendOnlyMixin, models.Model):
         errors = {}
         if self.quote_id and self.usage_event_id:
             if self.quote.tenant_id != self.usage_event.tenant_id:
-                errors["usage_event"] = "Usage and quote must belong to the same tenant."
+                errors["usage_event"] = _("Użycie i kalkulacja muszą należeć do tej samej firmy.")
             if self.quote.billing_period_id != self.usage_event.billing_period_id:
-                errors["usage_event"] = "Usage and quote must belong to the same billing period."
+                errors["usage_event"] = _("Użycie i kalkulacja muszą należeć do tego samego okresu rozliczeniowego.")
         if self.quote_id and (
             self.included_quantity + self.pack_quantity + self.billable_quantity
             != self.quote.quantity
         ):
-            errors["included_quantity"] = "Consumption allocations must equal the quote quantity."
+            errors["included_quantity"] = _("Suma rozliczonego użycia musi odpowiadać liczbie kart w kalkulacji.")
         if errors:
             raise ValidationError(errors)

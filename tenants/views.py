@@ -3,6 +3,7 @@
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
+from django.utils.translation import gettext as _
 
 from .authorization import (
     can_access_tenant,
@@ -22,7 +23,7 @@ def tenant_portal(request, tenant_slug):
         is_active=True,
     )
     if not can_access_tenant(request.user, tenant):
-        return HttpResponseForbidden("Nie masz dostępu do tej firmy.")
+        return HttpResponseForbidden(_("Nie masz dostępu do tej firmy."))
 
     summary = portal_summary(tenant)
     return render(

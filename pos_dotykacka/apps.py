@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.utils.translation import gettext_lazy as _
 
 
 class PosDotykackaConfig(AppConfig):
@@ -27,11 +28,11 @@ class PosDotykackaConfig(AppConfig):
             SettingsProvider(
                 provider="dotykacka",
                 title="Dotykačka",
-                description="Synchronizacja klientów i grupy rabatowej tej firmy.",
+                description=_("Synchronizacja klientów i grupy rabatowej tej firmy."),
                 form_class=DotykackaIntegrationForm,
                 tester=test_connection,
                 secret_name="refresh_token",
-                secret_label="Autoryzacja Connector",
+                secret_label=_("Autoryzacja Connector"),
                 tenant_testable=False,
             )
         )
@@ -39,7 +40,7 @@ class PosDotykackaConfig(AppConfig):
             SystemConnectionCheck(
                 key="dotykacka-connector",
                 title="Dotykačka Connector",
-                description=(
+                description=_(
                     "Platformowy client ID i sekret używane do bezpiecznego podłączania firm."
                 ),
                 checker=connector_system_check,
@@ -48,8 +49,8 @@ class PosDotykackaConfig(AppConfig):
         register_system_connection_check(
             SystemConnectionCheck(
                 key="dotykacka-tenants",
-                title="Dotykačka API — chmury firm",
-                description=(
+                title=_("Dotykačka API — chmury firm"),
+                description=_(
                     "Zaszyfrowany Refresh Token każdej firmy jest wymieniany z jej Cloud ID na krótkotrwały token dostępu."
                 ),
                 checker=tenant_connections_system_check,

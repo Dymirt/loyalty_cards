@@ -14,6 +14,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from customers.models import CustomerExternalIdentity
 from integrations.contracts import (
@@ -530,8 +531,10 @@ def connector_system_check():
     if missing:
         return SystemCheckResult(
             ok=False,
-            summary="Brakuje poświadczeń platformowej aplikacji Dotykačka Connector.",
-            details=tuple(f"Brak zmiennej: {name}" for name in missing),
+            summary=_("Brakuje poświadczeń platformowej aplikacji Dotykačka Connector."),
+            details=tuple(
+                _("Brak zmiennej: %(name)s") % {"name": name} for name in missing
+            ),
         )
     payload = connector_payload(
         redirect_uri=f"{settings.APP_BASE_URL}/integrations/dotykacka/callback"
@@ -539,15 +542,15 @@ def connector_system_check():
     if len(payload["signature"]) != 64:
         return SystemCheckResult(
             ok=False,
-            summary="Nie udało się przygotować podpisu Connector.",
+            summary=_("Nie udało się przygotować podpisu Connector."),
         )
     return SystemCheckResult(
         ok=True,
-        summary="Poświadczenia platformy generują podpis Connector HMAC-SHA256.",
+        summary=_("Poświadczenia platformy generują podpis Connector HMAC-SHA256."),
         details=(
-            "Client ID: skonfigurowany.",
-            "Client Secret: skonfigurowany.",
-            "Poprawność poświadczeń po stronie Dotykačka jest potwierdzana podczas interaktywnego podłączania firmy.",
+            _("Client ID: skonfigurowany."),
+            _("Client Secret: skonfigurowany."),
+            _("Poprawność poświadczeń po stronie Dotykačka jest potwierdzana podczas interaktywnego podłączania firmy."),
         ),
     )
 
@@ -561,7 +564,7 @@ def tenant_connections_system_check():
     if not connections:
         return SystemCheckResult(
             ok=False,
-            summary="Brak aktywnych połączeń Dotykačka firm.",
+            summary=_("Brak aktywnych połączeń Dotykačka firm."),
         )
     details = []
     failures = 0
@@ -579,16 +582,25 @@ def tenant_connections_system_check():
                 update_fields=("last_tested_at", "last_error_code", "updated_at")
             )
             details.append(
-                f"{connection.tenant.name}: błąd ({connection.last_error_code})"
+                _("%(tenant)s: błąd (%(code)s)")
+                % {
+                    "tenant": connection.tenant.name,
+                    "code": connection.last_error_code,
+                }
             )
         else:
             details.append(
-                f"{connection.tenant.name}: OK · Refresh Token firmy (zaszyfrowany) · Cloud ID {connection.configuration.get('cloud_id')}"
+                _("%(tenant)s: OK · Refresh Token firmy (zaszyfrowany) · Cloud ID %(cloud)s")
+                % {
+                    "tenant": connection.tenant.name,
+                    "cloud": connection.configuration.get("cloud_id"),
+                }
             )
     return SystemCheckResult(
         ok=failures == 0,
         summary=(
-            f"Sprawdzono {len(connections)} aktywnych połączeń; błędy: {failures}."
+            _("Sprawdzono %(count)s aktywnych połączeń; błędy: %(failures)s.")
+            % {"count": len(connections), "failures": failures}
         ),
         details=tuple(details),
     )

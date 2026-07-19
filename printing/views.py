@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 
 from cards.services import tenant_inventory_queryset
@@ -46,7 +47,7 @@ def _tenant_or_forbidden(request, tenant_slug):
     )
     if not can_manage_billing(request.user, tenant):
         return tenant, HttpResponseForbidden(
-            "Nie masz uprawnień do zamówień druku tej firmy."
+            _("Nie masz uprawnień do zamówień druku tej firmy.")
         )
     return tenant, None
 
@@ -94,9 +95,9 @@ def submit_request(request, tenant_slug):
         else:
             messages.success(
                 request,
-                "Przekazano zamówienie do centrum druku."
+                _("Przekazano zamówienie do centrum druku.")
                 if created
-                else "To zamówienie zostało już wcześniej przekazane.",
+                else _("To zamówienie zostało już wcześniej przekazane."),
             )
             target = reverse("printing:tenant", args=[tenant.slug])
             if request.headers.get("HX-Request") == "true":
@@ -214,7 +215,9 @@ def approve_request(request, request_id):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            return _platform_action_response(request, print_request, "Zatwierdzono zamówienie.")
+            return _platform_action_response(
+                request, print_request, _("Zatwierdzono zamówienie.")
+            )
     return redirect("printing:platform_detail", request_id=print_request.pk)
 
 
@@ -233,9 +236,11 @@ def reject_request(request, request_id):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            return _platform_action_response(request, print_request, "Odrzucono zamówienie.")
+            return _platform_action_response(
+                request, print_request, _("Odrzucono zamówienie.")
+            )
     else:
-        messages.error(request, "Podaj powód odrzucenia.")
+        messages.error(request, _("Podaj powód odrzucenia."))
     return redirect("printing:platform_detail", request_id=print_request.pk)
 
 
@@ -253,9 +258,9 @@ def allocate_request(request, request_id):
     else:
         messages.success(
             request,
-            "Przydzielono numery i dodano zadanie produkcyjne."
+            _("Przydzielono numery i dodano zadanie produkcyjne.")
             if created
-            else "Numery były już przydzielone.",
+            else _("Numery były już przydzielone."),
         )
     return redirect("printing:platform_detail", request_id=print_request.pk)
 
@@ -275,9 +280,11 @@ def cancel_request(request, request_id):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            messages.success(request, "Anulowano zamówienie bez ponownego użycia numerów.")
+            messages.success(
+                request, _("Anulowano zamówienie bez ponownego użycia numerów.")
+            )
     else:
-        messages.error(request, "Podaj powód anulowania.")
+        messages.error(request, _("Podaj powód anulowania."))
     return redirect("printing:platform_detail", request_id=print_request.pk)
 
 
@@ -296,9 +303,9 @@ def fulfill_request(request, request_id):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            messages.success(request, "Dopisano etap realizacji.")
+            messages.success(request, _("Dopisano etap realizacji."))
     else:
-        messages.error(request, "Nieprawidłowy etap realizacji.")
+        messages.error(request, _("Nieprawidłowy etap realizacji."))
     return redirect("printing:platform_detail", request_id=print_request.pk)
 
 
@@ -313,7 +320,10 @@ def correct_event(request, event_id):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            messages.success(request, "Dopisano zdarzenie korygujące; historia pozostała bez zmian.")
+            messages.success(
+                request,
+                _("Dopisano zdarzenie korygujące; historia pozostała bez zmian."),
+            )
     target = event.print_request_id
     if target:
         return redirect("printing:platform_detail", request_id=target)
@@ -341,14 +351,14 @@ def package_download(request, package_id):
     )
     path = resolve_package_path(package)
     if not path.is_file():
-        raise Http404("Pakiet produkcyjny nie istnieje.")
+        raise Http404(_("Pakiet produkcyjny nie istnieje."))
     content = path.read_bytes()
     if len(content) != package.size_bytes:
-        raise Http404("Pakiet produkcyjny nie przeszedł kontroli rozmiaru.")
+        raise Http404(_("Pakiet produkcyjny nie przeszedł kontroli rozmiaru."))
     from card_artwork.services import bytes_sha256
 
     if bytes_sha256(content) != package.sha256:
-        raise Http404("Pakiet produkcyjny nie przeszedł kontroli sumy.")
+        raise Http404(_("Pakiet produkcyjny nie przeszedł kontroli sumy."))
     AuditEvent.objects.create(
         tenant=package.print_run.tenant,
         actor=request.user,
@@ -435,10 +445,14 @@ def legacy_confirm(request):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
         else:
-            messages.success(request, f"Dopisano {len(events)} zdarzeń historycznych.")
+            messages.success(
+                request,
+                _("Dopisano %(count)s zdarzeń historycznych.")
+                % {"count": len(events)},
+            )
             return redirect("printing:platform_queue")
     else:
-        messages.error(request, "Potwierdzenie nie odpowiada podglądowi.")
+        messages.error(request, _("Potwierdzenie nie odpowiada podglądowi."))
     return redirect("printing:platform_queue")
 
 

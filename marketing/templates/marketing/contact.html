@@ -1,9 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Kontakt · Loyalty Studio{% endblock %}
-{% block head_metadata %}<meta name="description" content="Skontaktuj się z Loyalty Studio w sprawie wdrożenia programu lojalnościowego.">{% endblock %}
+{% load i18n %}
+{% block title %}{% translate "Kontakt · Loyalty Studio" %}{% endblock %}
+{% block head_metadata %}<meta name="description" content="{% translate 'Skontaktuj się z Loyalty Studio w sprawie wdrożenia programu lojalnościowego.' %}">{% endblock %}
 {% block content %}
 <div class="grid gap-10 py-8 sm:py-14 lg:grid-cols-[.8fr_1.2fr]">
-    <header><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">Kontakt</p><h1 class="mt-4 text-4xl font-black tracking-tight">Opowiedz nam o swojej firmie</h1><p class="mt-5 text-lg leading-8 text-ink-700">Wystarczy krótka informacja o lokalu, obecnym POS, liczbie klientów i planowanej liczbie kart.</p><div class="mt-8 rounded-2xl bg-stone-100 p-5"><p class="text-sm text-ink-700">Kontakt platformy</p><p class="mt-1 font-semibold">{{ marketing_legal_name }}</p><a href="mailto:{{ marketing_contact_email }}" class="mt-2 inline-block font-semibold text-accent-700">{{ marketing_contact_email }}</a>{% if marketing_legal_address %}<p class="mt-2 text-sm text-ink-700">{{ marketing_legal_address }}</p>{% endif %}</div></header>
-    <section class="portal-card" aria-labelledby="contact-form-title"><h2 id="contact-form-title" class="text-2xl font-bold">Zapytaj o wdrożenie</h2><p class="mt-2 text-sm leading-6 text-ink-700">Pola formularza służą wyłącznie do odpowiedzi na Twoje zapytanie.</p><div class="mt-6">{% include "marketing/partials/contact_form.html" %}</div></section>
+    <header><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Kontakt" %}</p><h1 class="mt-4 text-4xl font-black tracking-tight">{% translate "Opowiedz nam o swojej firmie" %}</h1><p class="mt-5 text-lg leading-8 text-ink-700">{% translate "Wystarczy krótka informacja o lokalu, obecnym POS, liczbie klientów i planowanej liczbie kart." %}</p><div class="mt-8 rounded-2xl bg-stone-100 p-5"><p class="text-sm text-ink-700">{% translate "Kontakt platformy" %}</p><p class="mt-1 font-semibold">{{ marketing_legal_name }}</p><a href="mailto:{{ marketing_contact_email }}" class="mt-2 inline-block font-semibold text-accent-700">{{ marketing_contact_email }}</a>{% if marketing_legal_address %}<p class="mt-2 text-sm text-ink-700">{{ marketing_legal_address }}</p>{% endif %}</div></header>
+    <section class="portal-card" aria-labelledby="contact-form-title"><h2 id="contact-form-title" class="text-2xl font-bold">{% translate "Zapytaj o wdrożenie" %}</h2><p class="mt-2 text-sm leading-6 text-ink-700">{% translate "Pola formularza służą wyłącznie do odpowiedzi na Twoje zapytanie." %}</p><div class="mt-6">{% include "marketing/partials/contact_form.html" %}</div></section>
 </div>
 {% endblock %}

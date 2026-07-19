@@ -6,16 +6,17 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 
 class AppendOnlyMixin:
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Enrollment history is append-only.")
+            raise ValidationError(_("Historia rejestracji jest tylko do dopisywania."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Enrollment history cannot be deleted.")
+        raise ValidationError(_("Historii rejestracji nie można usuwać."))
 
 
 class Enrollment(AppendOnlyMixin, models.Model):
@@ -82,27 +83,27 @@ class Enrollment(AppendOnlyMixin, models.Model):
         for name in ("customer", "physical_card", "consent_record"):
             value = getattr(self, name, None)
             if value is not None and value.tenant_id != self.tenant_id:
-                errors[name] = "Enrollment records must belong to one tenant."
+                errors[name] = _("Zapisy rejestracji muszą należeć do jednej firmy.")
         if self.usage_event_id and self.usage_event.tenant_id != self.tenant_id:
-            errors["usage_event"] = "Usage and enrollment must share a tenant."
+            errors["usage_event"] = _("Użycie i rejestracja muszą należeć do tej samej firmy.")
         if self.brand_revision_id and self.brand_revision.tenant_id != self.tenant_id:
-            errors["brand_revision"] = "Brand revision and enrollment must share a tenant."
+            errors["brand_revision"] = _("Wersja marki i rejestracja muszą należeć do tej samej firmy.")
         if self.card_design_id and self.card_design.tenant_id != self.tenant_id:
-            errors["card_design"] = "Card design and enrollment must share a tenant."
+            errors["card_design"] = _("Projekt karty i rejestracja muszą należeć do tej samej firmy.")
         if self.customer_id and self.physical_card_id:
             if self.physical_card.customer_id != self.customer_id:
-                errors["physical_card"] = "The card must be assigned to the enrollment customer."
+                errors["physical_card"] = _("Karta musi być przypisana do rejestrowanego klienta.")
         if errors:
             raise ValidationError(errors)
 
 
 class EnrollmentAccessLink(AppendOnlyMixin, models.Model):
     class Purpose(models.TextChoices):
-        WALLET_STATUS = "wallet_status", "Wallet and follow-up status"
+        WALLET_STATUS = "wallet_status", _("Status Wallet i zadań dodatkowych")
 
     class Reason(models.TextChoices):
-        REGISTRATION = "registration", "Registration"
-        RESEND = "resend", "Explicit resend"
+        REGISTRATION = "registration", _("Rejestracja")
+        RESEND = "resend", _("Jawne ponowne wysłanie")
 
     enrollment = models.ForeignKey(
         Enrollment,
@@ -132,8 +133,8 @@ class EnrollmentAccessLink(AppendOnlyMixin, models.Model):
 
 class EnrollmentFollowUp(AppendOnlyMixin, models.Model):
     class Operation(models.TextChoices):
-        INITIAL = "initial", "Initial enrollment"
-        RESEND = "resend", "Explicit resend"
+        INITIAL = "initial", _("Pierwsza rejestracja")
+        RESEND = "resend", _("Jawne ponowne wysłanie")
 
     enrollment = models.ForeignKey(
         Enrollment,
@@ -170,6 +171,16 @@ class EnrollmentFollowUp(AppendOnlyMixin, models.Model):
         ]
         ordering = ("created_at", "pk")
 
+    def get_kind_display(self):
+        labels = {
+            "wallet.apple.issue": _("Wydanie karty Apple Wallet"),
+            "wallet.google.issue": _("Wydanie karty Google Wallet"),
+            "pos.dotykacka.customer_upsert": _("Synchronizacja klienta z Dotykačka"),
+            "communications.brevo.contact_upsert": _("Synchronizacja kontaktu z Brevo"),
+            "communications.email.pass": _("Wiadomość e-mail z kartą"),
+        }
+        return labels.get(self.kind, self.kind)
+
     def clean(self):
         if (
             self.integration_job_id
@@ -177,21 +188,21 @@ class EnrollmentFollowUp(AppendOnlyMixin, models.Model):
             and self.integration_job.tenant_id != self.enrollment.tenant_id
         ):
             raise ValidationError(
-                {"integration_job": "Follow-up job and enrollment must share a tenant."}
+                {"integration_job": _("Zadanie dodatkowe i rejestracja muszą należeć do tej samej firmy.")}
             )
         if self.integration_job_id and self.kind != self.integration_job.kind:
-            raise ValidationError({"kind": "Follow-up kind must match its job kind."})
+            raise ValidationError({"kind": _("Rodzaj zadania dodatkowego musi odpowiadać rodzajowi zadania integracji.")})
 
 
 class EnrollmentEvent(AppendOnlyMixin, models.Model):
     class Kind(models.TextChoices):
-        REGISTERED = "registered", "Registered"
-        CARD_ASSIGNED = "card_assigned", "Card assigned"
-        CONSENT_RECORDED = "consent_recorded", "Consent recorded"
-        ISSUANCE_RECORDED = "issuance_recorded", "Issuance recorded"
-        FOLLOWUPS_ENQUEUED = "followups_enqueued", "Follow-ups enqueued"
-        RETRY_REQUESTED = "retry_requested", "Retry requested"
-        RESEND_REQUESTED = "resend_requested", "Resend requested"
+        REGISTERED = "registered", _("Zarejestrowano")
+        CARD_ASSIGNED = "card_assigned", _("Przypisano kartę")
+        CONSENT_RECORDED = "consent_recorded", _("Zapisano zgodę")
+        ISSUANCE_RECORDED = "issuance_recorded", _("Zapisano wydanie")
+        FOLLOWUPS_ENQUEUED = "followups_enqueued", _("Dodano zadania dodatkowe")
+        RETRY_REQUESTED = "retry_requested", _("Zlecono ponowienie")
+        RESEND_REQUESTED = "resend_requested", _("Zlecono ponowne wysłanie")
 
     enrollment = models.ForeignKey(
         Enrollment,
@@ -234,7 +245,7 @@ class EnrollmentEvent(AppendOnlyMixin, models.Model):
             and self.integration_job.tenant_id != self.enrollment.tenant_id
         ):
             raise ValidationError(
-                {"integration_job": "Event job and enrollment must share a tenant."}
+                {"integration_job": _("Zadanie zdarzenia i rejestracja muszą należeć do tej samej firmy.")}
             )
 
 

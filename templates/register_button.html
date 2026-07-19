@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static i18n %}
 {% get_media_prefix as media_prefix %}
 
-{% block title %}{{ tenant.brand.public_name|default:tenant.name }} · Karta lojalnościowa{% endblock %}
+{% block title %}{% blocktranslate with brand_name=tenant.brand.public_name|default:tenant.name %}{{ brand_name }} · Karta lojalnościowa{% endblocktranslate %}{% endblock %}
 
 {% block full_width_content %}
 <section class="relative isolate grid min-h-[calc(100vh-9rem)] place-items-center overflow-hidden px-4 py-12">
@@ -22,11 +22,11 @@
                      alt="{{ tenant.brand.public_name|default:tenant.name }}"
                      class="mx-auto h-28 w-auto max-w-full object-contain sm:h-36">
             {% endif %}
-            <p class="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-accent-700">Program lojalnościowy</p>
-            <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Twoja karta gościa</h1>
+            <p class="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-accent-700">{% translate "Program lojalnościowy" %}</p>
+            <h1 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Twoja karta gościa" %}</h1>
             {% if tenant.brand.tagline %}<p class="mt-3 text-lg text-ink-700">{{ tenant.brand.tagline }}</p>{% endif %}
-            <a href="{% url 'enrollment:tenant_register' tenant.slug %}" class="portal-button mt-8 w-full sm:w-auto">Zarejestruj kartę</a>
-            <p class="mt-5 text-sm leading-6 text-ink-700">Masz fizyczną kartę? Przygotuj jej kod przed rozpoczęciem rejestracji.</p>
+            <a href="{% url 'enrollment:tenant_register' tenant.slug %}" class="portal-button mt-8 w-full sm:w-auto">{% translate "Zarejestruj kartę" %}</a>
+            <p class="mt-5 text-sm leading-6 text-ink-700">{% translate "Masz fizyczną kartę? Przygotuj jej kod przed rozpoczęciem rejestracji." %}</p>
         </div>
     </div>
 </section>

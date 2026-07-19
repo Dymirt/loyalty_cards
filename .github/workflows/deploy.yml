@@ -1,0 +1,130 @@
+name: Deploy production
+
+on:
+  workflow_run:
+    workflows: ["Loyalty platform CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: loyalty-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.PRODUCTION_DEPLOY_ENABLED == 'true' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment:
+      name: production
+      url: https://club.mbstudio.online
+    env:
+      DEPLOY_HOST: ${{ vars.PRODUCTION_DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ vars.PRODUCTION_DEPLOY_PORT }}
+      DEPLOY_USER: ${{ vars.PRODUCTION_DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.PRODUCTION_DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.PRODUCTION_KNOWN_HOSTS }}
+    steps:
+      - name: Resolve the tested main-branch commit
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha='${{ github.event.workflow_run.head_sha }}'
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Confirm the release belongs to main
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$DEPLOY_SHA" origin/main
+
+      - name: Configure the dedicated deployment connection
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_HOST:?missing PRODUCTION_DEPLOY_HOST variable}"
+          : "${DEPLOY_PORT:?missing PRODUCTION_DEPLOY_PORT variable}"
+          : "${DEPLOY_USER:?missing PRODUCTION_DEPLOY_USER variable}"
+          : "${DEPLOY_SSH_KEY:?missing PRODUCTION_DEPLOY_SSH_KEY secret}"
+          : "${DEPLOY_KNOWN_HOSTS:?missing PRODUCTION_KNOWN_HOSTS secret}"
+          install -d -m 0700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$HOME/.ssh/loyalty_deploy"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 0600 "$HOME/.ssh/loyalty_deploy" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/loyalty_deploy" >/dev/null
+          ssh-keygen -F "[$DEPLOY_HOST]:$DEPLOY_PORT" -f "$HOME/.ssh/known_hosts" >/dev/null
+
+      - name: Package only tracked source files
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git archive --format=tar.gz --output="/tmp/loyalty-$DEPLOY_SHA.tar.gz" "$DEPLOY_SHA"
+          gzip -t "/tmp/loyalty-$DEPLOY_SHA.tar.gz"
+
+      - name: Upload and deploy the verified release
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ssh_options=(
+            -i "$HOME/.ssh/loyalty_deploy"
+            -p "$DEPLOY_PORT"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+          )
+          scp_options=(
+            -i "$HOME/.ssh/loyalty_deploy"
+            -P "$DEPLOY_PORT"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+          )
+          remote_archive="/home/$DEPLOY_USER/incoming/$DEPLOY_SHA.tar.gz"
+          scp "${scp_options[@]}" "/tmp/loyalty-$DEPLOY_SHA.tar.gz" \
+            "$DEPLOY_USER@$DEPLOY_HOST:$remote_archive"
+          # Both arguments are validated CI-generated paths; expand them locally.
+          # shellcheck disable=SC2029
+          ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo /usr/local/sbin/loyalty-deploy '$DEPLOY_SHA' '$remote_archive'"
+
+      - name: Verify public production health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 8 --retry-all-errors \
+            --retry-delay 5 --max-time 15 https://club.mbstudio.online/health/live >/dev/null
+          curl --fail --silent --show-error --retry 12 --retry-all-errors \
+            --retry-delay 5 --max-time 15 https://club.mbstudio.online/health/ready >/dev/null
+
+      - name: Record the deployment summary
+        shell: bash
+        env:
+          DEPLOY_SHA: ${{ steps.release.outputs.sha }}
+        run: |
+          {
+            echo "### Production deployment succeeded"
+            echo
+            echo "- Commit: \`$DEPLOY_SHA\`"
+            echo "- URL: https://club.mbstudio.online"
+          } >> "$GITHUB_STEP_SUMMARY"

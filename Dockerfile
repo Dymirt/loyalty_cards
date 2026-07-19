@@ -11,6 +11,7 @@ RUN apt-get update \
         build-essential \
         ca-certificates \
         default-libmysqlclient-dev \
+        gettext \
         libapache2-mod-wsgi-py3 \
         libffi-dev \
         libjpeg62-turbo-dev \

@@ -7,33 +7,34 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class AppendOnlyMixin:
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Historical printing records are append-only.")
+            raise ValidationError(_("Historia druku jest tylko do dopisywania."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Historical printing records cannot be deleted.")
+        raise ValidationError(_("Historii druku nie można usuwać."))
 
 
 class PrintRequest(models.Model):
     class Status(models.TextChoices):
-        SUBMITTED = "submitted", "Submitted"
-        APPROVED = "approved", "Approved"
-        REJECTED = "rejected", "Rejected"
-        ALLOCATED = "allocated", "Allocated"
-        GENERATING = "generating", "Generating"
-        READY = "ready", "Ready"
-        FAILED = "failed", "Failed"
-        PRINTING = "printing", "Printing"
-        PRINTED = "printed", "Printed"
-        PACKED = "packed", "Packed"
-        DISPATCHED = "dispatched", "Dispatched"
-        DELIVERED = "delivered", "Delivered"
-        CANCELLED = "cancelled", "Cancelled"
+        SUBMITTED = "submitted", _("Złożone")
+        APPROVED = "approved", _("Zatwierdzone")
+        REJECTED = "rejected", _("Odrzucone")
+        ALLOCATED = "allocated", _("Przydzielono karty")
+        GENERATING = "generating", _("Generowanie")
+        READY = "ready", _("Gotowe")
+        FAILED = "failed", _("Błąd")
+        PRINTING = "printing", _("W druku")
+        PRINTED = "printed", _("Wydrukowane")
+        PACKED = "packed", _("Spakowane")
+        DISPATCHED = "dispatched", _("Wysłane")
+        DELIVERED = "delivered", _("Dostarczone")
+        CANCELLED = "cancelled", _("Anulowane")
 
     tenant = models.ForeignKey(
         "dotykacka.Tenant",
@@ -103,13 +104,13 @@ class PrintRequest(models.Model):
         for name in ("design", "proof_front", "proof_back", "quote"):
             value = getattr(self, name, None)
             if value is not None and value.tenant_id != self.tenant_id:
-                errors[name] = "The selected record must belong to the request tenant."
+                errors[name] = _("Wybrany zapis musi należeć do firmy składającej zamówienie.")
         if self.proof_front_id and self.proof_front.design_id != self.design_id:
-            errors["proof_front"] = "Front proof must belong to the selected design."
+            errors["proof_front"] = _("Próbka przodu musi należeć do wybranego projektu.")
         if self.proof_back_id and self.proof_back.design_id != self.design_id:
-            errors["proof_back"] = "Back proof must belong to the selected design."
+            errors["proof_back"] = _("Próbka tyłu musi należeć do wybranego projektu.")
         if self.quote_id and self.quote.quantity != self.quantity:
-            errors["quantity"] = "Request quantity must match the accepted quote."
+            errors["quantity"] = _("Liczba kart musi odpowiadać zaakceptowanej kalkulacji.")
         if errors:
             raise ValidationError(errors)
 
@@ -137,11 +138,11 @@ class PrintRequest(models.Model):
                 "snapshot",
             )
             if any(getattr(previous, field) != getattr(self, field) for field in immutable):
-                raise ValidationError("Submitted print-request details are immutable.")
+                raise ValidationError(_("Szczegółów złożonego zamówienia druku nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Print requests cannot be deleted.")
+        raise ValidationError(_("Zamówień druku nie można usuwać."))
 
 
 class PrintRequestEvent(AppendOnlyMixin, models.Model):
@@ -169,11 +170,11 @@ class PrintRequestEvent(AppendOnlyMixin, models.Model):
 
 class PrintRun(models.Model):
     class Status(models.TextChoices):
-        ALLOCATED = "allocated", "Allocated"
-        GENERATING = "generating", "Generating"
-        READY = "ready", "Ready"
-        FAILED = "failed", "Failed"
-        CANCELLED = "cancelled", "Cancelled"
+        ALLOCATED = "allocated", _("Przydzielono karty")
+        GENERATING = "generating", _("Generowanie")
+        READY = "ready", _("Gotowy")
+        FAILED = "failed", _("Błąd")
+        CANCELLED = "cancelled", _("Anulowany")
 
     print_request = models.OneToOneField(
         PrintRequest,
@@ -239,15 +240,15 @@ class PrintRun(models.Model):
     def clean(self):
         errors = {}
         if self.print_request_id and self.print_request.tenant_id != self.tenant_id:
-            errors["print_request"] = "Run and request must share a tenant."
+            errors["print_request"] = _("Seria druku i zamówienie muszą należeć do tej samej firmy.")
         if self.design_id and self.design.tenant_id != self.tenant_id:
-            errors["design"] = "Run and design must share a tenant."
+            errors["design"] = _("Seria druku i projekt muszą należeć do tej samej firmy.")
         if self.quote_id and self.quote.tenant_id != self.tenant_id:
-            errors["quote"] = "Run and quote must share a tenant."
+            errors["quote"] = _("Seria druku i kalkulacja muszą należeć do tej samej firmy.")
         if self.batch_id and self.batch.tenant_id != self.tenant_id:
-            errors["batch"] = "Run and batch must share a tenant."
+            errors["batch"] = _("Seria druku i partia muszą należeć do tej samej firmy.")
         if self.quantity and self.end_number - self.start_number + 1 != self.quantity:
-            errors["quantity"] = "Run quantity must match the allocated number range."
+            errors["quantity"] = _("Liczba kart w serii musi odpowiadać przydzielonemu zakresowi.")
         if errors:
             raise ValidationError(errors)
 
@@ -269,11 +270,11 @@ class PrintRun(models.Model):
                 "quote_snapshot",
             )
             if any(getattr(previous, field) != getattr(self, field) for field in immutable):
-                raise ValidationError("Allocated print-run inputs are immutable.")
+                raise ValidationError(_("Danych przydzielonej serii druku nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Print runs cannot be deleted.")
+        raise ValidationError(_("Serii druku nie można usuwać."))
 
 
 class PrintRunCard(models.Model):
@@ -335,20 +336,20 @@ class PrintRunCard(models.Model):
     def clean(self):
         errors = {}
         if self.physical_card_id and self.physical_card.tenant_id != self.print_run.tenant_id:
-            errors["physical_card"] = "Allocated card must belong to the run tenant."
+            errors["physical_card"] = _("Przydzielona karta musi należeć do firmy przypisanej do serii.")
         if self.physical_card_id and self.physical_card.code != self.code_snapshot:
-            errors["code_snapshot"] = "Code snapshot must match the allocated card."
+            errors["code_snapshot"] = _("Zapisany kod musi odpowiadać przydzielonej karcie.")
         if self.crop_plan_id and (
             self.crop_plan.tenant_id != self.print_run.tenant_id
             or self.crop_plan.design_id != self.print_run.design_id
             or self.crop_plan.card_code != self.code_snapshot
             or self.crop_plan.physical_card_id not in (None, self.physical_card_id)
         ):
-            errors["crop_plan"] = "Crop plan must match the allocated card code and design."
+            errors["crop_plan"] = _("Plan kadrowania musi odpowiadać kodowi karty i projektowi.")
         for name in ("front_artifact", "back_artifact", "barcode_artifact"):
             artifact = getattr(self, name, None)
             if artifact is not None and artifact.physical_card_id != self.physical_card_id:
-                errors[name] = "Production artifact must belong to the allocated card."
+                errors[name] = _("Plik produkcyjny musi należeć do przydzielonej karty.")
         if errors:
             raise ValidationError(errors)
 
@@ -357,7 +358,7 @@ class PrintRunCard(models.Model):
             previous = type(self).objects.get(pk=self.pk)
             for field in ("print_run_id", "physical_card_id", "position", "code_snapshot"):
                 if getattr(previous, field) != getattr(self, field):
-                    raise ValidationError("Print-run allocation is immutable.")
+                    raise ValidationError(_("Przydział serii druku jest niezmienny."))
             for field in (
                 "crop_plan_id",
                 "front_artifact_id",
@@ -366,21 +367,21 @@ class PrintRunCard(models.Model):
             ):
                 old, new = getattr(previous, field), getattr(self, field)
                 if old and old != new:
-                    raise ValidationError("Production trace links cannot be replaced.")
+                    raise ValidationError(_("Powiązań śledzenia produkcji nie można zastępować."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Allocated print-run cards cannot be deleted.")
+        raise ValidationError(_("Kart przydzielonych do serii druku nie można usuwać."))
 
 
 class PrintJob(models.Model):
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        RUNNING = "running", "Running"
-        RETRY = "retry", "Retry scheduled"
-        SUCCEEDED = "succeeded", "Succeeded"
-        FAILED = "failed", "Failed"
-        CANCELLED = "cancelled", "Cancelled"
+        PENDING = "pending", _("Oczekuje")
+        RUNNING = "running", _("W toku")
+        RETRY = "retry", _("Zaplanowano ponowienie")
+        SUCCEEDED = "succeeded", _("Zakończono")
+        FAILED = "failed", _("Błąd")
+        CANCELLED = "cancelled", _("Anulowano")
 
     print_run = models.ForeignKey(
         PrintRun,
@@ -414,7 +415,7 @@ class PrintJob(models.Model):
         ordering = ("created_at", "pk")
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Print-job history cannot be deleted.")
+        raise ValidationError(_("Historii zadań druku nie można usuwać."))
 
 
 class PrintPackage(AppendOnlyMixin, models.Model):
@@ -434,12 +435,12 @@ class PrintPackage(AppendOnlyMixin, models.Model):
 
 class FulfillmentEvent(AppendOnlyMixin, models.Model):
     class Kind(models.TextChoices):
-        PRINTING = "printing", "Printing started"
-        PRINTED = "printed", "Printed"
-        PACKED = "packed", "Packed"
-        DISPATCHED = "dispatched", "Dispatched"
-        DELIVERED = "delivered", "Delivered"
-        CORRECTION = "correction", "Correction"
+        PRINTING = "printing", _("Rozpoczęto druk")
+        PRINTED = "printed", _("Wydrukowano")
+        PACKED = "packed", _("Spakowano")
+        DISPATCHED = "dispatched", _("Wysłano")
+        DELIVERED = "delivered", _("Dostarczono")
+        CORRECTION = "correction", _("Korekta")
 
     tenant = models.ForeignKey(
         "dotykacka.Tenant",
@@ -502,18 +503,18 @@ class FulfillmentEvent(AppendOnlyMixin, models.Model):
         for name in ("print_request", "print_run", "physical_card"):
             value = getattr(self, name, None)
             if value is not None and value.tenant_id != self.tenant_id:
-                errors[name] = "Fulfillment scope must belong to the event tenant."
+                errors[name] = _("Zakres realizacji musi należeć do firmy przypisanej do zdarzenia.")
         if self.event_type == self.Kind.CORRECTION:
             if not self.compensates_id:
-                errors["compensates"] = "A correction must reference the event it compensates."
+                errors["compensates"] = _("Korekta musi wskazywać korygowane zdarzenie.")
             if not self.reason.strip():
-                errors["reason"] = "A correction reason is required."
+                errors["reason"] = _("Podaj powód korekty.")
         elif self.compensates_id:
-            errors["compensates"] = "Only correction events can compensate history."
+            errors["compensates"] = _("Tylko zdarzenie korekty może korygować historię.")
         if self.compensates_id and self.compensates.tenant_id != self.tenant_id:
-            errors["compensates"] = "Correction and original event must share a tenant."
+            errors["compensates"] = _("Korekta i pierwotne zdarzenie muszą należeć do tej samej firmy.")
         if not any((self.print_request_id, self.print_run_id, self.physical_card_id)):
-            errors["print_request"] = "Fulfillment requires request, run, or card scope."
+            errors["print_request"] = _("Realizacja wymaga wskazania zamówienia, serii lub karty.")
         if errors:
             raise ValidationError(errors)
 

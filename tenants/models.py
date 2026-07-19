@@ -10,6 +10,7 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from dotykacka.models import (
     Tenant,
@@ -23,9 +24,9 @@ class TenantDomain(models.Model):
     """A requested or platform-verified hostname for public enrollment."""
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending verification"
-        VERIFIED = "verified", "Verified"
-        DISABLED = "disabled", "Disabled"
+        PENDING = "pending", _("Oczekuje na weryfikację")
+        VERIFIED = "verified", _("Zweryfikowana")
+        DISABLED = "disabled", _("Wyłączona")
 
     tenant = models.ForeignKey(
         Tenant,
@@ -79,15 +80,19 @@ class TenantDomain(models.Model):
             self.hostname,
         ):
             raise ValidationError(
-                {"hostname": "Use a hostname such as club.example.com, without a scheme or path."}
+                {
+                    "hostname": _(
+                        "Podaj nazwę hosta, na przykład club.example.com, bez schematu i ścieżki."
+                    )
+                }
             )
         if self.status == self.Status.VERIFIED and self.verified_at is None:
             raise ValidationError(
-                {"verified_at": "A verified domain needs its verification timestamp."}
+                {"verified_at": _("Zweryfikowana domena wymaga daty weryfikacji.")}
             )
         if self.is_primary and self.status != self.Status.VERIFIED:
             raise ValidationError(
-                {"is_primary": "Only a verified domain can be the primary domain."}
+                {"is_primary": _("Domeną główną może być tylko domena zweryfikowana.")}
             )
         self.primary_for_tenant_id = self.tenant_id if self.is_primary else None
 
@@ -97,7 +102,7 @@ class TenantDomain(models.Model):
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Tenant domain history cannot be deleted; disable it instead.")
+        raise ValidationError(_("Historii domen firmy nie można usuwać; wyłącz domenę."))
 
 
 __all__ = [

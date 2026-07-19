@@ -108,7 +108,11 @@ class MarketingViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(MarketingLead.objects.count(), 1)
-        self.assertContains(response, "identifier was already used", status_code=400)
+        self.assertContains(
+            response,
+            "Identyfikator tego zgłoszenia kontaktowego został już użyty.",
+            status_code=400,
+        )
 
     def test_htmx_post_returns_success_fragment_and_invalid_form_swaps_errors(self):
         success = self.client.post(

@@ -202,6 +202,7 @@ LEGACY_DOTYKACKA_MIGRATIONS = {
     "0012_card_design_foundation",
     "0013_backfill_card_designs",
     "0014_promote_dotykacka_refresh_tokens",
+    "0015_alter_cardartifact_kind_alter_cardbatch_status_and_more",
 }
 
 EXTRACTED_MIGRATIONS = {
@@ -209,19 +210,28 @@ EXTRACTED_MIGRATIONS = {
     ("customers", "0001_customer_domain_models"),
     ("customers", "0002_external_identity_sync_status"),
     ("customers", "0003_external_identity_pending_remote_id"),
+    ("customers", "0004_alter_customerexternalidentity_sync_status"),
     ("integrations", "0001_initial"),
+    ("integrations", "0002_alter_integrationjob_status"),
     ("marketing", "0001_initial"),
     ("operations", "0001_initial"),
+    ("operations", "0002_alter_operationalalert_severity_and_more"),
     ("pos_dotykacka", "0001_initial"),
     ("billing", "0001_initial"),
     ("billing", "0002_printquoteconsumption"),
+    ("billing", "0003_alter_billingperiod_status_and_more"),
+    ("billing", "0004_alter_planversion_tax_rate"),
     ("printing", "0001_initial"),
+    ("printing", "0002_alter_fulfillmentevent_event_type_and_more"),
     ("communications", "0001_initial"),
+    ("communications", "0002_alter_communicationdelivery_channel_and_more"),
     ("enrollment", "0001_initial"),
+    ("enrollment", "0002_alter_enrollmentaccesslink_purpose_and_more"),
     ("tenants", "0001_initial"),
     ("tenants", "0002_portable_primary_domain"),
     ("tenants", "0003_backfill_primary_domain_marker"),
     ("tenants", "0004_primary_domain_marker_constraint"),
+    ("tenants", "0005_alter_tenantdomain_status"),
 }
 
 

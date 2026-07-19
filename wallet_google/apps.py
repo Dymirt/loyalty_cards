@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.utils.translation import gettext_lazy as _
 
 
 class WalletGoogleConfig(AppConfig):
@@ -24,7 +25,7 @@ class WalletGoogleConfig(AppConfig):
             SettingsProvider(
                 provider="google_wallet",
                 title="Google Wallet",
-                description=(
+                description=_(
                     "Karty korzystają z centralnego wydawcy platformy; klasa, treść i wygląd są dobierane automatycznie dla firmy."
                 ),
                 form_class=GoogleWalletIntegrationForm,
@@ -35,7 +36,7 @@ class WalletGoogleConfig(AppConfig):
             SystemConnectionCheck(
                 key="google-wallet",
                 title="Google Wallet",
-                description=(
+                description=_(
                     "Konto usługi, centralny ID wydawcy i odczyt API Google Wallet."
                 ),
                 checker=system_connection_check,

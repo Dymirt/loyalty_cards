@@ -6,6 +6,7 @@ import json
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.utils.translation import gettext as _
 
 from .models import MarketingLead
 
@@ -30,7 +31,7 @@ def record_marketing_lead(*, cleaned_data, source_path):
     existing = MarketingLead.objects.filter(public_id=public_id).first()
     if existing:
         if existing.content_sha256 != content_sha256:
-            raise ValidationError("This contact request identifier was already used.")
+            raise ValidationError(_("Identyfikator tego zgłoszenia kontaktowego został już użyty."))
         return existing, False
     consent_text = settings.MARKETING_PRIVACY_CONSENT_TEXT
     lead = MarketingLead(
@@ -49,7 +50,7 @@ def record_marketing_lead(*, cleaned_data, source_path):
         existing = MarketingLead.objects.get(public_id=public_id)
         if existing.content_sha256 != content_sha256:
             raise ValidationError(
-                "This contact request identifier was already used."
+                _("Identyfikator tego zgłoszenia kontaktowego został już użyty.")
             )
         return existing, False
     return lead, True

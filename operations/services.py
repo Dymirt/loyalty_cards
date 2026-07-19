@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.core.exceptions import ValidationError
 from django.db import DatabaseError, transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from .models import OperationalAlert, OperationalAlertEvent, WorkerHeartbeat
 
@@ -135,7 +136,7 @@ def detect_operational_alert(
 def acknowledge_alert(*, alert, actor, reason):
     locked = OperationalAlert.objects.select_for_update().get(pk=alert.pk)
     if locked.status == OperationalAlert.Status.RESOLVED:
-        raise ValidationError("Resolved alerts cannot be acknowledged.")
+        raise ValidationError(_("Rozwiązanego alertu nie można potwierdzić."))
     locked.status = OperationalAlert.Status.ACKNOWLEDGED
     locked.acknowledged_at = timezone.now()
     locked.acknowledged_by = actor

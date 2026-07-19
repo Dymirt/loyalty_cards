@@ -1,13 +1,14 @@
 """Tenant opt-in for the platform-owned Google Wallet issuer."""
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from integrations.models import IntegrationConnection
 from tenants.forms import style_portal_form
 
 
 class GoogleWalletIntegrationForm(forms.Form):
-    enabled = forms.BooleanField(required=False, label="Włącz integrację")
+    enabled = forms.BooleanField(required=False, label=_("Włącz integrację"))
 
     def __init__(self, *args, tenant, connection=None, **kwargs):
         self.tenant = tenant

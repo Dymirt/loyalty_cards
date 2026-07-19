@@ -8,6 +8,7 @@ from urllib.parse import quote
 import requests
 from django.conf import settings
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from customers.models import ConsentRecord, CustomerExternalIdentity
 from integrations.contracts import (
@@ -239,7 +240,7 @@ def system_connection_check():
     if not connections:
         return SystemCheckResult(
             ok=False,
-            summary="Brak aktywnych połączeń Brevo firm.",
+            summary=_("Brak aktywnych połączeń Brevo firm."),
         )
     details = []
     failures = 0
@@ -249,13 +250,17 @@ def system_connection_check():
         except Exception as exc:
             failures += 1
             code = getattr(exc, "error_code", type(exc).__name__)
-            details.append(f"{connection.tenant.name}: błąd ({code})")
+            details.append(
+                _("%(tenant)s: błąd (%(code)s)")
+                % {"tenant": connection.tenant.name, "code": code}
+            )
         else:
-            details.append(f"{connection.tenant.name}: OK")
+            details.append(_("%(tenant)s: OK") % {"tenant": connection.tenant.name})
     return SystemCheckResult(
         ok=failures == 0,
         summary=(
-            f"Sprawdzono {len(connections)} aktywnych połączeń; błędy: {failures}."
+            _("Sprawdzono %(count)s aktywnych połączeń; błędy: %(failures)s.")
+            % {"count": len(connections), "failures": failures}
         ),
         details=tuple(details),
     )

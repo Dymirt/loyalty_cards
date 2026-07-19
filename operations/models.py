@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class RateLimitBucket(models.Model):
@@ -32,14 +33,14 @@ class RateLimitBucket(models.Model):
         ]
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Rate-limit evidence cannot be deleted.")
+        raise ValidationError(_("Historii limitowania żądań nie można usuwać."))
 
 
 class WorkerHeartbeat(models.Model):
     class WorkerType(models.TextChoices):
-        INTEGRATION = "integration", "Integration worker"
-        PRINTING = "printing", "Print worker"
-        MONITOR = "monitor", "Operations monitor"
+        INTEGRATION = "integration", _("Proces integracji")
+        PRINTING = "printing", _("Proces druku")
+        MONITOR = "monitor", _("Monitor operacyjny")
 
     worker_type = models.CharField(max_length=24, choices=WorkerType.choices)
     worker_id = models.CharField(max_length=160)
@@ -64,18 +65,18 @@ class WorkerHeartbeat(models.Model):
         ]
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Worker heartbeat history cannot be deleted.")
+        raise ValidationError(_("Historii sygnałów procesów nie można usuwać."))
 
 
 class OperationalAlert(models.Model):
     class Severity(models.TextChoices):
-        WARNING = "warning", "Warning"
-        CRITICAL = "critical", "Critical"
+        WARNING = "warning", _("Ostrzeżenie")
+        CRITICAL = "critical", _("Krytyczny")
 
     class Status(models.TextChoices):
-        OPEN = "open", "Open"
-        ACKNOWLEDGED = "acknowledged", "Acknowledged"
-        RESOLVED = "resolved", "Resolved"
+        OPEN = "open", _("Otwarty")
+        ACKNOWLEDGED = "acknowledged", _("Potwierdzony")
+        RESOLVED = "resolved", _("Rozwiązany")
 
     public_id = models.UUIDField(default=uuid4, unique=True, editable=False)
     fingerprint = models.CharField(max_length=191, unique=True)
@@ -124,16 +125,16 @@ class OperationalAlert(models.Model):
         ordering = ("status", "-severity", "-last_seen_at", "-pk")
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Operational alerts cannot be deleted.")
+        raise ValidationError(_("Alertów operacyjnych nie można usuwać."))
 
 
 class OperationalAlertEvent(models.Model):
     class Kind(models.TextChoices):
-        DETECTED = "detected", "Detected"
-        SEEN = "seen", "Seen again"
-        ACKNOWLEDGED = "acknowledged", "Acknowledged"
-        RESOLVED = "resolved", "Resolved"
-        REOPENED = "reopened", "Reopened"
+        DETECTED = "detected", _("Wykryto")
+        SEEN = "seen", _("Wykryto ponownie")
+        ACKNOWLEDGED = "acknowledged", _("Potwierdzono")
+        RESOLVED = "resolved", _("Rozwiązano")
+        REOPENED = "reopened", _("Otwarto ponownie")
 
     alert = models.ForeignKey(
         OperationalAlert,
@@ -157,11 +158,11 @@ class OperationalAlertEvent(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Operational alert events are append-only.")
+            raise ValidationError(_("Zdarzenia alertów operacyjnych są tylko do dopisywania."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Operational alert events cannot be deleted.")
+        raise ValidationError(_("Zdarzeń alertów operacyjnych nie można usuwać."))
 
 
 __all__ = [

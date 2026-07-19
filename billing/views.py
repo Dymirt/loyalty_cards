@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from tenants.authorization import can_manage_billing, superuser_required
@@ -29,7 +30,7 @@ def _tenant_or_forbidden(request, tenant_slug):
     tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
     if not can_manage_billing(request.user, tenant):
         return tenant, HttpResponseForbidden(
-            "Nie masz uprawnień do rozliczeń tej firmy."
+            _("Nie masz uprawnień do rozliczeń tej firmy.")
         )
     return tenant, None
 
@@ -90,7 +91,9 @@ def create_quote(request, tenant_slug):
             if request.headers.get("HX-Request") != "true":
                 messages.success(
                     request,
-                    "Utworzono kalkulację." if created else "Ta kalkulacja już istnieje.",
+                    _("Utworzono kalkulację.")
+                    if created
+                    else _("Ta kalkulacja już istnieje."),
                 )
                 return redirect("billing:tenant", tenant_slug=tenant.slug)
     if request.headers.get("HX-Request") == "true":
@@ -100,7 +103,7 @@ def create_quote(request, tenant_slug):
             {"tenant": tenant, "form": form, "quote": quote},
             status=200 if quote else 400,
         )
-    messages.error(request, "Nie udało się utworzyć kalkulacji.")
+    messages.error(request, _("Nie udało się utworzyć kalkulacji."))
     return render(
         request,
         "billing/tenant_billing.html",
@@ -133,7 +136,9 @@ def accept_tenant_quote(request, tenant_slug, quote_id):
     else:
         messages.success(
             request,
-            "Zaakceptowano kalkulację." if created else "Kalkulacja była już zaakceptowana.",
+            _("Zaakceptowano kalkulację.")
+            if created
+            else _("Kalkulacja była już zaakceptowana."),
         )
     return redirect("billing:tenant", tenant_slug=tenant.slug)
 
@@ -176,7 +181,7 @@ def platform_billing(request):
         }
         form = form_by_action.get(action)
         if form is None:
-            return HttpResponseForbidden("Nieprawidłowa operacja rozliczeniowa.")
+            return HttpResponseForbidden(_("Nieprawidłowa operacja rozliczeniowa."))
         if form.is_valid():
             try:
                 if action in {"publish_plan_version", "publish_price_book_version"}:
@@ -188,7 +193,7 @@ def platform_billing(request):
             except ValidationError as exc:
                 form.add_error(None, exc)
             else:
-                messages.success(request, "Zapisano konfigurację rozliczeniową.")
+                messages.success(request, _("Zapisano konfigurację rozliczeniową."))
                 return redirect("billing:platform")
     return render(
         request,

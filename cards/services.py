@@ -2,6 +2,7 @@
 
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
+from django.utils.translation import gettext as _
 
 from .models import PhysicalCard
 
@@ -39,9 +40,9 @@ def lock_available_card(*, tenant, code):
 
 def assign_locked_card(*, card, customer):
     if card.tenant_id != customer.tenant_id:
-        raise ValidationError("Card and customer must belong to the same tenant.")
+        raise ValidationError(_("Karta i klient muszą należeć do tej samej firmy."))
     if card.customer_id or card.status != PhysicalCard.Status.AVAILABLE:
-        raise ValidationError("Card is not available for assignment.")
+        raise ValidationError(_("Karta nie jest dostępna do przypisania."))
     card.customer = customer
     card.status = PhysicalCard.Status.ASSIGNED
     card.save(update_fields=["customer", "status"])

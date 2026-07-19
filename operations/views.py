@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 
 from marketing.models import MarketingLead
@@ -62,7 +63,7 @@ def _alert_action(request, alert_id, *, action):
     alert = get_object_or_404(OperationalAlert, public_id=alert_id)
     form = AlertActionForm(request.POST)
     if not form.is_valid():
-        messages.error(request, "Podaj powód operacji.")
+        messages.error(request, _("Podaj powód operacji."))
         return redirect("operations:dashboard")
     if action == "acknowledge":
         acknowledge_alert(
@@ -70,14 +71,14 @@ def _alert_action(request, alert_id, *, action):
             actor=request.user,
             reason=form.cleaned_data["reason"],
         )
-        messages.success(request, "Alert został potwierdzony.")
+        messages.success(request, _("Alert został potwierdzony."))
     else:
         resolve_alert(
             alert=alert,
             actor=request.user,
             reason=form.cleaned_data["reason"],
         )
-        messages.success(request, "Alert został rozwiązany z zapisem historii.")
+        messages.success(request, _("Alert został rozwiązany z zapisem historii."))
     return redirect("operations:dashboard")
 
 

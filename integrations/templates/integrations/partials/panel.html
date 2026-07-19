@@ -1,34 +1,35 @@
+{% load i18n %}
 <section class="portal-card" aria-labelledby="{{ panel.spec.provider }}-title">
     <div class="flex flex-wrap items-start justify-between gap-3">
         <div><h2 id="{{ panel.spec.provider }}-title" class="text-xl font-bold">{{ panel.spec.title }}</h2><p class="mt-1 text-sm leading-6 text-ink-700">{{ panel.spec.description }}</p></div>
-        {% if panel.connection.enabled %}<span class="portal-status bg-emerald-100 text-emerald-800">Aktywna</span>{% else %}<span class="portal-status bg-stone-100 text-stone-700">Nieaktywna</span>{% endif %}
+        {% if panel.connection.enabled %}<span class="portal-status bg-emerald-100 text-emerald-800">{% translate "Aktywna" %}</span>{% else %}<span class="portal-status bg-stone-100 text-stone-700">{% translate "Nieaktywna" %}</span>{% endif %}
     </div>
     {% if panel.spec.tenant_testable %}
-        {% if panel.spec.secret_label %}<p class="mt-4 text-sm font-semibold {% if panel.secret_configured %}text-emerald-800{% else %}text-red-800{% endif %}">{{ panel.spec.secret_label }}: {% if panel.secret_configured %}skonfigurowany{% else %}brak{% endif %}</p>{% endif %}
+        {% if panel.spec.secret_label %}<p class="mt-4 text-sm font-semibold {% if panel.secret_configured %}text-emerald-800{% else %}text-red-800{% endif %}">{{ panel.spec.secret_label }}: {% if panel.secret_configured %}{% translate "skonfigurowany" %}{% else %}{% translate "brak" %}{% endif %}</p>{% endif %}
         <div id="{{ panel.spec.provider }}-status" class="mt-3" aria-live="polite">{% include "integrations/partials/status.html" with connection=panel.connection %}</div>
     {% endif %}
     {% if panel.spec.provider == "dotykacka" %}
         <div class="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-4">
-            <p class="font-semibold">Autoryzacja Dotykačka</p>
+            <p class="font-semibold">{% translate "Autoryzacja Dotykačka" %}</p>
             {% if panel.dotykacka_connected %}
-                <p class="mt-2 text-sm text-emerald-800">Połączono. Refresh Token jest zapisany w postaci zaszyfrowanej.</p>
-                <p class="mt-1 text-sm text-ink-700">Cloud ID: <strong>{{ panel.dotykacka_cloud_id }}</strong></p>
-                <p class="mt-2 text-sm text-ink-700">Cloud ID pozostaje zablokowany do czasu rozłączenia integracji.</p>
+                <p class="mt-2 text-sm text-emerald-800">{% translate "Połączono. Refresh Token jest zapisany w postaci zaszyfrowanej." %}</p>
+                <p class="mt-1 text-sm text-ink-700">{% translate "Cloud ID:" %} <strong>{{ panel.dotykacka_cloud_id }}</strong></p>
+                <p class="mt-2 text-sm text-ink-700">{% translate "Cloud ID pozostaje zablokowany do czasu rozłączenia integracji." %}</p>
                 <div class="mt-4 flex flex-wrap gap-3">
                     <form method="post" action="{% url 'pos_dotykacka:connect' tenant.slug %}">
                         {% csrf_token %}
-                        <button type="submit" class="portal-button-secondary">Odnów dostęp</button>
+                        <button type="submit" class="portal-button-secondary">{% translate "Odnów dostęp" %}</button>
                     </form>
                     <form method="post" action="{% url 'pos_dotykacka:disconnect' tenant.slug %}">
                         {% csrf_token %}
-                        <button type="submit" class="portal-button-secondary">Rozłącz Dotykačka</button>
+                        <button type="submit" class="portal-button-secondary">{% translate "Rozłącz Dotykačka" %}</button>
                     </form>
                 </div>
             {% else %}
-                <p class="mt-2 text-sm text-ink-700">Zaloguj się do konta Dotykačka, wybierz chmurę firmy i zatwierdź dostęp. Cloud ID i Refresh Token zostaną zapisane automatycznie.</p>
+                <p class="mt-2 text-sm text-ink-700">{% translate "Zaloguj się do konta Dotykačka, wybierz chmurę firmy i zatwierdź dostęp. Cloud ID i Refresh Token zostaną zapisane automatycznie." %}</p>
                 <form method="post" action="{% url 'pos_dotykacka:connect' tenant.slug %}" class="mt-4">
                     {% csrf_token %}
-                    <button type="submit" class="portal-button-secondary">Połącz z Dotykačka</button>
+                    <button type="submit" class="portal-button-secondary">{% translate "Połącz z Dotykačka" %}</button>
                 </form>
             {% endif %}
         </div>
@@ -37,11 +38,11 @@
         {% csrf_token %}<input type="hidden" name="provider" value="{{ panel.spec.provider }}">
         {% for error in panel.form.non_field_errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
         {% for field in panel.form %}
-            {% if field.name == "enabled" %}<div class="flex items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4">{{ field }}<div><label for="{{ field.id_for_label }}" class="font-semibold">Włącz integrację</label>{% for error in field.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}</div></div>{% else %}{% include "components/form_field.html" with field=field %}{% endif %}
+            {% if field.name == "enabled" %}<div class="flex items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4">{{ field }}<div><label for="{{ field.id_for_label }}" class="font-semibold">{% translate "Włącz integrację" %}</label>{% for error in field.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}</div></div>{% else %}{% include "components/form_field.html" with field=field %}{% endif %}
         {% endfor %}
-        <button type="submit" class="portal-button"><span>Zapisz {{ panel.spec.title }}</span><span id="{{ panel.spec.provider }}-indicator" class="htmx-indicator ml-2" aria-live="polite">Zapisywanie…</span></button>
+        <button type="submit" class="portal-button"><span>{% blocktranslate with panel_spec_title=panel.spec.title %}Zapisz {{ panel_spec_title }}{% endblocktranslate %}</span><span id="{{ panel.spec.provider }}-indicator" class="htmx-indicator ml-2" aria-live="polite">{% translate "Zapisywanie…" %}</span></button>
     </form>
     {% if panel.tester_available %}
-        <form method="post" action="{% url 'integrations:test' tenant.slug panel.spec.provider %}" class="mt-3" hx-post="{% url 'integrations:test' tenant.slug panel.spec.provider %}" hx-target="#{{ panel.spec.provider }}-status" hx-swap="innerHTML">{% csrf_token %}<button type="submit" class="portal-button-secondary">Testuj połączenie</button></form>
+        <form method="post" action="{% url 'integrations:test' tenant.slug panel.spec.provider %}" class="mt-3" hx-post="{% url 'integrations:test' tenant.slug panel.spec.provider %}" hx-target="#{{ panel.spec.provider }}-status" hx-swap="innerHTML">{% csrf_token %}<button type="submit" class="portal-button-secondary">{% translate "Testuj połączenie" %}</button></form>
     {% endif %}
 </section>

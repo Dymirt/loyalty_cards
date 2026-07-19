@@ -18,6 +18,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Max
+from django.utils.translation import gettext as _
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from cards.models import PhysicalCard
@@ -402,7 +403,7 @@ def _jpeg_bytes(image, dpi):
 def render_card(spec, card_code, *, crop_plan=None):
     plan = crop_plan or calculate_crop_plan(spec, card_code)
     if plan.card_code != card_code:
-        raise ValidationError("Crop plan does not match the rendered card code.")
+        raise ValidationError(_("Plan kadrowania nie odpowiada kodowi renderowanej karty."))
     background = _cover_background(spec, plan)
     front = background.copy()
     back = ImageOps.mirror(background)
@@ -430,9 +431,9 @@ def validate_rendered_card(rendered):
     for content in (rendered.front, rendered.back):
         with Image.open(BytesIO(content)) as image:
             if image.size != (rendered.width_px, rendered.height_px):
-                raise ValidationError("Generated card dimensions do not match the design.")
+                raise ValidationError(_("Wymiary wygenerowanej karty nie odpowiadają projektowi."))
     if not rendered.barcode.startswith(b"\x89PNG"):
-        raise ValidationError("Barcode generation did not produce a PNG file.")
+        raise ValidationError(_("Generator kodu nie utworzył pliku PNG."))
 
 
 def build_sample_sheet(spec, *, count=6):
@@ -507,7 +508,7 @@ def publish_card_design(*, tenant, actor, brand_values, design_values, backgroun
         fallback_design=latest,
     )
     if CardDesign.objects.filter(tenant=locked_tenant, design_checksum=spec.checksum).exists():
-        raise ValidationError("This design is already published for the tenant.")
+        raise ValidationError(_("Ten projekt jest już opublikowany dla tej firmy."))
     brand_revision = TenantBrandRevision(
         tenant=locked_tenant,
         version=version,
@@ -537,7 +538,7 @@ def publish_card_design(*, tenant, actor, brand_values, design_values, backgroun
     try:
         design.save()
     except IntegrityError as exc:
-        raise ValidationError("A concurrent publish created this design version.") from exc
+        raise ValidationError(_("Równoczesna publikacja utworzyła już tę wersję projektu.")) from exc
     current_brand, _ = TenantBrand.objects.get_or_create(tenant=locked_tenant, defaults=brand_data)
     for field, value in brand_data.items():
         setattr(current_brand, field, value)
@@ -558,7 +559,7 @@ def get_or_create_crop_plan(*, design, card_code, physical_card=None):
     if existing:
         stored = {field: getattr(existing, field) for field in data.metadata()}
         if stored != data.metadata():
-            raise ValidationError("Stored crop plan does not match deterministic inputs.")
+            raise ValidationError(_("Zapisany plan kadrowania nie odpowiada danym wejściowym."))
         return existing, data
     plan = CropPlan(
         tenant=design.tenant,
@@ -591,7 +592,7 @@ def _publish_files(relative_root, files):
     media_root = Path(settings.MEDIA_ROOT).resolve()
     final_root = (media_root / relative_root).resolve()
     if media_root not in final_root.parents:
-        raise ValidationError("Unsafe artifact path.")
+        raise ValidationError(_("Niedozwolona ścieżka pliku."))
     final_root.parent.mkdir(parents=True, exist_ok=True)
     temporary_root = Path(tempfile.mkdtemp(prefix=".generating-", dir=final_root.parent))
     try:
@@ -706,7 +707,7 @@ def publish_design_release(
 
 def generate_card_artifacts(*, design, physical_card):
     if physical_card.tenant_id != design.tenant_id:
-        raise ValidationError("Card and design must belong to the same tenant.")
+        raise ValidationError(_("Karta i projekt muszą należeć do tej samej firmy."))
     crop_plan, plan_data = get_or_create_crop_plan(
         design=design,
         card_code=physical_card.code,
@@ -753,5 +754,5 @@ def resolve_artifact_path(artifact):
     media_root = Path(settings.MEDIA_ROOT).resolve()
     artifact_path = (media_root / artifact.storage_path).resolve()
     if media_root not in artifact_path.parents:
-        raise ValidationError("Unsafe artifact path.")
+        raise ValidationError(_("Niedozwolona ścieżka pliku."))
     return artifact_path

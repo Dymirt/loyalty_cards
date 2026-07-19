@@ -1,17 +1,18 @@
 """Tenant-owned Dotykačka configuration form."""
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from integrations.models import IntegrationConnection
 from tenants.forms import style_portal_form
 
 
 class DotykackaIntegrationForm(forms.Form):
-    enabled = forms.BooleanField(required=False, label="Włącz integrację")
+    enabled = forms.BooleanField(required=False, label=_("Włącz integrację"))
     discount_group_id = forms.IntegerField(
         min_value=1,
         required=False,
-        label="ID grupy rabatowej",
+        label=_("ID grupy rabatowej"),
     )
 
     def __init__(self, *args, tenant, connection=None, **kwargs):
@@ -38,12 +39,12 @@ class DotykackaIntegrationForm(forms.Form):
             if not cleaned.get("discount_group_id"):
                 self.add_error(
                     "discount_group_id",
-                    "To pole jest wymagane dla aktywnej integracji.",
+                    _("To pole jest wymagane dla aktywnej integracji."),
                 )
             if not has_refresh_token or not has_cloud_id:
                 self.add_error(
                     None,
-                    "Najpierw połącz konto firmy przez Dotykačka Connector.",
+                    _("Najpierw połącz konto firmy przez Dotykačka Connector."),
                 )
         return cleaned
 

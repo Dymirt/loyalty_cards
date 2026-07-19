@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods, require_POST
 
 from dotykacka.models import AuditEvent
@@ -71,14 +72,16 @@ def _panels(*, tenant, connections, bound_forms=None):
 def integration_settings(request, tenant_slug):
     tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
     if not can_manage_integrations(request.user, tenant):
-        return HttpResponseForbidden("Nie masz uprawnień do konfiguracji tej firmy.")
+        return HttpResponseForbidden(
+            _("Nie masz uprawnień do konfiguracji tej firmy.")
+        )
     connections = _connection_map(tenant)
     bound_forms = {}
     if request.method == "POST":
         provider = request.POST.get("provider", "")
         spec = _provider_map().get(provider)
         if spec is None:
-            return HttpResponseForbidden("Nieprawidłowy typ integracji.")
+            return HttpResponseForbidden(_("Nieprawidłowy typ integracji."))
         form = spec.form_class(
             request.POST,
             tenant=tenant,
@@ -96,7 +99,7 @@ def integration_settings(request, tenant_slug):
                 object_id=str(connection.pk),
                 metadata={"provider": connection.provider, "enabled": connection.enabled},
             )
-            messages.success(request, "Zapisano konfigurację integracji.")
+            messages.success(request, _("Zapisano konfigurację integracji."))
             return redirect("integrations:settings", tenant_slug=tenant.slug)
     return render(
         request,
@@ -120,11 +123,13 @@ def integration_settings(request, tenant_slug):
 def test_integration(request, tenant_slug, provider):
     tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
     if not can_manage_integrations(request.user, tenant):
-        return HttpResponseForbidden("Nie masz uprawnień do konfiguracji tej firmy.")
+        return HttpResponseForbidden(
+            _("Nie masz uprawnień do konfiguracji tej firmy.")
+        )
     spec = _provider_map().get(provider)
     if spec is not None and not spec.tenant_testable:
         return HttpResponseForbidden(
-            "To połączenie jest testowane przez operatora platformy."
+            _("To połączenie jest testowane przez operatora platformy.")
         )
     connection = get_object_or_404(
         IntegrationConnection,
@@ -133,7 +138,7 @@ def test_integration(request, tenant_slug, provider):
     )
     ok = False
     if spec is None or spec.tester is None:
-        status_text = "Brak testu dla tej integracji."
+        status_text = _("Brak testu dla tej integracji.")
     else:
         try:
             spec.tester(connection)
@@ -145,10 +150,10 @@ def test_integration(request, tenant_slug, provider):
             connection.save(
                 update_fields=("last_tested_at", "last_error_code", "updated_at")
             )
-            status_text = "Test nie powiódł się. Sprawdź konfigurację."
+            status_text = _("Test nie powiódł się. Sprawdź konfigurację.")
         else:
             ok = True
-            status_text = "Połączenie działa."
+            status_text = _("Połączenie działa.")
         AuditEvent.objects.create(
             tenant=tenant,
             actor=request.user,
@@ -178,13 +183,13 @@ def _run_system_check(spec):
         code = str(getattr(exc, "error_code", type(exc).__name__))[:80]
         return SystemCheckResult(
             ok=False,
-            summary="Test nie powiódł się. Sprawdź konfigurację i logi serwera.",
-            details=(f"Kod błędu: {code}",),
+            summary=_("Test nie powiódł się. Sprawdź konfigurację i logi serwera."),
+            details=(_("Kod błędu: %(code)s") % {"code": code},),
         )
     if not isinstance(result, SystemCheckResult):
         return SystemCheckResult(
             ok=False,
-            summary="Test zwrócił nieprawidłowy wynik.",
+            summary=_("Test zwrócił nieprawidłowy wynik."),
         )
     return result
 
@@ -227,7 +232,9 @@ def test_system_connection(request, key):
         )
     spec = checks.get(key)
     if spec is None:
-        return HttpResponseForbidden("Nieprawidłowy test połączenia systemowego.")
+        return HttpResponseForbidden(
+            _("Nieprawidłowy test połączenia systemowego.")
+        )
     return render(
         request,
         "integrations/partials/system_check_status.html",

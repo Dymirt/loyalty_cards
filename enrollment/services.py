@@ -6,6 +6,7 @@ from functools import partial
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
+from django.utils.translation import gettext as _
 
 from billing.services import record_card_issuance
 from cards.services import assign_locked_card, lock_available_card
@@ -232,7 +233,7 @@ def retry_enrollment_followup(*, followup, actor, idempotency_key, reason):
     if existing:
         return followup.integration_job, False
     if followup.kind == EMAIL_JOB_KIND:
-        raise ValidationError("Email with an uncertain outcome requires explicit resend.")
+        raise ValidationError(_("E-mail o niepewnym wyniku wymaga jawnego ponownego wysłania."))
     try:
         job = retry_failed_job(job=followup.integration_job)
     except ValueError as exc:
@@ -272,7 +273,7 @@ def resend_enrollment_email(*, enrollment, actor, idempotency_key, reason):
         followup = EnrollmentFollowUp.objects.get(pk=existing.metadata["followup_id"])
         return followup, False
     if not enrollment.customer.email:
-        raise ValidationError("The customer does not have an email address.")
+        raise ValidationError(_("Klient nie ma adresu e-mail."))
     generation = (
         EnrollmentFollowUp.objects.filter(enrollment=enrollment, kind=EMAIL_JOB_KIND)
         .aggregate(value=Max("generation"))["value"]
@@ -331,7 +332,7 @@ def request_tenant_domain(*, tenant, actor, hostname):
     existing = TenantDomain.objects.filter(hostname=normalized).first()
     if existing:
         if existing.tenant_id != tenant.pk:
-            raise ValidationError("This hostname is already assigned to another tenant.")
+            raise ValidationError(_("Ta nazwa hosta jest już przypisana do innej firmy."))
         return existing, False
     domain = TenantDomain(
         tenant=tenant,

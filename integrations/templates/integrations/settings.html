@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% load i18n %}
 
-{% block title %}Integracje · {{ tenant.name }}{% endblock %}
+{% block title %}{% blocktranslate with tenant_name=tenant.name %}Integracje · {{ tenant_name }}{% endblocktranslate %}{% endblock %}
 {% block page_messages %}{% endblock %}
 
 {% block content %}
@@ -8,9 +9,9 @@
     {% include "components/messages.html" %}
     {% include "tenants/partials/nav.html" %}
     <div>
-        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Ustawienia firmy</p>
-        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Integracje</h1>
-        <p class="mt-2 max-w-3xl text-ink-700">Tutaj ustawiasz integracje należące do {{ tenant.name }}. Sekrety firmy są szyfrowane, a połączenia wymagające logowania autoryzujesz bezpośrednio u dostawcy.</p>
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Ustawienia firmy" %}</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Integracje" %}</h1>
+        <p class="mt-2 max-w-3xl text-ink-700">{% blocktranslate with tenant_name=tenant.name %}Tutaj ustawiasz integracje należące do {{ tenant_name }}. Sekrety firmy są szyfrowane, a połączenia wymagające logowania autoryzujesz bezpośrednio u dostawcy.{% endblocktranslate %}</p>
     </div>
     <div class="mt-8 grid gap-5 lg:grid-cols-2">
         {% for panel in panels %}

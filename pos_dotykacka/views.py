@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_POST
 
 from dotykacka.models import AuditEvent
@@ -23,7 +24,7 @@ def connect_dotykacka(request, tenant_slug):
     tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
     if not can_manage_integrations(request.user, tenant):
         return HttpResponseForbidden(
-            "Nie masz uprawnień do połączenia tej firmy z Dotykačka."
+            _("Nie masz uprawnień do połączenia tej firmy z Dotykačka.")
         )
     limited = rate_limit_response(
         request,
@@ -47,7 +48,7 @@ def connect_dotykacka(request, tenant_slug):
     except IntegrationConfigurationError:
         messages.error(
             request,
-            "Brakuje konfiguracji platformowej aplikacji Dotykačka Connector.",
+            _("Brakuje konfiguracji platformowej aplikacji Dotykačka Connector."),
         )
         return redirect("integrations:settings", tenant_slug=tenant.slug)
     request.session["dotykacka_connect_tenant_slug"] = tenant.slug
@@ -73,11 +74,11 @@ def dotykacka_callback(request):
     except Exception as exc:
         if getattr(exc, "error_code", "") == "cloud_change_requires_disconnect":
             error_message = (
-                "Wybrano inną chmurę. Najpierw rozłącz obecne połączenie Dotykačka."
+                _("Wybrano inną chmurę. Najpierw rozłącz obecne połączenie Dotykačka.")
             )
         else:
             error_message = (
-                "Nie udało się połączyć Dotykačka. Rozpocznij połączenie ponownie."
+                _("Nie udało się połączyć Dotykačka. Rozpocznij połączenie ponownie.")
             )
         messages.error(
             request,
@@ -95,7 +96,9 @@ def dotykacka_callback(request):
         object_id=str(connection.pk),
         metadata={"provider": connection.provider},
     )
-    messages.success(request, "Połączono chmurę Dotykačka. Uzupełnij grupę rabatową.")
+    messages.success(
+        request, _("Połączono chmurę Dotykačka. Uzupełnij grupę rabatową.")
+    )
     return redirect("integrations:settings", tenant_slug=connection.tenant.slug)
 
 
@@ -105,12 +108,12 @@ def disconnect_dotykacka(request, tenant_slug):
     tenant = get_object_or_404(Tenant, slug=tenant_slug, is_active=True)
     if not can_manage_integrations(request.user, tenant):
         return HttpResponseForbidden(
-            "Nie masz uprawnień do rozłączenia tej firmy z Dotykačka."
+            _("Nie masz uprawnień do rozłączenia tej firmy z Dotykačka.")
         )
     try:
         connection, previous_cloud_id = disconnect_connection(tenant=tenant)
     except IntegrationConfigurationError:
-        messages.error(request, "Połączenie Dotykačka nie jest skonfigurowane.")
+        messages.error(request, _("Połączenie Dotykačka nie jest skonfigurowane."))
     else:
         request.session.pop("dotykacka_connect_tenant_slug", None)
         AuditEvent.objects.create(
@@ -124,7 +127,7 @@ def disconnect_dotykacka(request, tenant_slug):
                 "cloud_id": previous_cloud_id,
             },
         )
-        messages.success(request, "Rozłączono Dotykačka dla tej firmy.")
+        messages.success(request, _("Rozłączono Dotykačka dla tej firmy."))
     return redirect("integrations:settings", tenant_slug=tenant.slug)
 
 

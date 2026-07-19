@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from tenants.models import TenantMembership
 
@@ -66,7 +67,7 @@ def active_subscription_for_tenant(*, tenant, at=None, for_update=False):
     subscriptions = list(queryset.order_by("-starts_at", "-pk")[:2])
     if len(subscriptions) > 1:
         raise CommercialConfigurationError(
-            "Tenant has overlapping active subscriptions; a platform operator must resolve it."
+            _("Firma ma nakładające się aktywne subskrypcje; operator platformy musi je uporządkować.")
         )
     return subscriptions[0] if subscriptions else None
 
@@ -85,7 +86,7 @@ def _add_interval(value: datetime, interval: str):
 def period_bounds(*, subscription, at=None):
     at = at or timezone.now()
     if at < subscription.starts_at:
-        raise CommercialConfigurationError("Subscription has not started yet.")
+        raise CommercialConfigurationError(_("Subskrypcja jeszcze się nie rozpoczęła."))
     start = subscription.starts_at
     end = _add_interval(start, subscription.plan_version.billing_interval)
     while end <= at:
@@ -127,7 +128,8 @@ def ensure_active_seat_available(*, tenant, membership=None, at=None):
         memberships = memberships.exclude(pk=membership.pk)
     if memberships.count() + 1 > policy.active_seat_limit:
         raise EntitlementLimitError(
-            f"Active-seat limit ({policy.active_seat_limit}) has been reached."
+            _("Osiągnięto limit aktywnych użytkowników (%(limit)s).")
+            % {"limit": policy.active_seat_limit}
         )
     return subscription
 
@@ -183,7 +185,8 @@ def record_card_issuance(
         ).aggregate(total=Sum("quantity"))["total"] or 0
         if used + 1 > policy.card_issuance_limit:
             raise EntitlementLimitError(
-                f"Card-issuance limit ({policy.card_issuance_limit}) has been reached."
+                _("Osiągnięto limit wydanych kart (%(limit)s).")
+                % {"limit": policy.card_issuance_limit}
             )
     try:
         with transaction.atomic():
@@ -214,7 +217,7 @@ def publish_plan_version(*, plan_version, actor=None):
         plan_version.entitlement_policy
     except EntitlementPolicy.DoesNotExist as exc:
         raise CommercialConfigurationError(
-            "Add an entitlement policy before publishing the plan version."
+            _("Dodaj zasady limitów przed opublikowaniem wersji planu.")
         ) from exc
     plan_version.full_clean()
     plan_version.created_by = plan_version.created_by or actor
@@ -226,19 +229,19 @@ def publish_plan_version(*, plan_version, actor=None):
 def _validated_tiers(price_book_version):
     tiers = list(price_book_version.card_price_tiers.order_by("minimum_quantity"))
     if not tiers or tiers[0].minimum_quantity != 1:
-        raise CommercialConfigurationError("Price tiers must begin at quantity 1.")
+        raise CommercialConfigurationError(_("Progi cenowe muszą zaczynać się od liczby 1."))
     expected = 1
     for position, tier in enumerate(tiers):
         if tier.minimum_quantity != expected:
-            raise CommercialConfigurationError("Price tiers cannot overlap or have gaps.")
+            raise CommercialConfigurationError(_("Progi cenowe nie mogą się nakładać ani mieć przerw."))
         if tier.maximum_quantity is None:
             if position != len(tiers) - 1:
-                raise CommercialConfigurationError("Only the final tier can be unbounded.")
+                raise CommercialConfigurationError(_("Tylko ostatni próg może nie mieć górnej granicy."))
             expected = None
         else:
             expected = tier.maximum_quantity + 1
     if expected is not None:
-        raise CommercialConfigurationError("The final price tier must be unbounded.")
+        raise CommercialConfigurationError(_("Ostatni próg cenowy nie może mieć górnej granicy."))
     return tiers
 
 
@@ -265,7 +268,7 @@ def _tier_for_quantity(price_book_version, quantity):
             tier.maximum_quantity is None or quantity <= tier.maximum_quantity
         ):
             return tier
-    raise CommercialConfigurationError("No published price tier covers this quantity.")
+    raise CommercialConfigurationError(_("Żaden opublikowany próg cenowy nie obejmuje tej liczby kart."))
 
 
 def _available_pack_rows(*, tenant, currency, at, for_update=False):
@@ -386,16 +389,16 @@ def create_print_quote(
 
     at = at or timezone.now()
     if quantity <= 0:
-        raise ValidationError({"quantity": "Quantity must be greater than zero."})
+        raise ValidationError({"quantity": _("Liczba kart musi być większa od zera.")})
     existing = Quote.objects.filter(tenant=tenant, idempotency_key=idempotency_key).first()
     if existing:
         if existing.quantity != quantity:
-            raise ValidationError("This idempotency key was already used for another quantity.")
+            raise ValidationError(_("Ten klucz idempotencji został już użyty dla innej liczby kart."))
         return existing, False
     subscription = active_subscription_for_tenant(tenant=tenant, at=at, for_update=True)
     if subscription is None:
         raise CommercialConfigurationError(
-            "A published active subscription is required before creating a print quote."
+            _("Przed utworzeniem kalkulacji druku wymagana jest aktywna, opublikowana subskrypcja.")
         )
     price_book_version = PriceBookVersion.objects.select_related("price_book").get(
         pk=price_book_version.pk,
@@ -404,7 +407,7 @@ def create_print_quote(
     )
     if subscription.plan_version.currency != price_book_version.currency:
         raise CommercialConfigurationError(
-            "Subscription and price-book currencies must match."
+            _("Waluty subskrypcji i cennika muszą być zgodne.")
         )
     period = current_billing_period(subscription=subscription, at=at, for_update=True)
     policy = subscription.plan_version.entitlement_policy
@@ -434,7 +437,7 @@ def create_print_quote(
     billable_quantity = remainder
     if billable_quantity and not policy.print_overage_allowed:
         raise EntitlementLimitError(
-            "The included allowance and card packs do not cover this request."
+            _("Limit w abonamencie i pakiety kart nie pokrywają tego zamówienia.")
         )
 
     tier = _tier_for_quantity(price_book_version, billable_quantity)
@@ -517,7 +520,7 @@ def create_print_quote(
     except IntegrityError:
         quote = Quote.objects.get(tenant=tenant, idempotency_key=idempotency_key)
         if quote.quantity != quantity:
-            raise ValidationError("This idempotency key was already used for another quantity.")
+            raise ValidationError(_("Ten klucz idempotencji został już użyty dla innej liczby kart."))
         return quote, False
     return quote, True
 
@@ -529,11 +532,11 @@ def accept_quote(*, quote, at=None):
     if quote.status == Quote.Status.ACCEPTED:
         return quote, False
     if quote.status != Quote.Status.DRAFT:
-        raise ValidationError("Only a draft quote can be accepted.")
+        raise ValidationError(_("Można zaakceptować tylko wersję roboczą kalkulacji."))
     if quote.expires_at and quote.expires_at <= at:
-        raise ValidationError("This quote has expired.")
+        raise ValidationError(_("Ta kalkulacja wygasła."))
     if at < quote.billing_period.starts_at or at >= quote.billing_period.ends_at:
-        raise ValidationError("This quote's billing period has ended; create a new quote.")
+        raise ValidationError(_("Okres rozliczeniowy tej kalkulacji zakończył się; utwórz nową kalkulację."))
 
     subscription = TenantSubscription.objects.select_for_update().select_related(
         "plan_version__entitlement_policy"
@@ -546,7 +549,7 @@ def accept_quote(*, quote, at=None):
     )
     if quote.included_quantity > allowance:
         raise EntitlementLimitError(
-            "The included allowance was reserved by another accepted quote; create a new quote."
+            _("Limit w abonamencie zarezerwowała inna zaakceptowana kalkulacja; utwórz nową kalkulację.")
         )
 
     proposed = quote.snapshot.get("proposed_pack_allocations", [])
@@ -557,14 +560,14 @@ def accept_quote(*, quote, at=None):
             is_active=True,
         )
         if pack.currency != quote.currency or (pack.expires_at and pack.expires_at <= at):
-            raise EntitlementLimitError("A proposed card pack is no longer eligible.")
+            raise EntitlementLimitError(_("Proponowany pakiet kart nie może już zostać użyty."))
         reserved = pack.quote_allocations.filter(
             quote__print_consumption__isnull=True,
         ).aggregate(total=Sum("quantity"))["total"] or 0
         available = pack.purchased_quantity - pack.consumed_quantity - reserved
         quantity = int(allocation["quantity"])
         if quantity > available:
-            raise EntitlementLimitError("A proposed card pack no longer has enough balance.")
+            raise EntitlementLimitError(_("Proponowany pakiet kart nie ma już wystarczającego salda."))
         CardPackAllocation.objects.create(
             quote=quote,
             card_pack=pack,
@@ -591,19 +594,19 @@ def consume_print_quote(*, quote, reference_type, reference_id, at=None):
     except PrintQuoteConsumption.DoesNotExist:
         pass
     if quote.status != Quote.Status.ACCEPTED:
-        raise ValidationError("Only an accepted quote can be consumed for production.")
+        raise ValidationError(_("Do produkcji można rozliczyć tylko zaakceptowaną kalkulację."))
 
     allocations = list(
         CardPackAllocation.objects.filter(quote=quote).select_related("card_pack")
     )
     if sum(item.quantity for item in allocations) != quote.pack_quantity:
         raise CommercialConfigurationError(
-            "The accepted quote's card-pack reservation is incomplete."
+            _("Rezerwacja pakietów kart dla zaakceptowanej kalkulacji jest niepełna.")
         )
     for allocation in allocations:
         pack = CardPack.objects.select_for_update().get(pk=allocation.card_pack_id)
         if pack.consumed_quantity + allocation.quantity > pack.purchased_quantity:
-            raise EntitlementLimitError("A reserved card pack cannot be consumed safely.")
+            raise EntitlementLimitError(_("Zarezerwowanego pakietu kart nie można bezpiecznie rozliczyć."))
         pack.consumed_quantity += allocation.quantity
         pack.save(update_fields=("consumed_quantity",))
 

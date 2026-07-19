@@ -1,24 +1,25 @@
 """Tenant-owned Brevo configuration form."""
 
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 from integrations.models import IntegrationConnection
 from tenants.forms import style_portal_form
 
 
 class BrevoIntegrationForm(forms.Form):
-    enabled = forms.BooleanField(required=False, label="Włącz integrację")
-    list_id = forms.IntegerField(min_value=1, required=False, label="ID listy")
+    enabled = forms.BooleanField(required=False, label=_("Włącz integrację"))
+    list_id = forms.IntegerField(min_value=1, required=False, label=_("ID listy"))
     default_phone_country_code = forms.RegexField(
         regex=r"^\+[1-9][0-9]{0,3}$",
         required=False,
-        label="Domyślny kod kraju",
+        label=_("Domyślny kod kraju"),
     )
     api_key = forms.CharField(
         required=False,
-        label="Klucz API",
+        label=_("Klucz API"),
         widget=forms.PasswordInput(render_value=False),
-        help_text="Pozostaw puste, aby zachować zaszyfrowany klucz.",
+        help_text=_("Pozostaw puste, aby zachować zaszyfrowany klucz."),
     )
 
     def __init__(self, *args, tenant, connection=None, **kwargs):
@@ -42,9 +43,13 @@ class BrevoIntegrationForm(forms.Form):
         cleaned = super().clean()
         if cleaned.get("enabled"):
             if not cleaned.get("list_id"):
-                self.add_error("list_id", "To pole jest wymagane dla aktywnej integracji.")
+                self.add_error(
+                    "list_id", _("To pole jest wymagane dla aktywnej integracji.")
+                )
             if not cleaned.get("api_key") and not self.connection.has_secret("api_key"):
-                self.add_error("api_key", "Klucz jest wymagany dla aktywnej integracji.")
+                self.add_error(
+                    "api_key", _("Klucz jest wymagany dla aktywnej integracji.")
+                )
         return cleaned
 
     def save(self):

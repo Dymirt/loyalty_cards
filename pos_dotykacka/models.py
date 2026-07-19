@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from integrations.secrets import decrypt_credentials, encrypt_credentials
 
@@ -33,11 +34,11 @@ class DotykackaConnectState(models.Model):
     def clean(self):
         if self.connection_id and self.connection.tenant_id != self.tenant_id:
             raise ValidationError(
-                {"connection": "Connector state and connection must share a tenant."}
+                {"connection": _("Stan Connectora i połączenie muszą należeć do tej samej firmy.")}
             )
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Connector state history cannot be deleted.")
+        raise ValidationError(_("Historii stanu Connectora nie można usuwać."))
 
 
 class DotykackaAccessToken(models.Model):
@@ -70,7 +71,7 @@ class DotykackaAccessToken(models.Model):
     def clean(self):
         if self.connection_id and self.connection.tenant_id != self.tenant_id:
             raise ValidationError(
-                {"connection": "Access token and connection must share a tenant."}
+                {"connection": _("Token dostępu i połączenie muszą należeć do tej samej firmy.")}
             )
 
     def set_token(self, token):
@@ -80,7 +81,7 @@ class DotykackaAccessToken(models.Model):
         return decrypt_credentials(self.token_encrypted).get("access_token", "")
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Access-token audit records cannot be deleted.")
+        raise ValidationError(_("Historii tokenów dostępu nie można usuwać."))
 
 
 __all__ = ["DotykackaAccessToken", "DotykackaConnectState"]
