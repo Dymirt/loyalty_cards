@@ -45,7 +45,7 @@ class PortalShellViewTests(TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, "/static/css/portal.v1.css")
+                self.assertContains(response, "/static/css/portal.v1.css?v=2")
                 self.assertContains(response, "/static/vendor/htmx-2.0.10.min.js")
                 self.assertNotContains(response, "bootstrap")
                 self.assertNotContains(response, "jquery")
@@ -66,7 +66,7 @@ class PortalShellViewTests(TestCase):
         response = self.client.get(reverse("login"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Portal SaaS")
-        self.assertContains(response, "/static/css/portal.v1.css")
+        self.assertContains(response, "/static/css/portal.v1.css?v=2")
 
     def test_tenant_portal_requires_membership(self):
         url = reverse("dotykacka:tenant_portal", args=[self.tenant.slug])
