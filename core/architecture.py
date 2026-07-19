@@ -110,7 +110,7 @@ ALLOWED_TARGET_IMPORTS = {
         "enrollment",
         "operations",
     },
-    "marketing": {"core", "billing", "marketing", "operations"},
+    "marketing": {"core", "tenants", "billing", "marketing", "operations"},
     # Operations is the platform-observability composition edge. It may read
     # domain state, while other apps use only its infrastructure primitives
     # (rate limiting and worker heartbeats), never its alert orchestration.

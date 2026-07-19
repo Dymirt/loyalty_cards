@@ -22,7 +22,7 @@ backups, central printing and signed tenant acceptance.
 
 ## Current baseline
 
-- Phases 0–11 are implemented and the current MariaDB suite passes all 227
+- Phases 0–11 are implemented and the current MariaDB suite passes all 228
   automated tests; the earlier SQLite baseline has three expected
   database-specific skips.
 - The active public, tenant and platform interfaces use Polish; native Django

@@ -9,6 +9,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 
 from billing.public_catalog import published_public_catalog
 from operations.rate_limits import rate_limit_response
+from tenants.public_directory import public_registration_programs
 
 from .forms import MarketingLeadForm
 from .services import record_marketing_lead
@@ -32,7 +33,10 @@ def home(request):
     return render(
         request,
         "marketing/home.html",
-        _context(**published_public_catalog()),
+        _context(
+            **published_public_catalog(),
+            public_registration_programs=public_registration_programs(),
+        ),
     )
 
 

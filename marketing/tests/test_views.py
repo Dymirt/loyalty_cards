@@ -53,6 +53,8 @@ class MarketingViewTests(TestCase):
             slug="secret-marketing-tenant",
             card_prefix="SMT",
         )
+        tenant.public_registration_enabled = False
+        tenant.save(update_fields=("public_registration_enabled", "updated_at"))
         owner = create_tenant_owner(tenant, username="secret-marketing-owner")
         Customer.objects.create(
             tenant=tenant,
@@ -67,6 +69,55 @@ class MarketingViewTests(TestCase):
             self.assertNotContains(response, "SECRET TENANT NAME")
             self.assertNotContains(response, "secret-customer@example.test")
             self.assertNotContains(response, "SecretCustomerName")
+
+    def test_home_links_only_active_public_tenant_registration_programs(self):
+        public_tenant = create_tenant(
+            name="Publiczna Kawiarnia",
+            slug="publiczna-kawiarnia",
+            card_prefix="PK",
+        )
+        public_tenant.brand.tagline = "Klub stałych gości"
+        public_tenant.brand.logo_path = "public-program-logo.png"
+        public_tenant.brand.save(update_fields=("tagline", "logo_path", "updated_at"))
+        Customer.objects.create(
+            tenant=public_tenant,
+            klient_id="PK-1",
+            email="private-program-customer@example.test",
+            first_name="PrivateProgramCustomer",
+        )
+
+        disabled_tenant = create_tenant(
+            name="Rejestracja Wyłączona",
+            slug="rejestracja-wylaczona",
+            card_prefix="RW",
+        )
+        disabled_tenant.public_registration_enabled = False
+        disabled_tenant.save(
+            update_fields=("public_registration_enabled", "updated_at")
+        )
+
+        inactive_tenant = create_tenant(
+            name="Firma Nieaktywna",
+            slug="firma-nieaktywna",
+            card_prefix="FN",
+        )
+        inactive_tenant.is_active = False
+        inactive_tenant.save(update_fields=("is_active", "updated_at"))
+
+        response = self.client.get(reverse("marketing:home"))
+
+        self.assertContains(response, "Masz kartę jednej z naszych firm?")
+        self.assertContains(response, "Publiczna Kawiarnia")
+        self.assertContains(response, "Klub stałych gości")
+        self.assertContains(response, "public-program-logo.png")
+        self.assertContains(
+            response,
+            reverse("enrollment:tenant_register", args=[public_tenant.slug]),
+        )
+        self.assertNotContains(response, "Rejestracja Wyłączona")
+        self.assertNotContains(response, "Firma Nieaktywna")
+        self.assertNotContains(response, "private-program-customer@example.test")
+        self.assertNotContains(response, "PrivateProgramCustomer")
 
     def test_empty_catalog_states_that_prices_are_not_published(self):
         response = self.client.get(reverse("marketing:pricing"))

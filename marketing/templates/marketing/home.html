@@ -23,6 +23,38 @@
     </div>
 </section>
 
+<section id="rejestracja-karty" class="border-b border-stone-200 bg-stone-50">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div class="max-w-3xl">
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Rejestracja karty klienta" %}</p>
+            <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Masz kartę jednej z naszych firm?" %}</h2>
+            <p class="mt-4 text-lg leading-8 text-ink-700">{% translate "Wybierz program, do którego należy Twoja karta, i przejdź do bezpiecznego formularza rejestracji." %}</p>
+        </div>
+        <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {% for program in public_registration_programs %}
+                <article class="portal-card flex h-full flex-col">
+                    <div class="flex items-center gap-4">
+                        {% if program.logo_path %}
+                            <img src="{{ media_prefix }}{{ program.logo_path }}" alt="" class="size-16 shrink-0 rounded-2xl object-contain">
+                        {% else %}
+                            <span class="grid size-16 shrink-0 place-items-center rounded-2xl bg-accent-100 text-xl font-black text-accent-700" aria-hidden="true">{{ program.name|slice:":1" }}</span>
+                        {% endif %}
+                        <div class="min-w-0">
+                            <h3 class="text-xl font-bold">{{ program.name }}</h3>
+                            {% if program.tagline %}<p class="mt-1 text-sm leading-6 text-ink-700">{{ program.tagline }}</p>{% endif %}
+                        </div>
+                    </div>
+                    <a href="{% url 'enrollment:tenant_register' program.slug %}" class="portal-button-secondary mt-6 w-full text-center">{% translate "Zarejestruj kartę →" %}</a>
+                </article>
+            {% empty %}
+                <div class="portal-card sm:col-span-2 lg:col-span-3">
+                    <p class="text-ink-700">{% translate "Obecnie nie ma programów z otwartą rejestracją kart." %}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
 <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
     <div class="max-w-3xl"><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Jedna spójna obsługa" %}</p><h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Od projektu do karty w dłoni klienta" %}</h2></div>
     <div class="mt-9 grid gap-5 md:grid-cols-3">

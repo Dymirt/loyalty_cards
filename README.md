@@ -15,7 +15,7 @@ excluded.
 | Area | Current state |
 | --- | --- |
 | Technical conversion | Phases 0–11 complete; modular Django platform and operational safety controls implemented |
-| Automated baseline | 227 isolated tests pass on MariaDB; the earlier SQLite baseline has three expected database-specific skips |
+| Automated baseline | 228 isolated tests pass on MariaDB; the earlier SQLite baseline has three expected database-specific skips |
 | First tenant | Marta Banaszek Atelier-Café: 267 customers and 600 cards, of which 267 are assigned and 333 are available |
 | Rollout | Additional paying tenants remain disabled until Marta completes the human acceptance checklist |
 | Known provider issue | Marta's last stored Brevo result is `brevo_unauthorized`; it requires an explicit test or replacement of only her encrypted tenant key |
@@ -517,7 +517,7 @@ exclusion, truthful empty pricing, ordinary/HTMX form paths, idempotent consent
 evidence, append-only enforcement, legal configuration checks and direct legacy redirects.
 Operations coverage adds safe headers/log redaction, authorization-aware media,
 rate limits, redacted health, alert lifecycle, heartbeat handling and backup
-checksum/archive verification. The complete suite currently contains 227 tests.
+checksum/archive verification. The complete suite currently contains 228 tests.
 
 Safe bounded generator commands replace the former standalone loops:
 
