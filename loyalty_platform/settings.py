@@ -176,6 +176,7 @@ EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=15, cast=int)
 
 # Legacy first-tenant import aliases. Runtime tenant configuration is database-owned;
 # these values are read only by historical migrations/verification.
+DOTYKACKA_AUTHORIZATION_TOKEN = config("DOTYKACKA_AUTHORIZATION_TOKEN", default="")
 DOTYKACKA_CLOUD_ID = config("DOTYKACKA_CLOUD_ID", default=0, cast=int)
 DOTYKACKA_DISCOUNT_GROUP_ID = config("DOTYKACKA_DISCOUNT_GROUP_ID", default=0, cast=int)
 DOTYKACKA_HTTP_TIMEOUT = config("DOTYKACKA_HTTP_TIMEOUT", default=15, cast=int)
