@@ -43,7 +43,7 @@ class MarketingViewTests(TestCase):
             with self.subTest(name=name):
                 response = self.client.get(reverse(name))
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, "/static/css/portal.v1.css?v=2")
+                self.assertContains(response, "/static/css/portal.v1.css?v=3")
                 self.assertContains(response, reverse("login"))
                 self.assertNotContains(response, "unpkg.com")
 
