@@ -111,7 +111,6 @@ log "running read-only Django and migration preflight checks"
 run_manage check
 run_manage check --deploy --fail-level WARNING
 run_manage makemigrations --check --dry-run
-run_manage verify_app_extraction --strict
 run_manage migrate --plan
 
 preflight_json=$(run_manage preflight_legacy_inventory --json)
@@ -172,6 +171,7 @@ fi
 log "applying forward migrations exactly once"
 run_manage migrate --noinput
 run_manage migrate --plan
+run_manage verify_app_extraction --strict
 
 read -r expected_customers expected_tokens expected_users expected_assigned expected_available < <(
     python3 - "$STATE/preflight-$SHA.json" <<'PY'
