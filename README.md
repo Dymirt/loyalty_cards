@@ -281,6 +281,20 @@ Apache must load `loyalty_platform.wsgi` from the project virtual environment
 and serve only collected static assets directly. Runtime media is authorized by
 Django; do not add a broad Apache `/media/` alias.
 
+## Continuous delivery
+
+GitHub Actions runs the full isolated CI suite on every pull request and push to
+`main`, including a MariaDB 10.11 job matching production. After the exact
+`main` commit passes CI, the production workflow can deploy it through a
+dedicated least-privilege SSH account.
+
+The deployment uses versioned releases, keeps production secrets and runtime
+data only on the server, creates a verified backup before migration, validates
+before/after tenant aggregates, switches Apache atomically, supervises all
+workers with systemd, checks public health, and restores the previous code if
+startup fails. See [docs/runbooks/deployment.md](docs/runbooks/deployment.md)
+for bootstrap, GitHub settings, release flow and rollback instructions.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and configure the platform-owned groups:
