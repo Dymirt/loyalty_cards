@@ -89,7 +89,9 @@ not rewrite the original event.
 - Versioned tenant brand/card design settings with server-rendered proofs.
 - Deterministic physical-card artwork, immutable checksummed artifacts, and protected proof downloads.
 - Domain-owned tenant/customer/card/artwork services with legacy import and URL compatibility.
-- Master-image sample sheets, immutable exact crop plans, customer external identities, and append-only consent evidence.
+- Tenant-scoped immutable master-image library, including both original Marta artwork files, with visual selection in the card-design page.
+- Native-resolution deterministic crop v2: sample sheets span the planned series and the full source image, while a bijective position map prevents identical coordinates until the image's pixel-position capacity is exhausted.
+- Separate capacity guidance for strongly separated compositions (a quarter-card minimum shift) and exactly unique pixel coordinates, including an explicit warning when the requested card count exceeds either threshold.
 - Stable Apple Wallet serials and Google Wallet object identities per tenant customer.
 - Dotykačka Connector v2 onboarding with HMAC-signed POST, tenant/session-bound CSRF state, encrypted cloud token cache, 401 refresh and customer reconciliation.
 - Consent-gated Brevo upsert/list sync with rate-limit-aware retries and no automatic force-merge.
@@ -457,7 +459,8 @@ renewal and deployment procedure.
 | `GET` | `/integrations/dotykacka/callback` | Initiating tenant owner/platform superuser | Verify state and store the encrypted Refresh Token and locked Cloud ID |
 | `POST` | `/integrations/dotykacka/<tenant-slug>/disconnect` | Tenant owner/platform superuser | Disable the integration, clear active authorization and unlock Cloud selection without deleting history |
 | `POST` | `/dotykacka/c/<tenant-slug>/settings/integrations/<provider>/test` | Tenant owner/platform superuser; Dotykačka platform-only | HTMX/plain-HTML connection test |
-| `GET`, `POST` | `/dotykacka/c/<tenant-slug>/settings/card-design` | Tenant owner/platform superuser | Generate proofs and publish immutable design versions |
+| `GET`, `POST` | `/dotykacka/c/<tenant-slug>/settings/card-design` | Tenant owner/platform superuser | Select/upload a master, calculate unique-crop capacity, generate proofs and publish immutable design versions |
+| `GET` | `/dotykacka/c/<tenant-slug>/artwork-sources/<id>/preview` | Tenant owner/platform superuser | Authorized, size-bounded preview of an immutable master image |
 | `GET` | `/dotykacka/c/<tenant-slug>/artifacts/<id>/download` | Tenant owner/platform superuser | Protected proof/artifact download |
 | `GET` | `/dotykacka/platform/print-center` | Platform superuser | Filtered centralized request queue, inventory and legacy no-write preview |
 | `GET`, `POST` | `/dotykacka/platform/print-center/requests/<id>[/*]` | Platform superuser | Review, approve/reject, allocate, monitor, fulfill or compensate a print request |

@@ -290,10 +290,11 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
 )
 SECURE_HSTS_PRELOAD = config("DJANGO_SECURE_HSTS_PRELOAD", default=False, cast=bool)
 
-# The artwork form accepts at most two validated 12 MB images. Django and Apache
-# reject larger request bodies before Pillow performs any decoding.
+# A master artwork can be a high-resolution scan (up to 50 MB) and the logo is
+# capped at 12 MB. Django and the reverse proxy reject larger request bodies
+# before Pillow performs any decoding.
 DATA_UPLOAD_MAX_MEMORY_SIZE = config(
-    "DATA_UPLOAD_MAX_MEMORY_SIZE", default=28 * 1024 * 1024, cast=int
+    "DATA_UPLOAD_MAX_MEMORY_SIZE", default=64 * 1024 * 1024, cast=int
 )
 FILE_UPLOAD_MAX_MEMORY_SIZE = config(
     "FILE_UPLOAD_MAX_MEMORY_SIZE", default=2_621_440, cast=int

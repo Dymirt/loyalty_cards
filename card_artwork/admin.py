@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CardArtifact, CardDesign, CropPlan
+from .models import CardArtifact, CardArtworkSource, CardDesign, CropPlan
 
 
 class ImmutableAdmin(admin.ModelAdmin):
@@ -15,6 +15,12 @@ class ImmutableAdmin(admin.ModelAdmin):
 class CardDesignAdmin(ImmutableAdmin):
     list_display = ("tenant", "version", "name", "published_at")
     list_filter = ("tenant", "layout_preset", "crop_mode")
+
+
+@admin.register(CardArtworkSource)
+class CardArtworkSourceAdmin(ImmutableAdmin):
+    list_display = ("tenant", "name", "width_px", "height_px", "created_at")
+    list_filter = ("tenant",)
 
 
 @admin.register(CardArtifact)

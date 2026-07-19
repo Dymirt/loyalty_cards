@@ -48,6 +48,7 @@ EXTRACTED_MODEL_TABLES = {
     "billing.quoteline": "billing_quoteline",
     "billing.tenantsubscription": "billing_tenantsubscription",
     "billing.usageevent": "billing_usageevent",
+    "card_artwork.cardartworksource": "card_artwork_cardartworksource",
     "card_artwork.cropplan": "card_artwork_cropplan",
     "communications.communicationdelivery": "communications_communicationdelivery",
     "customers.consentrecord": "customers_consentrecord",
@@ -119,6 +120,7 @@ LEGACY_URL_NAMES = {
 
 EXTRACTED_URL_NAMES = {
     "card_artwork:artifact_download",
+    "card_artwork:source_preview",
     "card_artwork:settings",
     "cards:platform_print_center",
     "customers:list",
@@ -207,6 +209,7 @@ LEGACY_DOTYKACKA_MIGRATIONS = {
 
 EXTRACTED_MIGRATIONS = {
     ("card_artwork", "0001_crop_plan"),
+    ("card_artwork", "0002_cardartworksource"),
     ("customers", "0001_customer_domain_models"),
     ("customers", "0002_external_identity_sync_status"),
     ("customers", "0003_external_identity_pending_remote_id"),

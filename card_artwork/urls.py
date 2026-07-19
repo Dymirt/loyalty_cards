@@ -15,4 +15,9 @@ urlpatterns = [
         views.card_artifact_download,
         name="artifact_download",
     ),
+    path(
+        "c/<slug:tenant_slug>/artwork-sources/<int:source_id>/preview",
+        views.card_artwork_source_preview,
+        name="source_preview",
+    ),
 ]

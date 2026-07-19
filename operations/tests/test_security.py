@@ -185,5 +185,5 @@ class SecurityBoundaryTests(TestCase):
         self.assertNotIn("Alias /media/", config)
         self.assertIn("%m %U %H", config)
         self.assertNotIn("%q", config)
-        self.assertIn("LimitRequestBody 29360128", config)
+        self.assertIn("LimitRequestBody 67108864", config)
         self.assertIn("WSGIApplicationGroup %{GLOBAL}", config)

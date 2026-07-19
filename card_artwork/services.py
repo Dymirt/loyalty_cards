@@ -5,7 +5,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import os
+import re
 import tempfile
 from dataclasses import asdict, dataclass
 from io import BytesIO
@@ -25,10 +27,11 @@ from cards.models import PhysicalCard
 from dotykacka.models import AuditEvent
 from tenants.models import Tenant, TenantBrand, TenantBrandRevision
 
-from .models import CardArtifact, CardDesign, CropPlan
+from .models import CardArtifact, CardArtworkSource, CardDesign, CropPlan
 
 
-RENDER_VERSION = "card-artwork-v1"
+RENDER_VERSION = "card-artwork-v2-native-source"
+DISTINCT_CROP_SHIFT_DIVISOR = 4
 
 
 @dataclass(frozen=True)
@@ -75,6 +78,34 @@ class CropPlanData:
     @property
     def crop_box(self):
         return (self.crop_left, self.crop_top, self.crop_right, self.crop_bottom)
+
+    def metadata(self):
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class CropCapacity:
+    source_width: int
+    source_height: int
+    resized_width: int
+    resized_height: int
+    card_width: int
+    card_height: int
+    positions_x: int
+    positions_y: int
+    distinct_step_x: int
+    distinct_step_y: int
+    exact_unique_capacity: int
+    visually_distinct_capacity: int
+    requested_count: int = 0
+
+    @property
+    def exact_capacity_reached(self):
+        return bool(self.requested_count and self.requested_count > self.exact_unique_capacity)
+
+    @property
+    def visual_capacity_reached(self):
+        return bool(self.requested_count and self.requested_count > self.visually_distinct_capacity)
 
     def metadata(self):
         return asdict(self)
@@ -190,9 +221,19 @@ def spec_from_design(design):
     )
 
 
-def spec_from_values(*, tenant, values, background_upload=None, logo_upload=None, fallback_design=None):
+def spec_from_values(
+    *,
+    tenant,
+    values,
+    background_upload=None,
+    background_source=None,
+    logo_upload=None,
+    fallback_design=None,
+):
     background_bytes = _read_upload(background_upload)
     logo_bytes = _read_upload(logo_upload)
+    if not background_bytes and background_source:
+        background_bytes = _read_file(background_source)
     if fallback_design:
         if not background_bytes:
             background_bytes = _read_file(fallback_design.background_source)
@@ -241,6 +282,94 @@ def _font(size, *, bold=True):
     return ImageFont.load_default(size=size)
 
 
+def calculate_capacity_for_dimensions(
+    *, source_width, source_height, card_width, card_height, requested_count=0
+):
+    if source_width <= 0 or source_height <= 0:
+        source_width, source_height = card_width, card_height
+    if source_width >= card_width and source_height >= card_height:
+        resized_width, resized_height = source_width, source_height
+    else:
+        scale = max(card_width / source_width, card_height / source_height)
+        resized_width = round(source_width * scale)
+        resized_height = round(source_height * scale)
+    positions_x = max(1, resized_width - card_width + 1)
+    positions_y = max(1, resized_height - card_height + 1)
+    distinct_step_x = max(1, math.ceil(card_width / DISTINCT_CROP_SHIFT_DIVISOR))
+    distinct_step_y = max(1, math.ceil(card_height / DISTINCT_CROP_SHIFT_DIVISOR))
+    visually_distinct_capacity = (
+        ((positions_x - 1) // distinct_step_x) + 1
+    ) * (((positions_y - 1) // distinct_step_y) + 1)
+    return CropCapacity(
+        source_width=source_width,
+        source_height=source_height,
+        resized_width=resized_width,
+        resized_height=resized_height,
+        card_width=card_width,
+        card_height=card_height,
+        positions_x=positions_x,
+        positions_y=positions_y,
+        distinct_step_x=distinct_step_x,
+        distinct_step_y=distinct_step_y,
+        exact_unique_capacity=positions_x * positions_y,
+        visually_distinct_capacity=visually_distinct_capacity,
+        requested_count=requested_count or 0,
+    )
+
+
+def calculate_crop_capacity(spec, *, requested_count=0):
+    if spec.background_bytes:
+        with Image.open(BytesIO(spec.background_bytes)) as opened:
+            source = ImageOps.exif_transpose(opened)
+            source_width, source_height = source.size
+    else:
+        source_width, source_height = spec.width_px, spec.height_px
+    return calculate_capacity_for_dimensions(
+        source_width=source_width,
+        source_height=source_height,
+        card_width=spec.width_px,
+        card_height=spec.height_px,
+        requested_count=requested_count,
+    )
+
+
+def _variant_index(card_code):
+    match = re.search(r"-(?P<number>[1-9][0-9]*)\Z", str(card_code))
+    if match:
+        return int(match.group("number")) - 1
+    return int.from_bytes(
+        hashlib.sha256(str(card_code).encode("utf-8")).digest()[:8], "big"
+    )
+
+
+def _coprime_step(capacity, seed):
+    if capacity <= 1:
+        return 0
+    candidate = (
+        round(capacity * ((5**0.5 - 1) / 2))
+        + int.from_bytes(seed[:4], "big")
+    ) % capacity
+    candidate = candidate or 1
+    while math.gcd(candidate, capacity) != 1:
+        candidate = (candidate + 1) % capacity or 1
+    return candidate
+
+
+def calculate_deterministic_crop_position(*, checksum, capacity, card_code):
+    """Map a numbered card to one unique source position before any repeat."""
+
+    slot_count = capacity.exact_unique_capacity
+    mapping_digest = hashlib.sha256(
+        f"{checksum}:{capacity.source_width}x{capacity.source_height}".encode(
+            "utf-8"
+        )
+    ).digest()
+    offset = int.from_bytes(mapping_digest[:8], "big") % slot_count
+    step = _coprime_step(slot_count, mapping_digest[8:])
+    slot = (offset + step * _variant_index(card_code)) % slot_count
+    return slot % capacity.positions_x, slot // capacity.positions_x
+
+
 def calculate_crop_plan(spec, card_code):
     seed = hashlib.sha256(f"{spec.checksum}:{card_code}".encode("utf-8")).hexdigest()
     if not spec.background_bytes:
@@ -257,18 +386,17 @@ def calculate_crop_plan(spec, card_code):
             crop_right=spec.width_px,
             crop_bottom=spec.height_px,
         )
-    with Image.open(BytesIO(spec.background_bytes)) as opened:
-        source = ImageOps.exif_transpose(opened)
-        source_width, source_height = source.size
-    scale = max(spec.width_px / source_width, spec.height_px / source_height)
-    resized_width = round(source_width * scale)
-    resized_height = round(source_height * scale)
-    max_left = max(0, resized_width - spec.width_px)
-    max_top = max(0, resized_height - spec.height_px)
-    digest = bytes.fromhex(seed)
+    capacity = calculate_crop_capacity(spec)
+    source_width, source_height = capacity.source_width, capacity.source_height
+    resized_width, resized_height = capacity.resized_width, capacity.resized_height
+    max_left = capacity.positions_x - 1
+    max_top = capacity.positions_y - 1
     if spec.crop_mode == CardDesign.CropMode.DETERMINISTIC:
-        left = int.from_bytes(digest[:4], "big") % (max_left + 1)
-        top = int.from_bytes(digest[4:8], "big") % (max_top + 1)
+        left, top = calculate_deterministic_crop_position(
+            checksum=spec.checksum,
+            capacity=capacity,
+            card_code=card_code,
+        )
     elif spec.crop_mode == CardDesign.CropMode.FOCAL:
         left = round(max_left * spec.focal_x / 100)
         top = round(max_top * spec.focal_y / 100)
@@ -436,11 +564,21 @@ def validate_rendered_card(rendered):
         raise ValidationError(_("Generator kodu nie utworzył pliku PNG."))
 
 
-def build_sample_sheet(spec, *, count=6):
+def build_sample_sheet(spec, *, count=6, total_count=None):
     """Return deterministic varied branded samples without persisting a draft."""
 
     samples = []
-    for number in range(1, count + 1):
+    total_count = max(count, total_count or count)
+    if count == 1:
+        sample_numbers = [1]
+    else:
+        sample_numbers = sorted(
+            {
+                1 + round(index * (total_count - 1) / (count - 1))
+                for index in range(count)
+            }
+        )
+    for number in sample_numbers:
         card_code = f"{spec.card_prefix}-{number}"
         rendered = render_card(spec, card_code)
         samples.append(
@@ -453,6 +591,27 @@ def build_sample_sheet(spec, *, count=6):
             }
         )
     return samples
+
+
+def inspect_artwork_source(
+    source, *, card_width, card_height, requested_count=0
+):
+    """Read source geometry without changing the source or its stored metadata."""
+
+    source.image.open("rb")
+    try:
+        with Image.open(source.image) as opened:
+            image = ImageOps.exif_transpose(opened)
+            source_width, source_height = image.size
+    finally:
+        source.image.close()
+    return calculate_capacity_for_dimensions(
+        source_width=source_width,
+        source_height=source_height,
+        card_width=card_width,
+        card_height=card_height,
+        requested_count=requested_count,
+    )
 
 
 def brand_snapshot_values(values):
@@ -494,8 +653,19 @@ def design_snapshot_values(values):
 
 
 @transaction.atomic
-def publish_card_design(*, tenant, actor, brand_values, design_values, background_upload=None, logo_upload=None):
+def publish_card_design(
+    *,
+    tenant,
+    actor,
+    brand_values,
+    design_values,
+    background_upload=None,
+    selected_source=None,
+    logo_upload=None,
+):
     locked_tenant = Tenant.objects.select_for_update().get(pk=tenant.pk)
+    if selected_source and selected_source.tenant_id != locked_tenant.pk:
+        raise ValidationError(_("Wybrany obraz źródłowy należy do innej firmy."))
     latest = CardDesign.objects.filter(tenant=locked_tenant).order_by("-version").first()
     version = (CardDesign.objects.filter(tenant=locked_tenant).aggregate(value=Max("version"))["value"] or 0) + 1
     brand_data = brand_snapshot_values(brand_values)
@@ -504,6 +674,7 @@ def publish_card_design(*, tenant, actor, brand_values, design_values, backgroun
         tenant=locked_tenant,
         values=design_data,
         background_upload=background_upload,
+        background_source=selected_source.image if selected_source else None,
         logo_upload=logo_upload,
         fallback_design=latest,
     )
@@ -528,6 +699,8 @@ def publish_card_design(*, tenant, actor, brand_values, design_values, backgroun
     )
     if background_upload:
         design.background_source = background_upload
+    elif selected_source:
+        design.background_source.name = selected_source.image.name
     elif latest and latest.background_source:
         design.background_source.name = latest.background_source.name
     if logo_upload:
@@ -539,6 +712,19 @@ def publish_card_design(*, tenant, actor, brand_values, design_values, backgroun
         design.save()
     except IntegrityError as exc:
         raise ValidationError(_("Równoczesna publikacja utworzyła już tę wersję projektu.")) from exc
+    if background_upload:
+        with Image.open(BytesIO(spec.background_bytes)) as opened:
+            source = ImageOps.exif_transpose(opened)
+            source_width, source_height = source.size
+        CardArtworkSource.objects.create(
+            tenant=locked_tenant,
+            name=Path(background_upload.name).name,
+            image=design.background_source.name,
+            source_sha256=bytes_sha256(spec.background_bytes),
+            width_px=source_width,
+            height_px=source_height,
+            created_by=actor,
+        )
     current_brand, _ = TenantBrand.objects.get_or_create(tenant=locked_tenant, defaults=brand_data)
     for field, value in brand_data.items():
         setattr(current_brand, field, value)
@@ -549,18 +735,20 @@ def publish_card_design(*, tenant, actor, brand_values, design_values, backgroun
 
 
 def get_or_create_crop_plan(*, design, card_code, physical_card=None):
-    spec = spec_from_design(design)
-    data = calculate_crop_plan(spec, card_code)
     existing = CropPlan.objects.filter(
         design=design,
         card_code=card_code,
-        render_version=RENDER_VERSION,
-    ).first()
+    ).order_by("created_at", "pk").first()
     if existing:
-        stored = {field: getattr(existing, field) for field in data.metadata()}
-        if stored != data.metadata():
-            raise ValidationError(_("Zapisany plan kadrowania nie odpowiada danym wejściowym."))
+        data = CropPlanData(
+            **{
+                field: getattr(existing, field)
+                for field in CropPlanData.__dataclass_fields__
+            }
+        )
         return existing, data
+    spec = spec_from_design(design)
+    data = calculate_crop_plan(spec, card_code)
     plan = CropPlan(
         tenant=design.tenant,
         design=design,
@@ -681,6 +869,7 @@ def publish_design_release(
     brand_values,
     design_values,
     background_upload=None,
+    selected_source=None,
     logo_upload=None,
 ):
     """Publish, render the first proof, and append its redacted audit event."""
@@ -691,6 +880,7 @@ def publish_design_release(
         brand_values=brand_values,
         design_values=design_values,
         background_upload=background_upload,
+        selected_source=selected_source,
         logo_upload=logo_upload,
     )
     generate_proof_artifacts(design=design)

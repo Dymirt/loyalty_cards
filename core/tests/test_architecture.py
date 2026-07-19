@@ -32,7 +32,10 @@ EXTRACTED_MODELS = {
         "customers.consentrecord",
     },
     "communications": {"communications.communicationdelivery"},
-    "card_artwork": {"card_artwork.cropplan"},
+    "card_artwork": {
+        "card_artwork.cardartworksource",
+        "card_artwork.cropplan",
+    },
     "integrations": {"integrations.integrationjob"},
     "marketing": {"marketing.marketinglead"},
     "operations": {

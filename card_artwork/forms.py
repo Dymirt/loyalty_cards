@@ -5,16 +5,24 @@ from django.utils.translation import gettext_lazy as _
 
 from tenants.forms import style_portal_form
 
-from .models import CardDesign
+from .models import CardArtworkSource, CardDesign
 
 
 class CardDesignForm(forms.Form):
     name = forms.CharField(max_length=160, label=_("Nazwa wersji projektu"))
+    source_image = forms.ModelChoiceField(
+        queryset=CardArtworkSource.objects.none(),
+        required=False,
+        label=_("Wybierz zapisany obraz źródłowy"),
+        help_text=_(
+            "Wybór nie zmienia ani nie usuwa obrazu używanego przez wcześniejsze wersje."
+        ),
+    )
     background_image = forms.ImageField(
         required=False,
         label=_("Duży obraz źródłowy"),
         help_text=_(
-            "JPG, PNG lub WebP; maksymalnie 12 MB i 40 megapikseli. "
+            "JPG, PNG lub WebP; maksymalnie 50 MB i 50 megapikseli. "
             "Z jednego obrazu powstaną powtarzalne, zróżnicowane kadry kart."
         ),
         widget=forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}),
@@ -93,6 +101,17 @@ class CardDesignForm(forms.Form):
         label=_("Liczba przykładowych kadrów"),
         help_text=_("Podgląd nie zapisuje ani nie przydziela kart."),
     )
+    planned_card_count = forms.IntegerField(
+        min_value=1,
+        max_value=10_000_000,
+        initial=600,
+        required=False,
+        label=_("Planowana liczba kart"),
+        help_text=_(
+            "System porówna tę liczbę z pojemnością wybranego obrazu. "
+            "To pole nie zamawia druku."
+        ),
+    )
 
     SNAPSHOT_FIELDS = (
         "name",
@@ -143,19 +162,30 @@ class CardDesignForm(forms.Form):
                     "sample_count": 6,
                 }
         super().__init__(*args, **kwargs)
+        sources = CardArtworkSource.objects.filter(tenant=tenant)
+        self.fields["source_image"].queryset = sources
+        if current_design and current_design.background_source:
+            current_source = sources.filter(
+                image=current_design.background_source.name
+            ).first()
+            if current_source:
+                self.initial["source_image"] = current_source.pk
         style_portal_form(self)
 
-    def _validate_uploaded_image(self, value, *, minimum_size=None):
+    def _validate_uploaded_image(self, value, *, minimum_size=None, max_size_mb=50):
         if not value:
             return value
         image = getattr(value, "image", None)
         if image and image.format not in {"JPEG", "PNG", "WEBP"}:
             raise forms.ValidationError(_("Dozwolone formaty to JPG, PNG i WebP."))
-        if value.size > 12 * 1024 * 1024:
-            raise forms.ValidationError(_("Plik może mieć maksymalnie 12 MB."))
-        if image and image.width * image.height > 40_000_000:
+        if value.size > max_size_mb * 1024 * 1024:
             raise forms.ValidationError(
-                _("Obraz może mieć maksymalnie 40 megapikseli.")
+                _("Plik może mieć maksymalnie %(size)s MB.")
+                % {"size": max_size_mb}
+            )
+        if image and image.width * image.height > 50_000_000:
+            raise forms.ValidationError(
+                _("Obraz może mieć maksymalnie 50 megapikseli.")
             )
         if image and minimum_size and (image.width < minimum_size[0] or image.height < minimum_size[1]):
             raise forms.ValidationError(
@@ -171,11 +201,16 @@ class CardDesignForm(forms.Form):
         )
 
     def clean_logo_image(self):
-        return self._validate_uploaded_image(self.cleaned_data.get("logo_image"))
+        return self._validate_uploaded_image(
+            self.cleaned_data.get("logo_image"), max_size_mb=12
+        )
 
     def clean(self):
         cleaned = super().clean()
+        cleaned["planned_card_count"] = cleaned.get("planned_card_count") or 600
         has_background = bool(cleaned.get("background_image")) or bool(
+            cleaned.get("source_image")
+        ) or bool(
             self.current_design and self.current_design.background_source
         )
         if not has_background:

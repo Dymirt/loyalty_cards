@@ -17,6 +17,7 @@ from dotykacka.models import (
     CardDesign,
     TenantBrandRevision,
 )
+from card_artwork.models import CardArtworkSource
 from dotykacka.services.card_designs import (
     DesignSpec,
     bytes_sha256,
@@ -142,6 +143,15 @@ class CardDesignMigrationBaselineTests(TestCase):
         self.assertEqual(design.height_px, 638)
         self.assertEqual(design.dpi, 300)
         self.assertEqual(tenant.card_batches.get().design, design)
+        self.assertSetEqual(
+            set(
+                tenant.card_artwork_sources.values_list("image", flat=True)
+            ),
+            {
+                "Marta Banaszek - Obraz.jpg",
+                "Marta Banaszek - Obraz II.jpg",
+            },
+        )
 
     def test_phase_three_backfill_verifier_is_read_only(self):
         output = StringIO()
@@ -207,7 +217,7 @@ class CardRendererGoldenTests(TestCase):
         # architectures even when the rendered image is equivalent. Assert the
         # deterministic crop plan and same-process byte stability instead of an
         # environment-specific encoded-file digest.
-        self.assertEqual(first.crop_box, (0, 12, 1011, 650))
+        self.assertEqual(first.crop_box, (379, 179, 1390, 817))
         self.assertEqual(bytes_sha256(first.front), bytes_sha256(second.front))
         self.assertNotEqual(first.front, other.front)
         self.assertNotEqual(first.back, other.back)
@@ -325,6 +335,60 @@ class CardDesignPortalTests(TestCase):
 
             self.assertEqual(self.client.get(self.url).status_code, 403)
             self.assertEqual(self.client.get(download_url).status_code, 403)
+
+    def test_saved_masters_are_visible_selectable_and_capacity_is_explained(self):
+        with TemporaryDirectory() as directory, override_settings(MEDIA_ROOT=directory):
+            first = CardArtworkSource.objects.create(
+                tenant=self.tenant,
+                name="Duży obraz I",
+                image=upload("master-one.png", image_bytes("#E9DCC9")),
+                created_by=self.owner,
+            )
+            second = CardArtworkSource.objects.create(
+                tenant=self.tenant,
+                name="Duży obraz II",
+                image=upload("master-two.png", image_bytes("#173A5E")),
+                created_by=self.owner,
+            )
+
+            page = self.client.get(self.url)
+
+            self.assertContains(page, "Duży obraz I")
+            self.assertContains(page, "Duży obraz II")
+            self.assertContains(page, "Planowana liczba kart")
+            self.assertContains(page, "Maksymalnie bez identycznych współrzędnych")
+            preview_url = reverse(
+                "card_artwork:source_preview",
+                args=[self.tenant.slug, first.pk],
+            )
+            self.assertContains(page, preview_url)
+            preview = self.client.get(preview_url)
+            self.assertEqual(preview.status_code, 200)
+            self.assertEqual(preview["Content-Type"], "image/jpeg")
+            self.assertEqual(preview["Cache-Control"], "private, max-age=3600")
+
+            proof = self.client.post(
+                self.url,
+                {
+                    **design_post_data(self.tenant),
+                    "design-source_image": second.pk,
+                    "design-planned_card_count": 10_000,
+                    "design-sample_count": 6,
+                    "action": "proof",
+                    "design-logo_image": upload(
+                        "logo.png",
+                        image_bytes("#FFFFFF00", size=(500, 180), logo=True),
+                    ),
+                },
+                HTTP_HX_REQUEST="true",
+            )
+
+            self.assertEqual(proof.status_code, 200)
+            self.assertContains(proof, "Wszystkie 10000 kart otrzymają unikalne współrzędne")
+            self.assertContains(proof, "SC-10000")
+            self.assertEqual(CardDesign.objects.filter(tenant=self.tenant).count(), 0)
+            self.assertEqual(CardArtworkSource.objects.filter(tenant=self.tenant).count(), 2)
+            self.assertNotEqual(first.image.name, second.image.name)
 
 
 class CardGeneratorCommandTests(TestCase):
