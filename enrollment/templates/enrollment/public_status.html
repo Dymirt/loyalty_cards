@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load static %}
+{% get_media_prefix as media_prefix %}
+{% block title %}Status karty · {{ registration_brand.public_name|default:tenant.name }}{% endblock %}
+{% block full_width_content %}
+<section class="relative isolate min-h-[calc(100vh-9rem)] overflow-hidden px-4 py-10">
+    {% if registration_brand.background_image_path %}<img src="{{ media_prefix }}{{ registration_brand.background_image_path }}" alt="" class="absolute inset-0 -z-20 size-full object-cover"><div class="absolute inset-0 -z-10 bg-ink-950/60"></div>{% else %}<div class="absolute inset-0 -z-20 bg-gradient-to-br from-stone-900 to-accent-800"></div>{% endif %}
+    <div class="mx-auto max-w-3xl rounded-3xl border border-white/30 bg-white/95 p-6 shadow-2xl sm:p-9">
+        <div class="text-center">{% if registration_brand.logo_path %}<img src="{{ media_prefix }}{{ registration_brand.logo_path }}" alt="{{ registration_brand.public_name|default:tenant.name }}" class="mx-auto h-20 w-auto">{% endif %}<p class="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">Bezpieczny status rejestracji</p><h1 class="mt-2 text-3xl font-bold">Karta {{ enrollment.physical_card.code }}</h1><p class="mt-2 text-sm text-ink-700">Link działa do {{ link.expires_at|date:"d.m.Y H:i" }}. Nie udostępniaj go innym osobom.</p></div>
+        <div class="mt-8 grid gap-4 sm:grid-cols-2">
+            <article class="portal-card"><h2 class="font-bold">Google Wallet</h2>{% if google_save_url %}<p class="mt-2 text-sm text-emerald-800">Karta jest gotowa.</p><a href="{{ google_save_url }}" class="portal-button mt-4" rel="noopener">Dodaj do Google Wallet</a>{% else %}<p class="mt-2 text-sm text-ink-700">Karta jest przygotowywana.</p>{% endif %}</article>
+            <article class="portal-card"><h2 class="font-bold">Apple Wallet</h2>{% if apple_ready %}<p class="mt-2 text-sm text-emerald-800">Karta jest gotowa.</p><a href="{% url 'enrollment:public_apple_pass' access_token %}" class="portal-button mt-4">Pobierz Apple Wallet</a>{% else %}<p class="mt-2 text-sm text-ink-700">Karta jest przygotowywana.</p>{% endif %}</article>
+        </div>
+        <section class="mt-8"><h2 class="text-xl font-bold">Realizacja integracji</h2><div class="mt-4 space-y-3">{% for followup in followups %}<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 p-4"><span class="font-mono text-sm">{{ followup.kind }}</span><span class="portal-status {% if followup.integration_job.status == 'succeeded' %}bg-emerald-100 text-emerald-800{% elif followup.integration_job.status == 'failed' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">{{ followup.integration_job.get_status_display }}</span></div>{% empty %}<p class="text-sm text-ink-700">Brak aktywnych integracji dla tej firmy.</p>{% endfor %}</div></section>
+        <p class="mt-8 text-center text-sm text-ink-700">Jeśli link wygaśnie lub operacja się nie powiedzie, skontaktuj się z {{ registration_brand.public_name|default:tenant.name }}.</p>
+    </div>
+</section>
+{% endblock %}

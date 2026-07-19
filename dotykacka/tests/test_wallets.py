@@ -65,7 +65,7 @@ class WalletServiceTests(TestCase):
             class_suffix="MB",
             object_id="3388000000022973962.MB-12",
             customer_image_url=(
-                "https://club.example.test/media/cropped_images/cropped_image_12.jpg"
+                "https://club.example.test/media/logo_atelier_cafe.png"
             ),
             image_description="Karta lojalnościowa Atelier-Café Marta Banaszek",
         )

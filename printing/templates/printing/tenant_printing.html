@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Zamówienia druku · {{ tenant.name }}{% endblock %}
+{% block content %}
+{% include "tenants/partials/nav.html" %}
+<div>
+    <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Druk centralny</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight">Zamówienia kart</h1>
+    <p class="mt-2 max-w-3xl text-ink-700">Wybierz opublikowany projekt i zaakceptowaną kalkulację. Operator platformy przydzieli niepowtarzalne numery, przygotuje zweryfikowany pakiet i zapisze etapy realizacji.</p>
+</div>
+
+<section class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+    <div class="portal-card">
+        <h2 class="text-xl font-bold">Nowe zamówienie</h2>
+        <p class="mt-2 text-sm text-ink-700">Projekt i warunki zaakceptowanej kalkulacji zostaną zamrożone. Po wysłaniu nie można ich edytować.</p>
+        <form method="post"
+              action="{% url 'printing:submit' tenant.slug %}"
+              hx-post="{% url 'printing:submit' tenant.slug %}"
+              hx-disabled-elt="find button"
+              class="mt-5 space-y-5">
+            {% csrf_token %}
+            {% for error in print_form.non_field_errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
+            {% for field in print_form %}
+                {% if field.is_hidden %}{{ field }}{% elif field.name == "proof_approved" %}
+                    <div class="flex items-start gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4">{{ field }}<div><label for="{{ field.id_for_label }}" class="font-semibold">{{ field.label }}</label>{% for error in field.errors %}<p class="portal-error">{{ error }}</p>{% endfor %}</div></div>
+                {% else %}{% include "components/form_field.html" with field=field %}{% endif %}
+            {% endfor %}
+            <button type="submit" class="portal-button">Wyślij zamówienie do druku</button>
+        </form>
+        <p class="mt-4 text-sm text-ink-600">Brak dostępnej kalkulacji? Najpierw utwórz i zaakceptuj ją w <a href="{% url 'billing:tenant' tenant.slug %}" class="font-semibold text-accent-700">Planie i rozliczeniach</a>.</p>
+    </div>
+    <div>
+        <h2 class="text-2xl font-bold">Historia zamówień</h2>
+        <div class="mt-4 grid gap-4">
+            {% for item in print_requests %}
+                <article class="portal-card">
+                    <div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-sm text-ink-600">Zamówienie #{{ item.pk }} · {{ item.submitted_at|date:"d.m.Y H:i" }}</p><h3 class="mt-1 text-lg font-bold">{{ item.quantity }} kart · projekt v{{ item.design.version }}</h3></div><span class="portal-status bg-stone-100 text-stone-800">{{ item.get_status_display }}</span></div>
+                    <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2"><div><dt class="text-ink-600">Suma projektu</dt><dd class="font-mono text-xs">{{ item.proof_checksum }}</dd></div><div><dt class="text-ink-600">Kalkulacja</dt><dd class="font-semibold">#{{ item.quote_id }} · {{ item.quote.total_amount }} {{ item.quote.currency }}</dd></div><div><dt class="text-ink-600">Dostawa</dt><dd>{{ item.delivery_name }}, {{ item.delivery_postal_code }} {{ item.delivery_city }}</dd></div><div><dt class="text-ink-600">Ostatnia zmiana</dt><dd>{{ item.updated_at|date:"d.m.Y H:i" }}</dd></div></dl>
+                    <details class="mt-4"><summary class="cursor-pointer font-semibold">Historia statusu</summary><ol class="mt-3 space-y-2 text-sm">{% for event in item.status_events.all %}<li>{{ event.created_at|date:"d.m.Y H:i" }} · {{ event.get_to_status_display }}{% if event.reason %} — {{ event.reason }}{% endif %}</li>{% endfor %}</ol></details>
+                </article>
+            {% empty %}<p class="rounded-xl border border-dashed border-stone-300 p-6 text-ink-700">Nie wysłano jeszcze żadnego zamówienia.</p>{% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

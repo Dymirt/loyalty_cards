@@ -11,7 +11,15 @@ from .contracts import RetryableIntegrationError
 from .models import IntegrationJob
 
 
-SAFE_PAYLOAD_KEYS = frozenset({"customer_id", "wallet_id", "connection_id", "reason"})
+SAFE_PAYLOAD_KEYS = frozenset(
+    {
+        "customer_id",
+        "wallet_id",
+        "connection_id",
+        "enrollment_link_id",
+        "reason",
+    }
+)
 
 
 def _safe_payload(payload):
@@ -22,15 +30,49 @@ def _safe_payload(payload):
 
 
 def enqueue_job(*, tenant, kind, idempotency_key, payload, connection=None, max_attempts=5):
-    job, _ = IntegrationJob.objects.get_or_create(
+    safe_payload = _safe_payload(payload)
+    job, created = IntegrationJob.objects.get_or_create(
         tenant=tenant,
         idempotency_key=idempotency_key,
         defaults={
             "connection": connection,
             "kind": kind,
-            "payload": _safe_payload(payload),
+            "payload": safe_payload,
             "max_attempts": max_attempts,
         },
+    )
+    if not created and (
+        job.kind != kind
+        or job.connection_id != getattr(connection, "pk", None)
+        or job.payload != safe_payload
+    ):
+        raise ValueError("An integration idempotency key was reused with different inputs.")
+    return job
+
+
+@transaction.atomic
+def retry_failed_job(*, job, additional_attempts=3):
+    if additional_attempts <= 0:
+        raise ValueError("additional_attempts must be greater than zero.")
+    job = IntegrationJob.objects.select_for_update().get(pk=job.pk)
+    if job.status != IntegrationJob.Status.FAILED:
+        raise ValueError("Only a failed integration job can be retried.")
+    job.status = IntegrationJob.Status.RETRY
+    job.max_attempts = max(job.max_attempts, job.attempts + additional_attempts)
+    job.available_at = timezone.now()
+    job.finished_at = None
+    job.locked_at = None
+    job.locked_by = ""
+    job.save(
+        update_fields=(
+            "status",
+            "max_attempts",
+            "available_at",
+            "finished_at",
+            "locked_at",
+            "locked_by",
+            "updated_at",
+        )
     )
     return job
 
@@ -124,4 +166,10 @@ def fail_job(job, exc):
     )
 
 
-__all__ = ["claim_next_job", "complete_job", "enqueue_job", "fail_job"]
+__all__ = [
+    "claim_next_job",
+    "complete_job",
+    "enqueue_job",
+    "fail_job",
+    "retry_failed_job",
+]

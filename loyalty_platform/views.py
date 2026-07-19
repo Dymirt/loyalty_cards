@@ -1,8 +1,6 @@
-from django.shortcuts import render
+"""Compatibility exports for the public project entry point."""
 
-from tenants.authorization import get_default_tenant
+from marketing.views import home as index
 
 
-def index(request):
-    tenant = get_default_tenant()
-    return render(request, "register_button.html", {"tenant": tenant})
+__all__ = ["index"]

@@ -1,0 +1,18 @@
+[Unit]
+Description=Loyalty Studio verified database and runtime backup
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=loyalty
+Group=loyalty
+WorkingDirectory=/var/www/loyalty_platform
+EnvironmentFile=/etc/loyalty-platform.env
+UMask=0077
+ExecStart=/var/www/loyalty_platform/.venv/bin/python manage.py create_platform_backup --label scheduled
+ExecStartPost=/usr/bin/find /var/backups/loyalty-platform -type f -mtime +35 -print
+
+# Retention is report-only by design. Review the printed paths and move approved
+# expired archives to protected offline retention; this unit never deletes data.
+

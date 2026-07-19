@@ -1,5 +1,6 @@
 """Owner-bound browser endpoints for Dotykačka Connector v2."""
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
@@ -9,6 +10,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from dotykacka.models import AuditEvent
 from integrations.contracts import IntegrationConfigurationError
+from operations.rate_limits import rate_limit_response
 from tenants.authorization import can_manage_integrations
 from tenants.models import Tenant
 
@@ -23,6 +25,15 @@ def connect_dotykacka(request, tenant_slug):
         return HttpResponseForbidden(
             "Nie masz uprawnień do połączenia tej firmy z Dotykačka."
         )
+    limited = rate_limit_response(
+        request,
+        scope="dotykacka.connect",
+        limit=settings.DOTYKACKA_CONNECT_RATE_LIMIT,
+        window_seconds=settings.CONNECT_RATE_LIMIT_WINDOW_SECONDS,
+        extra_identity=f"tenant:{tenant.pk}",
+    )
+    if limited is not None:
+        return limited
     if not request.session.session_key:
         request.session.create()
     redirect_uri = request.build_absolute_uri(reverse("pos_dotykacka:callback"))

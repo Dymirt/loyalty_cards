@@ -45,7 +45,7 @@ For a requested physical quantity:
 5. Show configured tax as included, exclusive, or not applicable.
 6. Freeze every input and line before the owner accepts.
 
-Phase 8 will turn an accepted quote into a print request, consume the reservation/allowance transactionally, and record production usage. Phase 7 never records a card as produced merely because it was quoted.
+Phase 8 now turns an accepted quote into a print request and consumes its reservation/allowance transactionally only when the platform allocates the production run. Phase 7 never records a card as produced merely because it was quoted. See `phase-8-centralized-printing.md` for the append-only consumption bridge and production workflow.
 
 ## Verification evidence
 

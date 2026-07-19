@@ -9,6 +9,10 @@ mkdir -p \
     staticfiles \
     var/logs
 
+install -d -m 0770 -o www-data -g www-data \
+    media/tenants \
+    var/print-packages
+
 # These bind-mounted runtime directories must be writable by Apache's
 # www-data worker in the local development container.
 chmod 0777 media/logs media/output_passes var/logs

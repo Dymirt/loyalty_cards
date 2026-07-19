@@ -1,5 +1,7 @@
 """Public loyalty-card enrollment form."""
 
+from uuid import uuid4
+
 from django import forms
 
 from cards.codes import CardCodeError, parse_card_code
@@ -12,19 +14,25 @@ from tenants.forms import style_portal_form
 class LoyaltyCustomerRegistrationForm(CustomerProfileForm):
     barcode = forms.CharField(max_length=60, label="Barcode")
     marketing_consent = forms.BooleanField(required=True, label="Zgoda marketingowa")
+    tenant_confirmation = forms.CharField(required=False, widget=forms.HiddenInput)
 
-    def __init__(self, *args, tenant, **kwargs):
+    def __init__(self, *args, tenant, brand_snapshot=None, **kwargs):
         self.tenant = tenant
+        self.brand_snapshot = brand_snapshot or {}
         super().__init__(*args, **kwargs)
         style_portal_form(self)
-        if hasattr(tenant, "brand") and tenant.brand.marketing_consent_text:
-            self.fields["marketing_consent"].label = tenant.brand.marketing_consent_text
+        consent_text = self.brand_snapshot.get("marketing_consent_text")
+        if not consent_text and hasattr(tenant, "brand"):
+            consent_text = tenant.brand.marketing_consent_text
+        if consent_text:
+            self.fields["marketing_consent"].label = consent_text
 
     def clean_barcode(self):
         try:
             barcode = parse_card_code(
                 self.cleaned_data["barcode"],
                 expected_prefix=self.tenant.card_prefix,
+                max_number=2_147_483_647,
             ).value
         except CardCodeError as exc:
             raise forms.ValidationError("Nieprawidłowy format kodu kreskowego.") from exc
@@ -44,3 +52,17 @@ def registration_form_data(post_data):
         if current_name not in data and legacy_name in data:
             data[current_name] = data[legacy_name]
     return data
+
+
+class FollowUpActionForm(forms.Form):
+    reason = forms.CharField(
+        label="Powód operacji",
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+    idempotency_key = forms.CharField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, action, **kwargs):
+        kwargs.setdefault("initial", {})
+        kwargs["initial"].setdefault("idempotency_key", f"{action}:{uuid4()}")
+        super().__init__(*args, **kwargs)
+        style_portal_form(self)

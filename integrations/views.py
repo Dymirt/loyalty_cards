@@ -110,6 +110,7 @@ def integration_settings(request, tenant_slug):
             ),
             "active_nav": "integrations",
             "can_manage_integrations": True,
+            "can_manage_printing": True,
         },
     )
 

@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
     <title>{% block title %}Loyalty Studio{% endblock %}</title>
+    {% block head_metadata %}<meta name="description" content="Loyalty Studio — platforma kart lojalnościowych dla firm.">{% endblock %}
     <link rel="stylesheet" href="{% static 'css/portal.v1.css' %}">
     <script src="{% static 'vendor/htmx-2.0.10.min.js' %}"
             integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
@@ -31,31 +32,43 @@
                 <span class="min-w-0">
                     <span class="block truncate text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">Loyalty Studio</span>
                     <span class="block truncate text-base font-bold text-ink-950">
-                        {% if tenant %}{{ tenant.brand.public_name|default:tenant.name }}{% else %}Panel platformy{% endif %}
+                        {% if tenant %}{{ tenant.brand.public_name|default:tenant.name }}{% elif marketing_page %}Karty lojalnościowe dla firm{% else %}Panel platformy{% endif %}
                     </span>
                 </span>
             </a>
 
             <nav aria-label="Główna nawigacja" class="flex flex-wrap items-center justify-end gap-1 text-sm font-semibold">
-                {% if tenant %}
-                    <a href="{% url 'dotykacka:tenant_register' tenant.slug %}"
-                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Rejestracja</a>
-                    {% if user.is_authenticated %}
-                        <a href="{% url 'dotykacka:tenant_portal' tenant.slug %}"
-                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Panel firmy</a>
+                {% if marketing_page %}
+                    <a href="{% url 'marketing:features' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Funkcje</a>
+                    <a href="{% url 'marketing:integrations' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Integracje</a>
+                    <a href="{% url 'marketing:pricing' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Cennik</a>
+                    <a href="{% url 'marketing:contact' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Kontakt</a>
+                    {% if user.is_superuser %}
+                        <a href="{% url 'integrations:system_connections' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Panel platformy</a>
                     {% endif %}
-                {% endif %}
-                {% if user.is_superuser %}
-                    <a href="{% url 'integrations:system_connections' %}"
-                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Połączenia systemowe</a>
-                    <a href="{% url 'billing:platform' %}"
-                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Plany i ceny</a>
-                    <a href="{% url 'dotykacka:platform_print_center' %}"
-                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Centrum druku</a>
-                    <a href="{% url 'dotykacka:customers' %}"
-                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Klienci</a>
-                    <a href="{% url 'admin:index' %}"
-                       class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Administracja</a>
+                {% else %}
+                    {% if tenant %}
+                        <a href="{% url 'dotykacka:tenant_register' tenant.slug %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Rejestracja</a>
+                        {% if user.is_authenticated %}
+                            <a href="{% url 'dotykacka:tenant_portal' tenant.slug %}"
+                               class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Panel firmy</a>
+                        {% endif %}
+                    {% endif %}
+                    {% if user.is_superuser %}
+                        <a href="{% url 'integrations:system_connections' %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Połączenia systemowe</a>
+                        <a href="{% url 'operations:dashboard' %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Operacje</a>
+                        <a href="{% url 'billing:platform' %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Plany i ceny</a>
+                        <a href="{% url 'printing:platform_queue' %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Centrum druku</a>
+                        <a href="{% url 'dotykacka:customers' %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Klienci</a>
+                        <a href="{% url 'admin:index' %}"
+                           class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">Administracja</a>
+                    {% endif %}
                 {% endif %}
                 {% if user.is_authenticated %}
                     <form method="post" action="{% url 'logout' %}">
@@ -79,9 +92,15 @@
     </main>
 
     <footer class="border-t border-stone-200 bg-paper">
-        <div class="mx-auto flex max-w-7xl flex-wrap justify-between gap-2 px-4 py-5 text-sm text-ink-700 sm:px-6 lg:px-8">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 text-sm text-ink-700 sm:px-6 lg:px-8">
             <p>Loyalty Studio · bezpieczny panel kart lojalnościowych</p>
-            {% if tenant %}<p>{{ tenant.brand.public_name|default:tenant.name }}</p>{% endif %}
+            <div class="flex flex-wrap items-center gap-4">
+                {% if marketing_page %}
+                    <a href="{% url 'marketing:privacy' %}" class="hover:text-ink-950">Polityka prywatności</a>
+                    <a href="{% url 'marketing:terms' %}" class="hover:text-ink-950">Regulamin</a>
+                    <a href="{% url 'marketing:contact' %}" class="hover:text-ink-950">Kontakt</a>
+                {% elif tenant %}<p>{{ tenant.brand.public_name|default:tenant.name }}</p>{% endif %}
+            </div>
         </div>
     </footer>
 </body>

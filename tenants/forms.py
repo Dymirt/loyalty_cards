@@ -2,7 +2,7 @@
 
 from django import forms
 
-from .models import TenantBrand
+from .models import TenantBrand, TenantDomain
 
 
 PORTAL_INPUT_CLASSES = (
@@ -55,6 +55,23 @@ class TenantBrandForm(forms.ModelForm):
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
             "marketing_consent_text": forms.Textarea(attrs={"rows": 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        style_portal_form(self)
+
+
+class TenantDomainRequestForm(forms.ModelForm):
+    class Meta:
+        model = TenantDomain
+        fields = ("hostname",)
+        labels = {"hostname": "Domena rejestracji"}
+        help_texts = {
+            "hostname": (
+                "Podaj samą nazwę hosta, np. club.example.com. Operator platformy "
+                "musi później potwierdzić DNS, TLS i dozwolony host."
+            )
         }
 
     def __init__(self, *args, **kwargs):

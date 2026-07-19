@@ -10,6 +10,7 @@ from .models import (
     PlanVersion,
     PriceBook,
     PriceBookVersion,
+    PrintQuoteConsumption,
     Quote,
     QuoteLine,
     TenantSubscription,
@@ -72,5 +73,5 @@ for model in (
 ):
     admin.site.register(model, NoDeleteAdmin)
 
-for model in (QuoteLine, CardPackAllocation):
+for model in (QuoteLine, CardPackAllocation, PrintQuoteConsumption):
     admin.site.register(model, AppendOnlyAdmin)

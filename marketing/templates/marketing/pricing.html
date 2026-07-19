@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Cennik · Loyalty Studio{% endblock %}
+{% block head_metadata %}<meta name="description" content="Opublikowane plany abonamentowe i ceny centralnej produkcji kart Loyalty Studio.">{% endblock %}
+{% block content %}
+<header class="max-w-4xl py-8 sm:py-14"><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">Cennik</p><h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Wyłącznie zatwierdzone, opublikowane ceny</h1><p class="mt-5 max-w-3xl text-lg leading-8 text-ink-700">Abonament określa limity użytkowników, wydań i produkcji. Dodatkowy druk rozliczany jest według opublikowanego progu albo wcześniej zakupionego pakietu. Ostateczna kalkulacja jest zamrażana przed akceptacją zamówienia.</p></header>
+{% include "marketing/partials/pricing_catalog.html" %}
+<section class="mt-12 grid gap-5 md:grid-cols-3"><article class="portal-card"><h2 class="text-lg font-bold">Bez automatycznej płatności</h2><p class="mt-2 text-sm leading-6 text-ink-700">Publikacja ceny nie uruchamia subskrypcji, obciążenia ani faktury. Dostawca płatności pozostaje osobną decyzją.</p></article><article class="portal-card"><h2 class="text-lg font-bold">Cena zamrożona w kalkulacji</h2><p class="mt-2 text-sm leading-6 text-ink-700">Późniejsza publikacja nowego cennika nie zmienia zaakceptowanego zamówienia.</p></article><article class="portal-card"><h2 class="text-lg font-bold">Pakiety przypisane do firmy</h2><p class="mt-2 text-sm leading-6 text-ink-700">Indywidualne zakupione pakiety są widoczne wyłącznie po zalogowaniu, nigdy na stronie publicznej.</p></article></section>
+<div class="mt-12">{% include "marketing/partials/cta.html" %}</div>
+{% endblock %}

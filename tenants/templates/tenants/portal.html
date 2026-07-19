@@ -4,7 +4,7 @@
 {% include "tenants/partials/nav.html" %}
 <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
     <div><p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Panel firmy</p><h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{{ tenant.brand.public_name|default:tenant.name }}</h1><p class="mt-2 max-w-2xl text-ink-700">Stan programu lojalnościowego i konfiguracji firmy.</p></div>
-    <a href="{% url 'dotykacka:tenant_register' tenant.slug %}" class="portal-button-secondary">Otwórz rejestrację</a>
+    <a href="{% url 'enrollment:tenant_register' tenant.slug %}" class="portal-button-secondary">Otwórz rejestrację</a>
 </div>
 <section class="mt-8 grid gap-4 sm:grid-cols-3" aria-label="Podsumowanie programu">
     <article class="portal-card"><p class="text-sm font-semibold text-ink-700">Klienci</p><p class="mt-2 text-4xl font-bold tabular-nums">{{ customer_count }}</p></article>

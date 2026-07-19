@@ -5,3 +5,6 @@ class PrintingConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "printing"
     verbose_name = "Printing"
+
+    def ready(self):
+        from . import checks  # noqa: F401

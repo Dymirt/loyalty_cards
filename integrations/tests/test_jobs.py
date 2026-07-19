@@ -32,6 +32,13 @@ class DurableJobTests(TestCase):
         with self.assertRaises(ValueError):
             enqueue_job(
                 tenant=tenant,
+                kind="test.changed",
+                idempotency_key="same-key",
+                payload={"customer_id": 2},
+            )
+        with self.assertRaises(ValueError):
+            enqueue_job(
+                tenant=tenant,
                 kind="test.noop",
                 idempotency_key="secret-key",
                 payload={"api_key": "must-not-be-stored"},

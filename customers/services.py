@@ -35,17 +35,25 @@ def create_customer(*, tenant, card_code, first_name, last_name, email, phone):
     )
 
 
-def record_marketing_consent(*, customer, consent_text, source="registration"):
+def record_marketing_consent(
+    *,
+    customer,
+    consent_text,
+    source="registration",
+    policy_version="",
+    metadata=None,
+):
     checksum = hashlib.sha256(consent_text.encode("utf-8")).hexdigest()
     record = ConsentRecord(
         tenant=customer.tenant,
         customer=customer,
         purpose="marketing",
-        policy_version=f"sha256:{checksum[:16]}",
+        policy_version=policy_version or f"sha256:{checksum[:16]}",
         consent_text=consent_text,
         consent_text_sha256=checksum,
         granted=True,
         source=source,
+        metadata=metadata or {},
     )
     record.full_clean()
     record.save()

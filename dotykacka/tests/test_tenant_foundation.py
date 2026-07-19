@@ -93,18 +93,18 @@ class MartaTenantBaselineTests(TestCase):
 
 
 class TenantRegistrationIsolationTests(TestCase):
-    @patch("enrollment.views.start_registration_followups")
     @override_settings(APP_BASE_URL="https://club.example.test")
-    def test_tenant_route_assigns_only_that_tenants_card(self, start_followups):
+    def test_tenant_route_assigns_only_that_tenants_card(self):
         second = create_tenant()
         second_card = create_physical_card(second, number=12)
         marta_card = PhysicalCard.objects.get(code="MB-12")
         data = {**REGISTRATION_DATA, "barcode": "SC-12"}
 
-        response = self.client.post(
-            reverse("dotykacka:tenant_register", args=[second.slug]),
-            data,
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(
+                reverse("dotykacka:tenant_register", args=[second.slug]),
+                data,
+            )
 
         self.assertEqual(response.status_code, 302)
         customer = Klient.objects.get(klient_id="SC-12")
@@ -115,7 +115,6 @@ class TenantRegistrationIsolationTests(TestCase):
         self.assertEqual(second_card.status, PhysicalCard.Status.ASSIGNED)
         self.assertIsNone(marta_card.customer)
         self.assertEqual(marta_card.status, PhysicalCard.Status.AVAILABLE)
-        start_followups.assert_called_once_with(customer.pk)
 
     def test_tenant_route_rejects_another_tenants_prefix_and_inventory(self):
         second = create_tenant()

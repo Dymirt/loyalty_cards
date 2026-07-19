@@ -22,6 +22,7 @@ TARGET_APPS = (
     "printing",
     "enrollment",
     "marketing",
+    "operations",
 )
 
 ALLOWED_TARGET_IMPORTS = {
@@ -30,7 +31,7 @@ ALLOWED_TARGET_IMPORTS = {
     "customers": {"core", "tenants", "customers"},
     "cards": {"core", "tenants", "customers", "cards"},
     "card_artwork": {"core", "tenants", "cards", "card_artwork"},
-    "integrations": {"core", "tenants", "integrations"},
+    "integrations": {"core", "tenants", "integrations", "operations"},
     "pos": {"core", "tenants", "customers", "integrations", "pos"},
     "pos_dotykacka": {
         "core",
@@ -39,6 +40,7 @@ ALLOWED_TARGET_IMPORTS = {
         "integrations",
         "pos",
         "pos_dotykacka",
+        "operations",
     },
     "communications": {
         "core",
@@ -93,6 +95,7 @@ ALLOWED_TARGET_IMPORTS = {
         "cards",
         "card_artwork",
         "printing",
+        "operations",
     },
     "enrollment": {
         "core",
@@ -105,8 +108,32 @@ ALLOWED_TARGET_IMPORTS = {
         "wallets",
         "billing",
         "enrollment",
+        "operations",
     },
-    "marketing": {"core", "billing", "marketing"},
+    "marketing": {"core", "billing", "marketing", "operations"},
+    # Operations is the platform-observability composition edge. It may read
+    # domain state, while other apps use only its infrastructure primitives
+    # (rate limiting and worker heartbeats), never its alert orchestration.
+    "operations": {
+        "core",
+        "tenants",
+        "customers",
+        "cards",
+        "card_artwork",
+        "integrations",
+        "pos",
+        "pos_dotykacka",
+        "communications",
+        "brevo",
+        "wallets",
+        "wallet_apple",
+        "wallet_google",
+        "billing",
+        "printing",
+        "enrollment",
+        "marketing",
+        "operations",
+    },
 }
 
 

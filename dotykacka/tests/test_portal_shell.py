@@ -145,4 +145,5 @@ class PortalShellViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Centrum druku")
         self.assertContains(response, self.tenant.name)
-        self.assertContains(response, "Kolejka druku · Faza 4")
+        self.assertContains(response, "Kolejka zamówień")
+        self.assertContains(response, "Historyczne karty — tylko podgląd")

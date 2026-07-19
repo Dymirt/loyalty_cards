@@ -20,6 +20,7 @@ from .models import (
     EntitlementPolicy,
     PlanVersion,
     PriceBookVersion,
+    PrintQuoteConsumption,
     Quote,
     QuoteLine,
     TenantSubscription,
@@ -277,7 +278,9 @@ def _available_pack_rows(*, tenant, currency, at, for_update=False):
         packs = packs.select_for_update()
     rows = []
     for pack in packs.order_by("expires_at", "created_at", "pk"):
-        reserved = pack.quote_allocations.aggregate(total=Sum("quantity"))["total"] or 0
+        reserved = pack.quote_allocations.filter(
+            quote__print_consumption__isnull=True,
+        ).aggregate(total=Sum("quantity"))["total"] or 0
         available = pack.purchased_quantity - pack.consumed_quantity - reserved
         if available > 0:
             rows.append((pack, available))
@@ -349,19 +352,24 @@ def _available_print_allowance(*, subscription, period, policy):
             subscription=subscription,
             current_period=period,
         )
-        usage_scope = UsageEvent.objects.filter(subscription=subscription)
         quote_scope = Quote.objects.filter(subscription=subscription)
+        consumption_scope = PrintQuoteConsumption.objects.filter(
+            quote__subscription=subscription,
+        )
     else:
         allowance_total = policy.included_print_quantity
-        usage_scope = UsageEvent.objects.filter(billing_period=period)
         quote_scope = Quote.objects.filter(billing_period=period)
-    produced = usage_scope.filter(
-        kind=UsageEvent.Kind.PHYSICAL_CARD_PRODUCED,
-    ).aggregate(total=Sum("quantity"))["total"] or 0
+        consumption_scope = PrintQuoteConsumption.objects.filter(
+            quote__billing_period=period,
+        )
+    produced_included = consumption_scope.aggregate(
+        total=Sum("included_quantity")
+    )["total"] or 0
     reserved_allowance = quote_scope.filter(
         status=Quote.Status.ACCEPTED,
+        print_consumption__isnull=True,
     ).aggregate(total=Sum("included_quantity"))["total"] or 0
-    return max(0, allowance_total - produced - reserved_allowance)
+    return max(0, allowance_total - produced_included - reserved_allowance)
 
 
 @transaction.atomic
@@ -550,7 +558,9 @@ def accept_quote(*, quote, at=None):
         )
         if pack.currency != quote.currency or (pack.expires_at and pack.expires_at <= at):
             raise EntitlementLimitError("A proposed card pack is no longer eligible.")
-        reserved = pack.quote_allocations.aggregate(total=Sum("quantity"))["total"] or 0
+        reserved = pack.quote_allocations.filter(
+            quote__print_consumption__isnull=True,
+        ).aggregate(total=Sum("quantity"))["total"] or 0
         available = pack.purchased_quantity - pack.consumed_quantity - reserved
         quantity = int(allocation["quantity"])
         if quantity > available:
@@ -564,6 +574,71 @@ def accept_quote(*, quote, at=None):
     quote.accepted_at = at
     quote.save(update_fields=("status", "accepted_at"))
     return quote, True
+
+
+@transaction.atomic
+def consume_print_quote(*, quote, reference_type, reference_id, at=None):
+    """Consume one accepted quote exactly once at production allocation."""
+
+    at = at or timezone.now()
+    quote = (
+        Quote.objects.select_for_update()
+        .select_related("subscription", "billing_period")
+        .get(pk=quote.pk)
+    )
+    try:
+        return quote.print_consumption, False
+    except PrintQuoteConsumption.DoesNotExist:
+        pass
+    if quote.status != Quote.Status.ACCEPTED:
+        raise ValidationError("Only an accepted quote can be consumed for production.")
+
+    allocations = list(
+        CardPackAllocation.objects.filter(quote=quote).select_related("card_pack")
+    )
+    if sum(item.quantity for item in allocations) != quote.pack_quantity:
+        raise CommercialConfigurationError(
+            "The accepted quote's card-pack reservation is incomplete."
+        )
+    for allocation in allocations:
+        pack = CardPack.objects.select_for_update().get(pk=allocation.card_pack_id)
+        if pack.consumed_quantity + allocation.quantity > pack.purchased_quantity:
+            raise EntitlementLimitError("A reserved card pack cannot be consumed safely.")
+        pack.consumed_quantity += allocation.quantity
+        pack.save(update_fields=("consumed_quantity",))
+
+    usage_event, _ = UsageEvent.objects.get_or_create(
+        tenant=quote.tenant,
+        idempotency_key=f"physical-card-produced:quote:{quote.pk}",
+        defaults={
+            "subscription": quote.subscription,
+            "billing_period": quote.billing_period,
+            "kind": UsageEvent.Kind.PHYSICAL_CARD_PRODUCED,
+            "quantity": quote.quantity,
+            "reference_type": reference_type,
+            "reference_id": str(reference_id),
+            "metadata": {
+                "quote_id": quote.pk,
+                "included_quantity": quote.included_quantity,
+                "pack_quantity": quote.pack_quantity,
+                "billable_quantity": quote.billable_quantity,
+            },
+            "occurred_at": at,
+        },
+    )
+    consumption = PrintQuoteConsumption(
+        quote=quote,
+        usage_event=usage_event,
+        included_quantity=quote.included_quantity,
+        pack_quantity=quote.pack_quantity,
+        billable_quantity=quote.billable_quantity,
+        reference_type=reference_type,
+        reference_id=str(reference_id),
+        consumed_at=at,
+    )
+    consumption.full_clean()
+    consumption.save()
+    return consumption, True
 
 
 def tenant_billing_summary(*, tenant, at=None):

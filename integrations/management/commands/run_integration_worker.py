@@ -5,10 +5,13 @@ import socket
 import time
 from uuid import uuid4
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from integrations.registry import get_job_handler
 from integrations.services import claim_next_job, complete_job, fail_job
+from operations.models import WorkerHeartbeat
+from operations.services import safe_record_worker_heartbeat
 
 
 class Command(BaseCommand):
@@ -35,7 +38,16 @@ class Command(BaseCommand):
             f"{socket.gethostname()}:{os.getpid()}:{uuid4().hex[:8]}"
         )
         processed = 0
+        last_heartbeat = 0.0
         while not options["max_jobs"] or processed < options["max_jobs"]:
+            if time.monotonic() - last_heartbeat >= settings.WORKER_HEARTBEAT_INTERVAL_SECONDS:
+                safe_record_worker_heartbeat(
+                    worker_type=WorkerHeartbeat.WorkerType.INTEGRATION,
+                    worker_id=worker_id,
+                    processed_count=processed,
+                    safe_metadata={"kind_filters": ",".join(options["kind"])},
+                )
+                last_heartbeat = time.monotonic()
             job = claim_next_job(worker_id=worker_id, kinds=options["kind"])
             if job is None:
                 if options["once"] or options["max_jobs"]:
@@ -55,6 +67,13 @@ class Command(BaseCommand):
                 complete_job(job)
                 self.stdout.write(f"job={job.pk} kind={job.kind} status=succeeded")
             processed += 1
+            safe_record_worker_heartbeat(
+                worker_type=WorkerHeartbeat.WorkerType.INTEGRATION,
+                worker_id=worker_id,
+                processed_count=processed,
+                safe_metadata={"kind_filters": ",".join(options["kind"])},
+            )
+            last_heartbeat = time.monotonic()
             if options["once"]:
                 break
         self.stdout.write(f"processed={processed}")

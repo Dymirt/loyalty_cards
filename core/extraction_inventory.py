@@ -43,16 +43,35 @@ EXTRACTED_MODEL_TABLES = {
     "billing.planversion": "billing_planversion",
     "billing.pricebook": "billing_pricebook",
     "billing.pricebookversion": "billing_pricebookversion",
+    "billing.printquoteconsumption": "billing_printquoteconsumption",
     "billing.quote": "billing_quote",
     "billing.quoteline": "billing_quoteline",
     "billing.tenantsubscription": "billing_tenantsubscription",
     "billing.usageevent": "billing_usageevent",
     "card_artwork.cropplan": "card_artwork_cropplan",
+    "communications.communicationdelivery": "communications_communicationdelivery",
     "customers.consentrecord": "customers_consentrecord",
     "customers.customerexternalidentity": "customers_customerexternalidentity",
     "integrations.integrationjob": "integrations_integrationjob",
+    "marketing.marketinglead": "marketing_marketinglead",
+    "operations.operationalalert": "operations_operationalalert",
+    "operations.operationalalertevent": "operations_operationalalertevent",
+    "operations.ratelimitbucket": "operations_ratelimitbucket",
+    "operations.workerheartbeat": "operations_workerheartbeat",
+    "tenants.tenantdomain": "tenants_tenantdomain",
+    "enrollment.enrollment": "enrollment_enrollment",
+    "enrollment.enrollmentaccesslink": "enrollment_enrollmentaccesslink",
+    "enrollment.enrollmentevent": "enrollment_enrollmentevent",
+    "enrollment.enrollmentfollowup": "enrollment_enrollmentfollowup",
     "pos_dotykacka.dotykackaaccesstoken": "pos_dotykacka_dotykackaaccesstoken",
     "pos_dotykacka.dotykackaconnectstate": "pos_dotykacka_dotykackaconnectstate",
+    "printing.fulfillmentevent": "printing_fulfillmentevent",
+    "printing.printjob": "printing_printjob",
+    "printing.printpackage": "printing_printpackage",
+    "printing.printrequest": "printing_printrequest",
+    "printing.printrequestevent": "printing_printrequestevent",
+    "printing.printrun": "printing_printrun",
+    "printing.printruncard": "printing_printruncard",
 }
 
 LEGACY_ADMIN_MODELS = {
@@ -105,11 +124,33 @@ EXTRACTED_URL_NAMES = {
     "customers:list",
     "enrollment:register",
     "enrollment:tenant_register",
+    "enrollment:public_status",
+    "enrollment:public_apple_pass",
+    "enrollment:manage",
+    "enrollment:request_domain",
+    "enrollment:detail",
+    "enrollment:ensure_followups",
+    "enrollment:resend_email",
+    "enrollment:retry_followup",
     "tenants:portal",
     "integrations:settings",
     "integrations:test",
     "integrations:system_connections",
     "integrations:test_system_connection",
+    "marketing:home",
+    "marketing:features",
+    "marketing:integrations",
+    "marketing:pricing",
+    "marketing:contact",
+    "marketing:contact_thanks",
+    "marketing:privacy",
+    "marketing:terms",
+    "health_live",
+    "health_ready",
+    "protected_media",
+    "operations:dashboard",
+    "operations:acknowledge",
+    "operations:resolve",
     "pos_dotykacka:connect",
     "pos_dotykacka:disconnect",
     "pos_dotykacka:callback",
@@ -117,6 +158,20 @@ EXTRACTED_URL_NAMES = {
     "billing:create_quote",
     "billing:accept_quote",
     "billing:platform",
+    "printing:tenant",
+    "printing:submit",
+    "printing:platform_queue",
+    "printing:platform_detail",
+    "printing:approve",
+    "printing:reject",
+    "printing:allocate",
+    "printing:cancel",
+    "printing:fulfill",
+    "printing:run_status",
+    "printing:package_download",
+    "printing:correct_event",
+    "printing:legacy_preview",
+    "printing:legacy_confirm",
 }
 
 MARTA_EXPECTED_ROWS = {
@@ -155,8 +210,18 @@ EXTRACTED_MIGRATIONS = {
     ("customers", "0002_external_identity_sync_status"),
     ("customers", "0003_external_identity_pending_remote_id"),
     ("integrations", "0001_initial"),
+    ("marketing", "0001_initial"),
+    ("operations", "0001_initial"),
     ("pos_dotykacka", "0001_initial"),
     ("billing", "0001_initial"),
+    ("billing", "0002_printquoteconsumption"),
+    ("printing", "0001_initial"),
+    ("communications", "0001_initial"),
+    ("enrollment", "0001_initial"),
+    ("tenants", "0001_initial"),
+    ("tenants", "0002_portable_primary_domain"),
+    ("tenants", "0003_backfill_primary_domain_marker"),
+    ("tenants", "0004_primary_domain_marker_constraint"),
 }
 
 
@@ -278,7 +343,7 @@ def collect_extraction_inventory(*, include_rows=True):
         )
 
     return {
-        "schema_version": 4,
+        "schema_version": 8,
         "settings_module": os.environ.get("DJANGO_SETTINGS_MODULE", ""),
         "root_urlconf": settings.ROOT_URLCONF,
         "wsgi_application": settings.WSGI_APPLICATION,
@@ -399,9 +464,15 @@ def structural_errors(inventory, *, expect_marta=False):
         if item["app"] in {
             "billing",
             "card_artwork",
+            "communications",
             "customers",
+            "enrollment",
             "integrations",
+            "marketing",
+            "operations",
             "pos_dotykacka",
+            "printing",
+            "tenants",
         }
     }
     if applied_extracted_migrations != EXTRACTED_MIGRATIONS:
@@ -418,6 +489,19 @@ def structural_errors(inventory, *, expect_marta=False):
         errors.append("The Wallet command is not owned by wallets.")
     if command_providers.get("run_integration_worker") != "integrations":
         errors.append("The integration worker command is not owned by integrations.")
+    if command_providers.get("run_print_worker") != "printing":
+        errors.append("The print worker command is not owned by printing.")
+    for command_name in (
+        "check_worker_heartbeat",
+        "create_platform_backup",
+        "report_marketing_retention",
+        "report_platform_health",
+        "run_operational_monitor",
+        "verify_platform_backup",
+        "verify_saas_rollout",
+    ):
+        if command_providers.get(command_name) != "operations":
+            errors.append(f"The {command_name} command is not owned by operations.")
 
     url_names = {item["name"] for item in inventory["urls"] if item["name"]}
     missing_urls = sorted(LEGACY_URL_NAMES - url_names)

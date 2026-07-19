@@ -11,7 +11,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 import dotykacka.api_utils as dotykacka_api
 from card_artwork.views import card_artifact_download, card_design_settings
 from cards.codes import CardCodeError, parse_card_code
-from cards.views import platform_print_center
+from printing.views import platform_print_center
 from customers.models import Customer
 from customers.views import get_all_customers as get_all_costumers
 from enrollment.views import register_customer_form

@@ -1,0 +1,19 @@
+[Unit]
+Description=Loyalty Studio operational monitor
+After=network-online.target mariadb.service loyalty-web.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=loyalty
+Group=loyalty
+WorkingDirectory=/var/www/loyalty_platform
+EnvironmentFile=/etc/loyalty-platform.env
+ExecStart=/var/www/loyalty_platform/.venv/bin/python manage.py run_operational_monitor
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
+

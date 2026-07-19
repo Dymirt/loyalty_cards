@@ -664,3 +664,56 @@ class CardPackAllocation(AppendOnlyMixin, models.Model):
                 name="billing_pack_allocation_positive",
             ),
         ]
+
+
+class PrintQuoteConsumption(AppendOnlyMixin, models.Model):
+    """One immutable conversion of an accepted quote into production usage."""
+
+    quote = models.OneToOneField(
+        Quote,
+        on_delete=models.PROTECT,
+        related_name="print_consumption",
+    )
+    usage_event = models.OneToOneField(
+        UsageEvent,
+        on_delete=models.PROTECT,
+        related_name="print_quote_consumption",
+    )
+    included_quantity = models.PositiveIntegerField(default=0)
+    pack_quantity = models.PositiveIntegerField(default=0)
+    billable_quantity = models.PositiveIntegerField(default=0)
+    reference_type = models.CharField(max_length=80)
+    reference_id = models.CharField(max_length=120)
+    consumed_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(included_quantity__gte=0),
+                name="billing_consumption_included_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=Q(pack_quantity__gte=0),
+                name="billing_consumption_pack_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=Q(billable_quantity__gte=0),
+                name="billing_consumption_billable_nonnegative",
+            ),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.quote_id and self.usage_event_id:
+            if self.quote.tenant_id != self.usage_event.tenant_id:
+                errors["usage_event"] = "Usage and quote must belong to the same tenant."
+            if self.quote.billing_period_id != self.usage_event.billing_period_id:
+                errors["usage_event"] = "Usage and quote must belong to the same billing period."
+        if self.quote_id and (
+            self.included_quantity + self.pack_quantity + self.billable_quantity
+            != self.quote.quantity
+        ):
+            errors["included_quantity"] = "Consumption allocations must equal the quote quantity."
+        if errors:
+            raise ValidationError(errors)

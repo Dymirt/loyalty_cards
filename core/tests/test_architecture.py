@@ -21,6 +21,7 @@ EXTRACTED_MODELS = {
         "billing.planversion",
         "billing.pricebook",
         "billing.pricebookversion",
+        "billing.printquoteconsumption",
         "billing.quote",
         "billing.quoteline",
         "billing.tenantsubscription",
@@ -30,11 +31,35 @@ EXTRACTED_MODELS = {
         "customers.customerexternalidentity",
         "customers.consentrecord",
     },
+    "communications": {"communications.communicationdelivery"},
     "card_artwork": {"card_artwork.cropplan"},
     "integrations": {"integrations.integrationjob"},
+    "marketing": {"marketing.marketinglead"},
+    "operations": {
+        "operations.operationalalert",
+        "operations.operationalalertevent",
+        "operations.ratelimitbucket",
+        "operations.workerheartbeat",
+    },
     "pos_dotykacka": {
         "pos_dotykacka.dotykackaconnectstate",
         "pos_dotykacka.dotykackaaccesstoken",
+    },
+    "printing": {
+        "printing.fulfillmentevent",
+        "printing.printjob",
+        "printing.printpackage",
+        "printing.printrequest",
+        "printing.printrequestevent",
+        "printing.printrun",
+        "printing.printruncard",
+    },
+    "tenants": {"tenants.tenantdomain"},
+    "enrollment": {
+        "enrollment.enrollment",
+        "enrollment.enrollmentaccesslink",
+        "enrollment.enrollmentevent",
+        "enrollment.enrollmentfollowup",
     },
 }
 
@@ -125,12 +150,16 @@ class ExtractedArchitectureTests(SimpleTestCase):
         )
 
     def test_legacy_turnkey_route_redirects_through_marketing_namespace(self):
-        response = self.client.get(reverse("turnkey_compat:index"))
-        self.assertRedirects(
-            response,
-            reverse("marketing:home"),
-            fetch_redirect_response=False,
+        self.assertNotIn("turnkey_app", {config.name for config in apps.get_app_configs()})
+        active_url_source = (settings.BASE_DIR / "loyalty_platform/urls.py").read_text(
+            encoding="utf-8"
         )
+        self.assertNotIn("turnkey_app", active_url_source)
+        response = self.client.get(reverse("turnkey_compat:index"))
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response.url, reverse("marketing:home"))
+        route = resolve("/turnkey/")
+        self.assertEqual(route.func.__module__, "marketing.views")
 
     def test_legacy_domain_imports_point_to_extracted_owners(self):
         legacy_codes = importlib.import_module("dotykacka.card_codes")
@@ -151,9 +180,11 @@ class ExtractedArchitectureTests(SimpleTestCase):
         routes = (
             ("/dotykacka/c/example/portal", "tenants.views"),
             ("/dotykacka/customers", "customers.views"),
-            ("/dotykacka/platform/print-center", "cards.views"),
+            ("/dotykacka/platform/print-center", "printing.views"),
             ("/dotykacka/c/example/settings/card-design", "card_artwork.views"),
             ("/dotykacka/register", "enrollment.views"),
+            ("/dotykacka/c/example/enrollments", "enrollment.views"),
+            ("/dotykacka/enrollment/status/example", "enrollment.views"),
         )
         for path, module in routes:
             with self.subTest(path=path):

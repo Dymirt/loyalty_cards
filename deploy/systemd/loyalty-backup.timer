@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly Loyalty Studio verified backup schedule
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Europe/Warsaw
+Persistent=true
+RandomizedDelaySec=15m
+Unit=loyalty-backup.service
+
+[Install]
+WantedBy=timers.target
+

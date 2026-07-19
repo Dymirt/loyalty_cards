@@ -56,6 +56,7 @@ def _card_design_context(tenant, brand_form, design_form, proof=None, sample_she
         "active_nav": "card_design",
         "can_manage_integrations": True,
         "can_manage_card_designs": True,
+        "can_manage_printing": True,
     }
 
 

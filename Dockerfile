@@ -29,7 +29,7 @@ RUN apt-get update \
 
 WORKDIR /var/www/loyalty_platform
 
-COPY requirements-remote.txt /tmp/requirements-remote.txt
+COPY requirements.txt requirements-production.txt requirements-remote.txt /tmp/
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
     && /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements-remote.txt

@@ -68,10 +68,12 @@ INSTALLED_APPS = [
     "printing.apps.PrintingConfig",
     "enrollment.apps.EnrollmentConfig",
     "marketing.apps.MarketingConfig",
+    "operations.apps.OperationsConfig",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "operations.middleware.PlatformSecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -139,7 +141,20 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+configured_media_root = Path(config("MEDIA_ROOT", default="media"))
+MEDIA_ROOT = (
+    configured_media_root
+    if configured_media_root.is_absolute()
+    else BASE_DIR / configured_media_root
+)
+configured_print_package_root = Path(
+    config("PRINT_PACKAGE_ROOT", default="var/print-packages")
+)
+PRINT_PACKAGE_ROOT = (
+    configured_print_package_root
+    if configured_print_package_root.is_absolute()
+    else BASE_DIR / configured_print_package_root
+)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TEST_RUNNER = "loyalty_platform.test_runner.NoExternalCallsDiscoverRunner"
@@ -221,13 +236,139 @@ if not apple_wallet_template_dir.is_absolute():
 APPLE_WALLET_TEMPLATE_DIR = apple_wallet_template_dir
 
 APP_BASE_URL = config("APP_BASE_URL", default="http://localhost:8000").rstrip("/")
+ENROLLMENT_LINK_TTL_DAYS = config(
+    "ENROLLMENT_LINK_TTL_DAYS",
+    default=30,
+    cast=int,
+)
+MARKETING_LEGAL_NAME = config("MARKETING_LEGAL_NAME", default="MB Studio")
+MARKETING_LEGAL_ADDRESS = config("MARKETING_LEGAL_ADDRESS", default="")
+MARKETING_CONTACT_EMAIL = config(
+    "MARKETING_CONTACT_EMAIL",
+    default="kontakt@mbstudio.online",
+)
+MARKETING_PRIVACY_VERSION = config(
+    "MARKETING_PRIVACY_VERSION",
+    default="2026-07-18",
+)
+MARKETING_TERMS_VERSION = config(
+    "MARKETING_TERMS_VERSION",
+    default="2026-07-18",
+)
+MARKETING_PRIVACY_CONSENT_TEXT = (
+    "Wyrażam zgodę na kontakt w sprawie zapytania i potwierdzam zapoznanie się "
+    f"z polityką prywatności w wersji {MARKETING_PRIVACY_VERSION}."
+)
 LEGACY_DEFAULT_TENANT_SLUG = config(
     "LEGACY_DEFAULT_TENANT_SLUG",
     default="marta-banaszek-atelier-cafe",
 )
 TENANT_SECRETS_ENCRYPTION_KEYS = csv_setting("TENANT_SECRETS_ENCRYPTION_KEYS")
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+if config("DJANGO_TRUST_X_FORWARDED_PROTO", default=False, cast=bool):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = config("DJANGO_SECURE_SSL_REDIRECT", default=False, cast=bool)
 SESSION_COOKIE_SECURE = config("DJANGO_SESSION_COOKIE_SECURE", default=not DEBUG, cast=bool)
 CSRF_COOKIE_SECURE = config("DJANGO_CSRF_COOKIE_SECURE", default=not DEBUG, cast=bool)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+SECURE_HSTS_SECONDS = config("DJANGO_SECURE_HSTS_SECONDS", default=0, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", default=False, cast=bool
+)
+SECURE_HSTS_PRELOAD = config("DJANGO_SECURE_HSTS_PRELOAD", default=False, cast=bool)
+
+# The artwork form accepts at most two validated 12 MB images. Django and Apache
+# reject larger request bodies before Pillow performs any decoding.
+DATA_UPLOAD_MAX_MEMORY_SIZE = config(
+    "DATA_UPLOAD_MAX_MEMORY_SIZE", default=28 * 1024 * 1024, cast=int
+)
+FILE_UPLOAD_MAX_MEMORY_SIZE = config(
+    "FILE_UPLOAD_MAX_MEMORY_SIZE", default=2_621_440, cast=int
+)
+DATA_UPLOAD_MAX_NUMBER_FIELDS = config(
+    "DATA_UPLOAD_MAX_NUMBER_FIELDS", default=200, cast=int
+)
+DATA_UPLOAD_MAX_NUMBER_FILES = config(
+    "DATA_UPLOAD_MAX_NUMBER_FILES", default=4, cast=int
+)
+
+MARKETING_CONTACT_RATE_LIMIT = config(
+    "MARKETING_CONTACT_RATE_LIMIT", default=5, cast=int
+)
+ENROLLMENT_RATE_LIMIT = config("ENROLLMENT_RATE_LIMIT", default=10, cast=int)
+DOTYKACKA_CONNECT_RATE_LIMIT = config(
+    "DOTYKACKA_CONNECT_RATE_LIMIT", default=10, cast=int
+)
+PUBLIC_RATE_LIMIT_WINDOW_SECONDS = config(
+    "PUBLIC_RATE_LIMIT_WINDOW_SECONDS", default=3600, cast=int
+)
+CONNECT_RATE_LIMIT_WINDOW_SECONDS = config(
+    "CONNECT_RATE_LIMIT_WINDOW_SECONDS", default=900, cast=int
+)
+LOYALTY_TRUSTED_PROXY_CIDRS = csv_setting("LOYALTY_TRUSTED_PROXY_CIDRS")
+
+WORKER_HEARTBEAT_INTERVAL_SECONDS = config(
+    "WORKER_HEARTBEAT_INTERVAL_SECONDS", default=15, cast=int
+)
+WORKER_HEARTBEAT_MAX_AGE_SECONDS = config(
+    "WORKER_HEARTBEAT_MAX_AGE_SECONDS", default=90, cast=int
+)
+OPERATIONS_MONITOR_INTERVAL_SECONDS = config(
+    "OPERATIONS_MONITOR_INTERVAL_SECONDS", default=60, cast=int
+)
+MONITOR_LOW_INVENTORY_THRESHOLD = config(
+    "MONITOR_LOW_INVENTORY_THRESHOLD", default=50, cast=int
+)
+MONITOR_ENTITLEMENT_WARNING_PERCENT = config(
+    "MONITOR_ENTITLEMENT_WARNING_PERCENT", default=80, cast=int
+)
+MONITOR_PROVIDER_AUTH_FAILURE_THRESHOLD = config(
+    "MONITOR_PROVIDER_AUTH_FAILURE_THRESHOLD", default=3, cast=int
+)
+MARKETING_LEAD_RETENTION_DAYS = config(
+    "MARKETING_LEAD_RETENTION_DAYS", default=365, cast=int
+)
+BACKUP_ROOT = Path(config("BACKUP_ROOT", default="local-data/backups"))
+if not BACKUP_ROOT.is_absolute():
+    BACKUP_ROOT = BASE_DIR / BACKUP_ROOT
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "redact": {"()": "operations.logging.RedactingFilter"},
+    },
+    "formatters": {
+        "json": {"()": "operations.logging.JsonLogFormatter"},
+    },
+    "handlers": {
+        "json_console": {
+            "class": "logging.StreamHandler",
+            "filters": ["redact"],
+            "formatter": "json",
+        },
+    },
+    "loggers": {
+        "loyalty": {
+            "handlers": ["json_console"],
+            "level": config("LOYALTY_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["json_console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.security": {
+            "handlers": ["json_console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}

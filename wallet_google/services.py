@@ -12,7 +12,6 @@ from cryptography.hazmat.primitives import serialization
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from cards.codes import card_number
 from integrations.contracts import (
     IntegrationAuthenticationError,
     ProviderResult,
@@ -282,7 +281,6 @@ class GoogleWalletIssuer:
             )
         if not wallet.google_object_id:
             wallet.google_object_id = expected_object_id
-        number = card_number(customer.klient_id)
         customer_name = " ".join(
             part for part in (customer.first_name, customer.last_name) if part
         )
@@ -300,9 +298,9 @@ class GoogleWalletIssuer:
         }
         if remote_sync is None:
             remote_sync = settings.GOOGLE_WALLET_REMOTE_SYNC_ENABLED
+        logo_path = customer.tenant.brand.logo_path or "logo_atelier_cafe.png"
         if remote_sync:
             public_name = customer.tenant.brand.public_name or customer.tenant.name
-            logo_path = customer.tenant.brand.logo_path or "logo_atelier_cafe.png"
             class_payload = {
                 "id": f"{issuer_id}.{class_suffix}",
                 "issuerName": public_name,
@@ -332,7 +330,7 @@ class GoogleWalletIssuer:
             class_suffix=class_suffix,
             object_id=wallet.google_object_id,
             customer_image_url=(
-                f"{settings.APP_BASE_URL}/media/cropped_images/cropped_image_{number}.jpg"
+                f"{settings.APP_BASE_URL}/media/{logo_path}"
             ),
             image_description=f"Karta lojalnościowa {customer.tenant.brand.public_name}",
         )

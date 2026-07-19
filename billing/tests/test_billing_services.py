@@ -18,6 +18,7 @@ from billing.models import (
     PlanVersion,
     PriceBook,
     PriceBookVersion,
+    PrintQuoteConsumption,
     Quote,
     TenantSubscription,
     UsageEvent,
@@ -26,6 +27,7 @@ from billing.services import (
     EntitlementLimitError,
     accept_quote,
     create_print_quote,
+    consume_print_quote,
     ensure_active_seat_available,
     publish_plan_version,
     publish_price_book_version,
@@ -144,6 +146,42 @@ class EntitlementAndUsageTests(TestCase):
 
 
 class QuoteBoundaryTests(TestCase):
+    def test_print_consumption_converts_reservation_once_without_double_counting(self):
+        tenant = create_tenant("consumption")
+        create_subscription(tenant, included_prints=10)
+        price = create_price_version(code="consumption-prices")
+        quote, _ = create_print_quote(
+            tenant=tenant,
+            quantity=6,
+            price_book_version=price,
+            idempotency_key="consume-6",
+        )
+        accept_quote(quote=quote)
+
+        first, created = consume_print_quote(
+            quote=quote,
+            reference_type="PrintRun",
+            reference_id="17",
+        )
+        retry, retry_created = consume_print_quote(
+            quote=quote,
+            reference_type="PrintRun",
+            reference_id="17",
+        )
+        next_quote, _ = create_print_quote(
+            tenant=tenant,
+            quantity=4,
+            price_book_version=price,
+            idempotency_key="remaining-4",
+        )
+
+        self.assertTrue(created)
+        self.assertFalse(retry_created)
+        self.assertEqual(first.pk, retry.pk)
+        self.assertEqual(PrintQuoteConsumption.objects.count(), 1)
+        self.assertEqual(next_quote.included_quantity, 4)
+        self.assertEqual(next_quote.billable_quantity, 0)
+
     def test_included_boundary_then_one_card_overage(self):
         tenant = create_tenant("included")
         create_subscription(tenant, included_prints=10)

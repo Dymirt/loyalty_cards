@@ -28,7 +28,7 @@ class PassEmailTests(TestCase):
         message = mail.outbox[0]
         self.assertEqual(message.to, ["customer@example.test"])
         self.assertIn("https://wallet.example.test/save", message.body)
-        self.assertEqual(message.attachments[0].filename, "atelier_card.pkpass")
+        self.assertEqual(message.attachments[0].filename, "loyalty-card.pkpass")
         self.assertEqual(message.attachments[0].content, b"signed-pass")
 
     def test_does_not_generate_or_send_when_pass_is_missing(self):

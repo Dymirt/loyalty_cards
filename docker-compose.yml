@@ -45,6 +45,16 @@ services:
       - ./local-data/media:/var/www/loyalty_platform/media
       - ./local-data/mypass_template:/source-mypass-template:ro
       - ./secrets:/source-secrets:ro
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; response=urllib.request.urlopen('http://127.0.0.1/health/live', timeout=4); raise SystemExit(0 if response.status == 200 else 1)"
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
 
   worker:
     build:
@@ -61,13 +71,77 @@ services:
       db:
         condition: service_healthy
       web:
-        condition: service_started
+        condition: service_healthy
     command: ["python", "manage.py", "run_integration_worker"]
     volumes:
       - ./:/var/www/loyalty_platform
       - ./local-data/media:/var/www/loyalty_platform/media
       - ./local-data/mypass_template:/source-mypass-template:ro
       - ./secrets:/source-secrets:ro
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check_worker_heartbeat", "--worker-type", "integration", "--max-age", "90"]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 45s
+
+  print_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      GOOGLE_WALLET_SERVICE_ACCOUNT_FILE: /run/loyalty-secrets/google-wallet-service-account.json
+      APPLE_WALLET_TEMPLATE_DIR: /run/loyalty-secrets/mypass_template
+      LOYALTY_SKIP_STARTUP_MIGRATIONS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    command: ["runuser", "-u", "www-data", "--", "python", "manage.py", "run_print_worker"]
+    volumes:
+      - ./:/var/www/loyalty_platform
+      - ./local-data/media:/var/www/loyalty_platform/media
+      - ./local-data/mypass_template:/source-mypass-template:ro
+      - ./secrets:/source-secrets:ro
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check_worker_heartbeat", "--worker-type", "printing", "--max-age", "90"]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 45s
+
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      GOOGLE_WALLET_SERVICE_ACCOUNT_FILE: /run/loyalty-secrets/google-wallet-service-account.json
+      APPLE_WALLET_TEMPLATE_DIR: /run/loyalty-secrets/mypass_template
+      LOYALTY_SKIP_STARTUP_MIGRATIONS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    command: ["python", "manage.py", "run_operational_monitor"]
+    volumes:
+      - ./:/var/www/loyalty_platform
+      - ./local-data/media:/var/www/loyalty_platform/media
+      - ./local-data/mypass_template:/source-mypass-template:ro
+      - ./secrets:/source-secrets:ro
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check_worker_heartbeat", "--worker-type", "monitor", "--max-age", "120"]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 45s
 
 volumes:
   loyalty-db:

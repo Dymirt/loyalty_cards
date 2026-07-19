@@ -34,6 +34,7 @@ def tenant_portal(request, tenant_slug):
             "can_manage_integrations": can_manage_integrations(request.user, tenant),
             "can_manage_card_designs": can_manage_card_designs(request.user, tenant),
             "can_manage_billing": can_manage_billing(request.user, tenant),
+            "can_manage_printing": can_manage_billing(request.user, tenant),
             **summary,
         },
     )

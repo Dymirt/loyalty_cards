@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Centrum druku · Loyalty Studio{% endblock %}
+{% block content %}
+<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">Operacje platformy</p><h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Centrum druku</h1><p class="mt-2 max-w-3xl text-ink-700">Kolejka zamówień, niepowtarzalna alokacja numerów, zweryfikowane pakiety produkcyjne i nieusuwalna historia realizacji.</p></div><a href="{% url 'admin:index' %}" class="portal-button-secondary">Administracja Django</a></div>
+
+<section class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-label="Stan kolejki">
+    <article class="portal-card"><p class="text-sm text-ink-600">Przesłane</p><p class="mt-2 text-4xl font-bold">{{ status_counts.submitted|default:0 }}</p></article>
+    <article class="portal-card"><p class="text-sm text-ink-600">Zatwierdzone</p><p class="mt-2 text-4xl font-bold">{{ status_counts.approved|default:0 }}</p></article>
+    <article class="portal-card"><p class="text-sm text-ink-600">Produkcja</p><p class="mt-2 text-4xl font-bold">{{ status_counts.allocated|default:0|add:status_counts.generating|default:0 }}</p></article>
+    <article class="portal-card"><p class="text-sm text-ink-600">Gotowe</p><p class="mt-2 text-4xl font-bold">{{ status_counts.ready|default:0 }}</p></article>
+</section>
+
+<section class="portal-card mt-8">
+    <div><h2 class="text-2xl font-bold">Kolejka zamówień</h2><p class="mt-1 text-sm text-ink-700">Pakiety pobiera i etapy realizacji zapisuje wyłącznie operator platformy.</p></div>
+    <form method="get" class="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">{% for field in queue_filter_form %}{% include "components/form_field.html" with field=field %}{% endfor %}<button type="submit" class="portal-button-secondary">Filtruj</button></form>
+    <div class="mt-5 overflow-x-auto"><table class="w-full min-w-5xl border-collapse text-left text-sm"><thead><tr class="border-b border-stone-200 text-ink-700"><th class="px-3 py-3">Nr</th><th class="px-3 py-3">Firma</th><th class="px-3 py-3">Projekt</th><th class="px-3 py-3 text-right">Ilość</th><th class="px-3 py-3">Dostawa</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Data</th><th class="px-3 py-3 text-right">Operacje</th></tr></thead><tbody class="divide-y divide-stone-100">{% for item in print_requests %}<tr><td class="px-3 py-4 font-semibold">#{{ item.pk }}</td><td class="px-3 py-4">{{ item.tenant.name }}</td><td class="px-3 py-4">v{{ item.design.version }}</td><td class="px-3 py-4 text-right tabular-nums">{{ item.quantity }}</td><td class="px-3 py-4">{{ item.delivery_postal_code }} {{ item.delivery_city }}</td><td class="px-3 py-4"><span class="portal-status bg-stone-100 text-stone-800">{{ item.get_status_display }}</span></td><td class="px-3 py-4">{{ item.submitted_at|date:"d.m.Y H:i" }}</td><td class="px-3 py-4 text-right"><a href="{% url 'printing:platform_detail' item.pk %}" class="font-semibold text-accent-700">Otwórz</a></td></tr>{% empty %}<tr><td colspan="8" class="px-3 py-8 text-center text-ink-700">Kolejka jest pusta.</td></tr>{% endfor %}</tbody></table></div>
+</section>
+
+<section class="mt-8 grid gap-6 lg:grid-cols-2">
+    <div class="portal-card"><h2 class="text-xl font-bold">Inwentarz firm</h2><div class="mt-4 space-y-3">{% for item in tenants %}<div class="flex justify-between border-b border-stone-100 pb-3"><span class="font-semibold">{{ item.name }}</span><span class="text-sm">{{ item.assigned_card_count }} przypisanych · {{ item.available_card_count }} dostępnych</span></div>{% endfor %}</div></div>
+    <div class="portal-card"><h2 class="text-xl font-bold">Historyczne karty — tylko podgląd</h2><p class="mt-2 text-sm text-ink-700">Wskaż dokładną historyczną partię i zakres. Podgląd niczego nie zmienia; potwierdzenie dopisuje zdarzenia bez zmiany kart, plików, ceny ani użycia.</p><form method="post" action="{% url 'printing:legacy_preview' %}" hx-post="{% url 'printing:legacy_preview' %}" hx-target="#legacy-preview" hx-swap="innerHTML" class="mt-5 space-y-4">{% csrf_token %}{% for error in legacy_preview_form.non_field_errors %}<p class="portal-error">{{ error }}</p>{% endfor %}{% for field in legacy_preview_form %}{% include "components/form_field.html" with field=field %}{% endfor %}<button type="submit" class="portal-button-secondary">Pokaż raport bez zmian</button></form></div>
+</section>
+<div id="legacy-preview" class="mt-6" aria-live="polite">{% if legacy_preview %}{% include "printing/partials/legacy_preview.html" with form=legacy_preview_form %}{% endif %}</div>
+{% endblock %}

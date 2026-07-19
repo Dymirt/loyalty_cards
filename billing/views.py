@@ -56,6 +56,7 @@ def tenant_billing(request, tenant_slug):
             "can_manage_billing": True,
             "can_manage_integrations": True,
             "can_manage_card_designs": True,
+            "can_manage_printing": True,
             "quote_form": _quote_form(subscription=summary["subscription"]),
             "quotes": Quote.objects.filter(tenant=tenant)
             .select_related("price_book_version", "price_book_version__price_book")
@@ -109,6 +110,7 @@ def create_quote(request, tenant_slug):
             "can_manage_billing": True,
             "can_manage_integrations": True,
             "can_manage_card_designs": True,
+            "can_manage_printing": True,
             "quote_form": form,
             "quotes": Quote.objects.filter(tenant=tenant).prefetch_related("lines")[:20],
             **summary,

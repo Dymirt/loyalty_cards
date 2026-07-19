@@ -1,10 +1,8 @@
-from django.conf import settings
-from django.conf.urls.static import static
 from django.urls import path
 
 from . import views
 from card_artwork.views import card_artifact_download, card_design_settings
-from cards.views import platform_print_center
+from printing.views import platform_print_center
 from customers.views import get_all_customers
 from enrollment.views import register_customer_form
 from integrations.views import integration_settings
@@ -55,6 +53,3 @@ urlpatterns = [
     ),
     path("send_passes_to_all", views.send_all_passes, name="send_passes_to_all"),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

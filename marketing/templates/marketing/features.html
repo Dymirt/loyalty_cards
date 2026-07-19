@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Funkcje · Loyalty Studio{% endblock %}
+{% block head_metadata %}<meta name="description" content="Poznaj funkcje platformy Loyalty Studio: branding, rejestracja, Wallet, POS, rozliczenia i centralny druk.">{% endblock %}
+{% block content %}
+<header class="max-w-4xl py-8 sm:py-14"><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">Funkcje platformy</p><h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Program lojalnościowy prowadzony z jednego miejsca</h1><p class="mt-5 max-w-3xl text-lg leading-8 text-ink-700">Lokalne dane są źródłem prawdy, integracje wykonują trwałe zadania w tle, a historia projektu, wydania i produkcji pozostaje możliwa do prześledzenia.</p></header>
+<div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">MARKA</p><h2 class="mt-2 text-xl font-bold">Projekt dla każdej firmy</h2><p class="mt-3 leading-7 text-ink-700">Własne logo, tło, treści, dane kontaktowe i projekt karty, zapisane jako niezmienne opublikowane wersje.</p></article>
+    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">REJESTRACJA</p><h2 class="mt-2 text-xl font-bold">Właściwy klient i karta</h2><p class="mt-3 leading-7 text-ink-700">Domena, slug lub unikalny prefiks prowadzi do właściwej marki. Przypisanie karty i zgoda powstają w jednej transakcji.</p></article>
+    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">WALLET</p><h2 class="mt-2 text-xl font-bold">Apple i Google Wallet</h2><p class="mt-3 leading-7 text-ink-700">Stabilna tożsamość karty cyfrowej, treść zgodna z brandingiem firmy i bezpieczny link statusu dla klienta.</p></article>
+    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">INTEGRACJE</p><h2 class="mt-2 text-xl font-bold">POS i komunikacja</h2><p class="mt-3 leading-7 text-ink-700">Synchronizacja klientów z Dotykačka, kontaktów z Brevo i wiadomości e-mail jako trwałe, kontrolowane zadania.</p></article>
+    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">ROZLICZENIA</p><h2 class="mt-2 text-xl font-bold">Limity i przejrzyste kalkulacje</h2><p class="mt-3 leading-7 text-ink-700">Opublikowany plan, limity użytkowników i wydań, pakiety kart oraz zamrożona kalkulacja przed zamówieniem.</p></article>
+    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">PRODUKCJA</p><h2 class="mt-2 text-xl font-bold">Centralny druk z historią</h2><p class="mt-3 leading-7 text-ink-700">Akceptacja projektu, kontrolowana alokacja kodów, sumy kontrolne paczki oraz zdarzenia produkcji i dostawy.</p></article>
+</div>
+<section class="mt-12 portal-card"><h2 class="text-2xl font-bold">Bez dodatkowego frontendu</h2><p class="mt-3 max-w-4xl leading-7 text-ink-700">Panel i publiczne strony są renderowane przez Django, działają jako zwykłe formularze HTML, a HTMX usprawnia tylko wybrane fragmenty. Nie potrzebujesz aplikacji SPA ani osobnego konta dla klienta programu.</p></section>
+<div class="mt-12">{% include "marketing/partials/cta.html" %}</div>
+{% endblock %}

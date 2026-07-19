@@ -4,15 +4,26 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from . import views
+from marketing import views as marketing_views
+from operations.media import protected_media
+from operations import views as operations_views
+
+
+turnkey_compat_patterns = (
+    [path("", marketing_views.legacy_redirect, name="index")],
+    "turnkey_compat",
+)
 
 
 urlpatterns = [
+    path("health/live", operations_views.liveness, name="health_live"),
+    path("health/ready", operations_views.readiness, name="health_ready"),
+    path("media/<path:path>", protected_media, name="protected_media"),
     path(
         "turnkey/",
-        include(("turnkey_app.urls", "turnkey_compat"), namespace="turnkey_compat"),
+        include(turnkey_compat_patterns, namespace="turnkey_compat"),
     ),
-    path("marketing/", include(("marketing.urls", "marketing"), namespace="marketing")),
+    path("marketing/", marketing_views.legacy_redirect, name="legacy_marketing"),
     path("admin/", admin.site.urls),
     path(
         "accounts/login/",
@@ -23,6 +34,7 @@ urlpatterns = [
     # Phase 5 canonical domain routes precede the legacy namespace aliases.
     path("dotykacka/", include(("tenants.urls", "tenants"), namespace="tenants")),
     path("dotykacka/", include(("customers.urls", "customers"), namespace="customers")),
+    path("dotykacka/", include(("printing.urls", "printing"), namespace="printing")),
     path("dotykacka/", include(("cards.urls", "cards"), namespace="cards")),
     path("dotykacka/", include(("billing.urls", "billing"), namespace="billing")),
     path(
@@ -39,5 +51,10 @@ urlpatterns = [
         "integrations/",
         include(("pos_dotykacka.urls", "pos_dotykacka"), namespace="pos_dotykacka"),
     ),
-    path("", views.index, name="index"),
+    path(
+        "dotykacka/",
+        include(("operations.urls", "operations"), namespace="operations"),
+    ),
+    path("", marketing_views.home, name="index"),
+    path("", include(("marketing.urls", "marketing"), namespace="marketing")),
 ]
