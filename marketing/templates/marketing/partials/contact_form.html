@@ -15,9 +15,9 @@
             {% for error in form.privacy_consent.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
         </div>
         <div class="flex flex-wrap items-center gap-4">
-            <button type="submit" class="portal-button">{% translate "Wyślij zapytanie" %}</button>
+            <button type="submit" class="portal-button">{% translate "Poproś o propozycję" %}</button>
             <span class="htmx-indicator text-sm text-ink-700" role="status">{% translate "Zapisywanie…" %}</span>
-            <p class="text-sm text-ink-700">{% translate "Nie uruchamiamy subskrypcji ani płatności przez ten formularz." %}</p>
+            <p class="text-sm text-ink-700">{% translate "Bez płatności i zobowiązania przez formularz." %}</p>
         </div>
     </form>
 </div>

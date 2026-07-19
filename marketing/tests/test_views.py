@@ -123,7 +123,36 @@ class MarketingViewTests(TestCase):
         response = self.client.get(reverse("marketing:pricing"))
 
         self.assertContains(response, "Cennik w przygotowaniu")
-        self.assertContains(response, "wyłącznie zatwierdzone")
+        self.assertContains(response, "przygotowujemy ofertę indywidualnie")
+        self.assertContains(response, "Decyzja bez automatycznej opłaty")
+
+    def test_public_sales_journey_uses_benefits_instead_of_implementation_details(self):
+        home = self.client.get(reverse("marketing:home"))
+        features = self.client.get(reverse("marketing:features"))
+        integrations = self.client.get(reverse("marketing:integrations"))
+
+        self.assertContains(home, "Zamieniaj pierwszą wizytę")
+        self.assertContains(home, "Porozmawiajmy o Twoim programie")
+        self.assertContains(home, "Strefa posiadacza karty")
+        self.assertContains(features, "Korzyść odczuwa klient, zespół i właściciel")
+        self.assertContains(integrations, "Program dopasowany do tego, jak już pracujesz")
+        for response in (features, integrations):
+            self.assertNotContains(response, "Lokalne dane są źródłem prawdy")
+            self.assertNotContains(response, "renderowane przez Django")
+            self.assertNotContains(response, "Adapter zamiast przebudowy")
+
+    def test_every_sales_page_has_one_consistent_contact_path(self):
+        for name in (
+            "marketing:home",
+            "marketing:features",
+            "marketing:integrations",
+            "marketing:pricing",
+            "marketing:contact",
+        ):
+            with self.subTest(name=name):
+                response = self.client.get(reverse(name))
+                self.assertContains(response, reverse("marketing:contact"))
+                self.assertContains(response, "Zapytaj o wdrożenie")
 
     def test_legacy_routes_redirect_without_turnkey_app_runtime(self):
         home = reverse("marketing:home")

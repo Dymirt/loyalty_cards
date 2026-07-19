@@ -1,70 +1,129 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block title %}{% translate "Loyalty Studio · karty lojalnościowe dla firm" %}{% endblock %}
-{% block head_metadata %}<meta name="description" content="{% translate 'Projektowanie, Wallet, POS i centralna produkcja kart lojalnościowych w jednej platformie SaaS.' %}">{% endblock %}
+{% block title %}{% translate "Loyalty Studio · program lojalnościowy dla Twojej marki" %}{% endblock %}
+{% block head_metadata %}<meta name="description" content="{% translate 'Własny program lojalnościowy z kartami fizycznymi i cyfrowymi, prostą rejestracją klientów oraz centralną realizacją druku.' %}">{% endblock %}
 {% block full_width_content %}
 <section class="overflow-hidden border-b border-stone-200 bg-paper">
-    <div class="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.1fr_.9fr] lg:items-center lg:px-8">
+    <div class="mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1.08fr_.92fr] lg:items-center lg:px-8">
         <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-accent-700">{% translate "Loyalty Studio dla gastronomii i usług" %}</p>
-            <h1 class="mt-5 max-w-4xl text-4xl font-black tracking-tight sm:text-6xl">{% translate "Karta lojalnościowa, którą Twoi goście naprawdę mają przy sobie" %}</h1>
-            <p class="mt-6 max-w-2xl text-lg leading-8 text-ink-700">{% translate "Zaprojektuj program swojej marki, wydawaj fizyczne karty oraz Apple i Google Wallet, synchronizuj klientów z POS i zamawiaj centralny druk z jednego panelu." %}</p>
-            <div class="mt-8 flex flex-wrap gap-3"><a href="{% url 'marketing:contact' %}" class="portal-button">{% translate "Umów rozmowę" %}</a><a href="{% url 'marketing:features' %}" class="portal-button-secondary">{% translate "Zobacz, jak to działa" %}</a></div>
-            <ul class="mt-8 grid gap-3 text-sm font-semibold text-ink-700 sm:grid-cols-3"><li>{% translate "✓ Własny branding" %}</li><li>{% translate "✓ Wallet i POS" %}</li><li>{% translate "✓ Druk centralny" %}</li></ul>
+            <p class="text-sm font-semibold uppercase tracking-[0.2em] text-accent-700">{% translate "Program lojalnościowy pod Twoją marką" %}</p>
+            <h1 class="mt-5 max-w-4xl text-4xl font-black tracking-tight sm:text-6xl">{% translate "Zamieniaj pierwszą wizytę w początek dłuższej relacji" %}</h1>
+            <p class="mt-6 max-w-2xl text-lg leading-8 text-ink-700">{% translate "Daj klientom piękną kartę fizyczną i cyfrową w telefonie, połącz zapisy z codzienną obsługą lokalu i zamawiaj kolejne karty w jednym miejscu." %}</p>
+            <div class="mt-8 flex flex-wrap gap-3">
+                <a href="{% url 'marketing:contact' %}" class="portal-button">{% translate "Porozmawiajmy o Twoim programie" %}</a>
+                <a href="{% url 'marketing:features' %}" class="portal-button-secondary">{% translate "Poznaj korzyści" %}</a>
+            </div>
+            <ul class="mt-8 grid gap-3 text-sm font-semibold text-ink-700 sm:grid-cols-3">
+                <li>{% translate "✓ Bez aplikacji dla klienta" %}</li>
+                <li>{% translate "✓ Z Twoim logo i stylem" %}</li>
+                <li>{% translate "✓ Druk organizujemy za Ciebie" %}</li>
+            </ul>
         </div>
-        <div class="relative mx-auto w-full max-w-xl" aria-label="{% translate 'Przykładowe fizyczne i cyfrowe karty lojalnościowe' %}">
+        <div class="relative mx-auto w-full max-w-xl" aria-label="{% translate 'Przykład programu lojalnościowego dopasowanego do marki' %}">
             <div class="absolute -inset-8 -z-10 rounded-full bg-accent-100 blur-3xl"></div>
             <div class="rotate-3 rounded-[2rem] bg-gradient-to-br from-accent-700 via-orange-600 to-amber-400 p-8 text-white shadow-2xl sm:p-10">
-                <div class="flex items-start justify-between"><div><p class="text-xs font-semibold uppercase tracking-[0.22em] text-orange-100">{% translate "Twój klub" %}</p><p class="mt-2 text-2xl font-black">{% translate "Karta stałego gościa" %}</p></div><span class="grid size-12 place-items-center rounded-2xl bg-white/20 font-black">{% translate "LS" %}</span></div>
-                <p class="mt-24 font-mono text-lg tracking-[0.16em]">{% translate "TW-0128" %}</p><p class="mt-2 text-sm text-orange-100">{% translate "Fizycznie · Apple Wallet · Google Wallet" %}</p>
+                <div class="flex items-start justify-between gap-5">
+                    <div><p class="text-xs font-semibold uppercase tracking-[0.22em] text-orange-100">{% translate "Klub Twojej marki" %}</p><p class="mt-2 text-2xl font-black">{% translate "Karta stałego gościa" %}</p></div>
+                    <span class="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/20 font-black">{% translate "TY" %}</span>
+                </div>
+                <p class="mt-24 font-mono text-lg tracking-[0.16em]">{% translate "TW-0128" %}</p>
+                <p class="mt-2 text-sm text-orange-100">{% translate "W dłoni · w telefonie · zawsze pod ręką" %}</p>
             </div>
-            <div class="-mt-8 -rotate-2 rounded-[1.6rem] border border-stone-200 bg-white p-5 shadow-xl sm:ml-14"><div class="flex items-center justify-between"><div><p class="text-xs font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Panel firmy" %}</p><p class="mt-1 font-bold">{% translate "Program działa" %}</p></div><span class="portal-status bg-emerald-100 text-emerald-800">{% translate "Aktywny" %}</span></div><div class="mt-5 grid grid-cols-3 gap-3 text-center text-sm"><div class="rounded-xl bg-stone-50 p-3"><strong class="block text-xl">128</strong>{% translate "kart" %}</div><div class="rounded-xl bg-stone-50 p-3"><strong class="block text-xl">3</strong>{% translate "kanały" %}</div><div class="rounded-xl bg-stone-50 p-3"><strong class="block text-xl">1</strong>{% translate "marka" %}</div></div></div>
+            <div class="-mt-8 -rotate-2 rounded-[1.6rem] border border-stone-200 bg-white p-5 shadow-xl sm:ml-14">
+                <div class="flex items-center justify-between gap-4"><div><p class="text-xs font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Twój program" %}</p><p class="mt-1 font-bold">{% translate "Gotowy na stałych klientów" %}</p></div><span class="portal-status shrink-0 bg-emerald-100 text-emerald-800">{% translate "Aktywny" %}</span></div>
+                <div class="mt-5 grid gap-3 text-center text-sm sm:grid-cols-3"><div class="rounded-xl bg-stone-50 p-3 font-semibold">{% translate "Łatwy zapis" %}</div><div class="rounded-xl bg-stone-50 p-3 font-semibold">{% translate "Karta Wallet" %}</div><div class="rounded-xl bg-stone-50 p-3 font-semibold">{% translate "Druk na żądanie" %}</div></div>
+            </div>
         </div>
     </div>
 </section>
 
-<section id="rejestracja-karty" class="border-b border-stone-200 bg-stone-50">
+<section class="border-b border-stone-200 bg-white">
+    <div class="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+        <p class="text-center text-sm font-semibold uppercase tracking-[0.16em] text-ink-700">{% translate "Dla kawiarni · restauracji · salonów · butików · lokalnych usług" %}</p>
+    </div>
+</section>
+
+<section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="max-w-3xl">
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Korzyści w codziennej pracy" %}</p>
+        <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Program, który pracuje dla marki także po wizycie" %}</h2>
+        <p class="mt-4 text-lg leading-8 text-ink-700">{% translate "Klient zapamiętuje Twoją markę, łatwo odnajduje swoją kartę, a zespół nie musi składać całego procesu z kilku osobnych narzędzi." %}</p>
+    </div>
+    <div class="mt-9 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "POWRÓT" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Marka zostaje z klientem" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Karta w portfelu lub telefonie przypomina o Twoim miejscu i ułatwia ponowną wizytę." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "WIZERUNEK" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Każda karta wygląda jak Twoja" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Logo, kolory, grafika i treści tworzą spójne doświadczenie Twojej marki." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "WYGODA" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Klient wybiera swój format" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Może korzystać z karty fizycznej, Apple Wallet lub Google Wallet — bez pobierania kolejnej aplikacji." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "SPOKÓJ" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Druk nie zajmuje Ci czasu" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Akceptujesz projekt i nakład, a przygotowanie oraz realizację kart prowadzi Loyalty Studio." %}</p></article>
+    </div>
+</section>
+
+<section class="border-y border-stone-200 bg-white">
     <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div class="max-w-3xl">
-            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Rejestracja karty klienta" %}</p>
-            <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Masz kartę jednej z naszych firm?" %}</h2>
-            <p class="mt-4 text-lg leading-8 text-ink-700">{% translate "Wybierz program, do którego należy Twoja karta, i przejdź do bezpiecznego formularza rejestracji." %}</p>
-        </div>
-        <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {% for program in public_registration_programs %}
-                <article class="portal-card flex h-full flex-col">
-                    <div class="flex items-center gap-4">
-                        {% if program.logo_path %}
-                            <img src="{{ media_prefix }}{{ program.logo_path }}" alt="" class="size-16 shrink-0 rounded-2xl object-contain">
-                        {% else %}
-                            <span class="grid size-16 shrink-0 place-items-center rounded-2xl bg-accent-100 text-xl font-black text-accent-700" aria-hidden="true">{{ program.name|slice:":1" }}</span>
-                        {% endif %}
-                        <div class="min-w-0">
-                            <h3 class="text-xl font-bold">{{ program.name }}</h3>
-                            {% if program.tagline %}<p class="mt-1 text-sm leading-6 text-ink-700">{{ program.tagline }}</p>{% endif %}
-                        </div>
-                    </div>
-                    <a href="{% url 'enrollment:tenant_register' program.slug %}" class="portal-button-secondary mt-6 w-full text-center">{% translate "Zarejestruj kartę →" %}</a>
-                </article>
-            {% empty %}
-                <div class="portal-card sm:col-span-2 lg:col-span-3">
-                    <p class="text-ink-700">{% translate "Obecnie nie ma programów z otwartą rejestracją kart." %}</p>
-                </div>
-            {% endfor %}
+        <div class="max-w-3xl"><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Prosty start" %}</p><h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Od pomysłu do gotowego programu" %}</h2></div>
+        <div class="mt-9 grid gap-5 md:grid-cols-3">
+            <article class="portal-card"><span class="grid size-11 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">1</span><h3 class="mt-5 text-xl font-bold">{% translate "Poznajemy Twój biznes" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Ustalamy cel programu, sposób zapisu klientów, liczbę kart i narzędzia, z których już korzystasz." %}</p></article>
+            <article class="portal-card"><span class="grid size-11 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">2</span><h3 class="mt-5 text-xl font-bold">{% translate "Przygotowujemy Twoją markę" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Tworzymy spójny wygląd kart fizycznych i cyfrowych oraz stron, które zobaczą Twoi klienci." %}</p></article>
+            <article class="portal-card"><span class="grid size-11 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">3</span><h3 class="mt-5 text-xl font-bold">{% translate "Uruchamiasz i rozwijasz" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Klienci dołączają, zespół obsługuje program, a Ty zamawiasz następne karty wtedy, kiedy są potrzebne." %}</p></article>
         </div>
     </div>
 </section>
 
 <section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-    <div class="max-w-3xl"><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Jedna spójna obsługa" %}</p><h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Od projektu do karty w dłoni klienta" %}</h2></div>
-    <div class="mt-9 grid gap-5 md:grid-cols-3">
-        <article class="portal-card"><span class="grid size-11 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">1</span><h3 class="mt-5 text-xl font-bold">{% translate "Tworzysz markę i kartę" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Logo, tło, teksty i komunikacja są wersjonowane osobno dla każdej firmy." %}</p></article>
-        <article class="portal-card"><span class="grid size-11 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">2</span><h3 class="mt-5 text-xl font-bold">{% translate "Klient dołącza" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Rejestracja przypisuje właściwą kartę, zapisuje zgodę i uruchamia integracje w tle." %}</p></article>
-        <article class="portal-card"><span class="grid size-11 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">3</span><h3 class="mt-5 text-xl font-bold">{% translate "My realizujemy druk" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Akceptujesz dowód i zamówienie, a operator platformy produkuje i rejestruje dostawę." %}</p></article>
+    <div class="grid gap-8 rounded-3xl bg-ink-950 px-6 py-10 text-white sm:px-10 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+        <div><p class="text-sm font-semibold uppercase tracking-[0.18em] text-orange-200">{% translate "Fizycznie i cyfrowo" %}</p><h2 class="mt-3 text-3xl font-bold tracking-tight">{% translate "Jedna marka. Karta tam, gdzie klient jej potrzebuje." %}</h2><p class="mt-4 leading-7 text-stone-300">{% translate "Elegancka karta może budować doświadczenie przy ladzie, a jej wersja w telefonie pozostaje zawsze dostępna. Nie musisz wybierać tylko jednego rozwiązania." %}</p></div>
+        <div class="grid gap-4 sm:grid-cols-3">
+            <article class="rounded-2xl bg-white/10 p-5"><p class="font-bold">{% translate "Karta fizyczna" %}</p><p class="mt-2 text-sm leading-6 text-stone-300">{% translate "Namacalny element marki, który klient zabiera ze sobą." %}</p></article>
+            <article class="rounded-2xl bg-white/10 p-5"><p class="font-bold">{% translate "Karta w telefonie" %}</p><p class="mt-2 text-sm leading-6 text-stone-300">{% translate "Apple Wallet i Google Wallet bez osobnej aplikacji." %}</p></article>
+            <article class="rounded-2xl bg-white/10 p-5"><p class="font-bold">{% translate "Panel firmy" %}</p><p class="mt-2 text-sm leading-6 text-stone-300">{% translate "Klienci, karty i kolejne zamówienia w jednym miejscu." %}</p></article>
+        </div>
     </div>
 </section>
 
-<section class="border-y border-stone-200 bg-white"><div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8"><div class="flex flex-wrap items-end justify-between gap-5"><div><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Opublikowane ceny" %}</p><h2 class="mt-3 text-3xl font-bold tracking-tight">{% translate "Plan rośnie razem z programem" %}</h2></div><a href="{% url 'marketing:pricing' %}" class="font-semibold text-accent-700">{% translate "Pełny cennik →" %}</a></div><div class="mt-8">{% include "marketing/partials/pricing_catalog.html" %}</div></div></section>
+<section class="border-y border-stone-200 bg-white">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap items-end justify-between gap-5"><div><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Oferta" %}</p><h2 class="mt-3 text-3xl font-bold tracking-tight">{% translate "Zacznij od zakresu dopasowanego do Twojej firmy" %}</h2></div><a href="{% url 'marketing:pricing' %}" class="font-semibold text-accent-700">{% translate "Zobacz, co obejmuje oferta →" %}</a></div>
+        <div class="mt-8">{% include "marketing/partials/pricing_catalog.html" %}</div>
+    </div>
+</section>
 
-<div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">{% include "marketing/partials/cta.html" %}</div>
+<section id="rejestracja-karty" class="border-b border-stone-200 bg-stone-50 scroll-mt-24">
+    <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div class="overflow-hidden rounded-3xl border border-stone-200 bg-paper p-6 shadow-sm sm:p-10">
+            <div class="max-w-3xl">
+                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Strefa posiadacza karty" %}</p>
+                <h2 class="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Masz kartę jednej z naszych firm?" %}</h2>
+                <p class="mt-4 text-lg leading-8 text-ink-700">{% translate "Wybierz swój program i zarejestruj kartę. Trafisz bezpośrednio do strony marki, od której ją otrzymałeś." %}</p>
+            </div>
+            <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {% for program in public_registration_programs %}
+                    <article class="portal-card flex h-full min-w-0 flex-col overflow-hidden">
+                        <div class="flex min-w-0 items-center gap-4">
+                            {% if program.logo_path %}
+                                <img src="{{ media_prefix }}{{ program.logo_path }}" alt="" class="size-16 shrink-0 rounded-2xl object-contain">
+                            {% else %}
+                                <span class="grid size-16 shrink-0 place-items-center rounded-2xl bg-accent-100 text-xl font-black text-accent-700" aria-hidden="true">{{ program.name|slice:":1" }}</span>
+                            {% endif %}
+                            <div class="min-w-0"><h3 class="break-words text-xl font-bold">{{ program.name }}</h3>{% if program.tagline %}<p class="mt-1 break-words text-sm leading-6 text-ink-700">{{ program.tagline }}</p>{% endif %}</div>
+                        </div>
+                        <a href="{% url 'enrollment:tenant_register' program.slug %}" class="portal-button-secondary mt-6 w-full text-center">{% translate "Zarejestruj swoją kartę →" %}</a>
+                    </article>
+                {% empty %}
+                    <div class="portal-card sm:col-span-2 lg:col-span-3"><p class="text-ink-700">{% translate "Obecnie nie ma programów z otwartą rejestracją kart." %}</p></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+    <div class="max-w-3xl"><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Najczęstsze pytania" %}</p><h2 class="mt-3 text-3xl font-bold tracking-tight">{% translate "Zanim porozmawiamy" %}</h2></div>
+    <div class="mt-8 grid gap-5 md:grid-cols-2">
+        <article class="portal-card"><h3 class="text-lg font-bold">{% translate "Czy klient musi instalować aplikację?" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Nie. Może używać karty fizycznej albo dodać kartę do Apple Wallet lub Google Wallet." %}</p></article>
+        <article class="portal-card"><h3 class="text-lg font-bold">{% translate "Czy program będzie wyglądał jak moja marka?" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Tak. Karty, treści i strona rejestracji mogą korzystać z Twojego logo, kolorów, grafiki i danych firmy." %}</p></article>
+        <article class="portal-card"><h3 class="text-lg font-bold">{% translate "Czy muszę samodzielnie organizować druk?" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Nie. Zatwierdzasz projekt i nakład, a centralną realizacją kart zajmuje się Loyalty Studio." %}</p></article>
+        <article class="portal-card"><h3 class="text-lg font-bold">{% translate "Czy program może współpracować z moim systemem sprzedaży?" %}</h3><p class="mt-2 leading-7 text-ink-700">{% translate "Dotykačka jest już dostępna. Jeśli używasz innego systemu, sprawdzimy możliwości połączenia przed ustaleniem zakresu wdrożenia." %}</p></article>
+    </div>
+</section>
+
+<div class="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">{% include "marketing/partials/cta.html" %}</div>
 {% endblock %}

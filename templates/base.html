@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
     <title>{% block title %}{% translate "Loyalty Studio" %}{% endblock %}</title>
-    {% block head_metadata %}<meta name="description" content="{% translate 'Loyalty Studio — platforma kart lojalnościowych dla firm.' %}">{% endblock %}
+    {% block head_metadata %}<meta name="description" content="{% translate 'Loyalty Studio — program lojalnościowy pod marką Twojej firmy.' %}">{% endblock %}
     <link rel="stylesheet" href="{% static 'css/portal.v1.css' %}?v=2">
     <script src="{% static 'vendor/htmx-2.0.10.min.js' %}"
             integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
@@ -38,14 +38,15 @@
                 </span>
             </a>
 
-            <nav aria-label="{% translate 'Główna nawigacja' %}" class="flex flex-wrap items-center justify-end gap-1 text-sm font-semibold">
+            <nav aria-label="{% translate 'Główna nawigacja' %}" class="{% if marketing_page %}flex w-full flex-nowrap items-center justify-between md:w-auto md:justify-end{% else %}flex flex-wrap items-center justify-end{% endif %} gap-1 text-sm font-semibold">
                 {% if marketing_page %}
-                    <a href="{% url 'marketing:features' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Funkcje" %}</a>
-                    <a href="{% url 'marketing:integrations' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Integracje" %}</a>
-                    <a href="{% url 'marketing:pricing' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Cennik" %}</a>
-                    <a href="{% url 'marketing:contact' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Kontakt" %}</a>
+                    <a href="{% url 'marketing:features' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Korzyści" %}</a>
+                    <a href="{% url 'marketing:integrations' %}" class="hidden rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950 md:block">{% translate "Połączenia" %}</a>
+                    <a href="{% url 'marketing:pricing' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Oferta" %}</a>
+                    <a href="{% url 'marketing:home' %}#rejestracja-karty" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Mam kartę" %}</a>
+                    <a href="{% url 'marketing:contact' %}" class="portal-button ml-1"><span class="md:hidden">{% translate "Zapytaj" %}</span><span class="hidden md:inline">{% translate "Zapytaj o wdrożenie" %}</span></a>
                     {% if user.is_superuser %}
-                        <a href="{% url 'integrations:system_connections' %}" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Panel platformy" %}</a>
+                        <a href="{% url 'integrations:system_connections' %}" class="hidden rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950 md:block">{% translate "Panel platformy" %}</a>
                     {% endif %}
                 {% else %}
                     {% if tenant %}
@@ -72,12 +73,12 @@
                     {% endif %}
                 {% endif %}
                 {% if user.is_authenticated %}
-                    <form method="post" action="{% url 'logout' %}">
+                    <form method="post" action="{% url 'logout' %}" class="{% if marketing_page %}hidden md:block{% endif %}">
                         {% csrf_token %}
                         <button type="submit" class="rounded-lg px-3 py-2 text-ink-700 hover:bg-stone-100 hover:text-ink-950">{% translate "Wyloguj" %}</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'login' %}" class="portal-button-secondary ml-1">{% translate "Zaloguj" %}</a>
+                    <a href="{% url 'login' %}" class="portal-button-secondary ml-1 {% if marketing_page %}hidden md:inline-flex{% endif %}">{% translate "Zaloguj" %}</a>
                 {% endif %}
             </nav>
         </div>
@@ -94,12 +95,14 @@
 
     <footer class="border-t border-stone-200 bg-paper">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-5 text-sm text-ink-700 sm:px-6 lg:px-8">
-            <p>{% translate "Loyalty Studio · bezpieczny panel kart lojalnościowych" %}</p>
+            <p>{% translate "Loyalty Studio · karty, które zostają z Twoją marką" %}</p>
             <div class="flex flex-wrap items-center gap-4">
                 {% if marketing_page %}
                     <a href="{% url 'marketing:privacy' %}" class="hover:text-ink-950">{% translate "Polityka prywatności" %}</a>
                     <a href="{% url 'marketing:terms' %}" class="hover:text-ink-950">{% translate "Regulamin" %}</a>
+                    <a href="{% url 'marketing:home' %}#rejestracja-karty" class="hover:text-ink-950">{% translate "Rejestracja karty" %}</a>
                     <a href="{% url 'marketing:contact' %}" class="hover:text-ink-950">{% translate "Kontakt" %}</a>
+                    {% if user.is_authenticated %}<form method="post" action="{% url 'logout' %}" class="md:hidden">{% csrf_token %}<button type="submit" class="hover:text-ink-950">{% translate "Wyloguj" %}</button></form>{% else %}<a href="{% url 'login' %}" class="hover:text-ink-950 md:hidden">{% translate "Logowanie" %}</a>{% endif %}
                 {% elif tenant %}<p>{{ tenant.brand.public_name|default:tenant.name }}</p>{% endif %}
             </div>
         </div>

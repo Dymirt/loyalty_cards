@@ -1,17 +1,39 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block title %}{% translate "Funkcje · Loyalty Studio" %}{% endblock %}
-{% block head_metadata %}<meta name="description" content="{% translate 'Poznaj funkcje platformy Loyalty Studio: branding, rejestracja, Wallet, POS, rozliczenia i centralny druk.' %}">{% endblock %}
+{% block title %}{% translate "Korzyści programu lojalnościowego · Loyalty Studio" %}{% endblock %}
+{% block head_metadata %}<meta name="description" content="{% translate 'Zobacz, jak Loyalty Studio wspiera markę, ułatwia klientom dołączenie do programu i upraszcza obsługę kart oraz druku.' %}">{% endblock %}
 {% block content %}
-<header class="max-w-4xl py-8 sm:py-14"><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Funkcje platformy" %}</p><h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">{% translate "Program lojalnościowy prowadzony z jednego miejsca" %}</h1><p class="mt-5 max-w-3xl text-lg leading-8 text-ink-700">{% translate "Lokalne dane są źródłem prawdy, integracje wykonują trwałe zadania w tle, a historia projektu, wydania i produkcji pozostaje możliwa do prześledzenia." %}</p></header>
-<div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "MARKA" %}</p><h2 class="mt-2 text-xl font-bold">{% translate "Projekt dla każdej firmy" %}</h2><p class="mt-3 leading-7 text-ink-700">{% translate "Własne logo, tło, treści, dane kontaktowe i projekt karty, zapisane jako niezmienne opublikowane wersje." %}</p></article>
-    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "REJESTRACJA" %}</p><h2 class="mt-2 text-xl font-bold">{% translate "Właściwy klient i karta" %}</h2><p class="mt-3 leading-7 text-ink-700">{% translate "Domena, slug lub unikalny prefiks prowadzi do właściwej marki. Przypisanie karty i zgoda powstają w jednej transakcji." %}</p></article>
-    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "WALLET" %}</p><h2 class="mt-2 text-xl font-bold">{% translate "Apple i Google Wallet" %}</h2><p class="mt-3 leading-7 text-ink-700">{% translate "Stabilna tożsamość karty cyfrowej, treść zgodna z brandingiem firmy i bezpieczny link statusu dla klienta." %}</p></article>
-    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "INTEGRACJE" %}</p><h2 class="mt-2 text-xl font-bold">{% translate "POS i komunikacja" %}</h2><p class="mt-3 leading-7 text-ink-700">{% translate "Synchronizacja klientów z Dotykačka, kontaktów z Brevo i wiadomości e-mail jako trwałe, kontrolowane zadania." %}</p></article>
-    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "ROZLICZENIA" %}</p><h2 class="mt-2 text-xl font-bold">{% translate "Limity i przejrzyste kalkulacje" %}</h2><p class="mt-3 leading-7 text-ink-700">{% translate "Opublikowany plan, limity użytkowników i wydań, pakiety kart oraz zamrożona kalkulacja przed zamówieniem." %}</p></article>
-    <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "PRODUKCJA" %}</p><h2 class="mt-2 text-xl font-bold">{% translate "Centralny druk z historią" %}</h2><p class="mt-3 leading-7 text-ink-700">{% translate "Akceptacja projektu, kontrolowana alokacja kodów, sumy kontrolne paczki oraz zdarzenia produkcji i dostawy." %}</p></article>
-</div>
-<section class="mt-12 portal-card"><h2 class="text-2xl font-bold">{% translate "Bez dodatkowego frontendu" %}</h2><p class="mt-3 max-w-4xl leading-7 text-ink-700">{% translate "Panel i publiczne strony są renderowane przez Django, działają jako zwykłe formularze HTML, a HTMX usprawnia tylko wybrane fragmenty. Nie potrzebujesz aplikacji SPA ani osobnego konta dla klienta programu." %}</p></section>
+<header class="max-w-4xl py-8 sm:py-14">
+    <p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Korzyści dla Twojej firmy" %}</p>
+    <h1 class="mt-4 text-4xl font-black tracking-tight sm:text-5xl">{% translate "Program lojalnościowy, który pasuje do codziennej pracy" %}</h1>
+    <p class="mt-5 max-w-3xl text-lg leading-8 text-ink-700">{% translate "Twoja marka jest widoczna na każdym etapie, klient łatwo dołącza i zawsze ma kartę pod ręką, a zespół obsługuje program z jednego miejsca." %}</p>
+</header>
+
+<section aria-labelledby="benefits-title">
+    <h2 id="benefits-title" class="sr-only">{% translate "Najważniejsze korzyści" %}</h2>
+    <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "TWOJA MARKA" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Rozpoznawalny program od pierwszego spojrzenia" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Karty, strona zapisu i wiadomości mogą korzystać z Twojego logo, kolorów, grafiki i tonu komunikacji." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "ŁATWY ZAPIS" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Krótka droga od karty do członkostwa" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Klient trafia bezpośrednio do programu Twojej firmy, podaje potrzebne dane i otrzymuje własną kartę." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "ZAWSZE POD RĘKĄ" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Fizycznie, w Apple Wallet i Google Wallet" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Klient wybiera wygodny format i nie musi instalować kolejnej aplikacji tylko po to, aby korzystać z programu." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "MNIEJ PRZEPISYWANIA" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Program bliżej narzędzi, których już używasz" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Dostępne połączenia pomagają przekazywać dane zapisanych klientów do systemu sprzedaży i listy kontaktów." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "PEŁNA KONTROLA" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Wiesz, ile kart masz i czego potrzebujesz" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "W panelu widzisz klientów, przypisane karty, dostępny zapas oraz stan kolejnych zamówień." %}</p></article>
+        <article class="portal-card"><p class="text-sm font-semibold text-accent-700">{% translate "DRUK BEZ KOORDYNOWANIA" %}</p><h3 class="mt-2 text-xl font-bold">{% translate "Jedno miejsce od akceptacji do dostawy" %}</h3><p class="mt-3 leading-7 text-ink-700">{% translate "Sprawdzasz projekt i koszt, wybierasz nakład, a Loyalty Studio prowadzi przygotowanie i realizację kart." %}</p></article>
+    </div>
+</section>
+
+<section class="mt-12 rounded-3xl border border-stone-200 bg-white p-7 sm:p-10">
+    <div class="max-w-3xl"><p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Dla całego doświadczenia" %}</p><h2 class="mt-3 text-3xl font-bold">{% translate "Korzyść odczuwa klient, zespół i właściciel" %}</h2></div>
+    <div class="mt-8 grid gap-5 lg:grid-cols-3">
+        <article class="rounded-2xl bg-stone-50 p-6"><h3 class="text-xl font-bold">{% translate "Klient" %}</h3><ul class="mt-4 space-y-3 text-ink-700"><li>{% translate "✓ Szybko dołącza do programu" %}</li><li>{% translate "✓ Wybiera kartę fizyczną lub w telefonie" %}</li><li>{% translate "✓ Widzi markę, którą zna" %}</li></ul></article>
+        <article class="rounded-2xl bg-stone-50 p-6"><h3 class="text-xl font-bold">{% translate "Zespół" %}</h3><ul class="mt-4 space-y-3 text-ink-700"><li>{% translate "✓ Korzysta z jasnego procesu zapisu" %}</li><li>{% translate "✓ Łatwo sprawdza klienta i kartę" %}</li><li>{% translate "✓ Nie koordynuje osobno produkcji" %}</li></ul></article>
+        <article class="rounded-2xl bg-stone-50 p-6"><h3 class="text-xl font-bold">{% translate "Właściciel" %}</h3><ul class="mt-4 space-y-3 text-ink-700"><li>{% translate "✓ Zachowuje spójność marki" %}</li><li>{% translate "✓ Widzi stan programu w jednym panelu" %}</li><li>{% translate "✓ Zamawia druk zgodnie z potrzebą" %}</li></ul></article>
+    </div>
+</section>
+
+<section class="mt-12 grid gap-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+    <div><p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Bez dodatkowej aplikacji" %}</p><h2 class="mt-3 text-3xl font-bold">{% translate "Nie proś klienta o kolejne konto i ikonę na ekranie" %}</h2><p class="mt-4 leading-7 text-ink-700">{% translate "Rejestracja działa w przeglądarce, a cyfrowa karta trafia do portfela telefonu. To krótsza i bardziej znajoma droga dla gościa." %}</p></div>
+    <div class="portal-card grid gap-4 sm:grid-cols-3"><article class="rounded-xl bg-accent-100 p-5"><p class="text-sm font-semibold text-accent-700">1</p><p class="mt-2 font-bold">{% translate "Otwiera stronę" %}</p></article><article class="rounded-xl bg-accent-100 p-5"><p class="text-sm font-semibold text-accent-700">2</p><p class="mt-2 font-bold">{% translate "Rejestruje kartę" %}</p></article><article class="rounded-xl bg-accent-100 p-5"><p class="text-sm font-semibold text-accent-700">3</p><p class="mt-2 font-bold">{% translate "Dodaje ją do telefonu" %}</p></article></div>
+</section>
+
 <div class="mt-12">{% include "marketing/partials/cta.html" %}</div>
 {% endblock %}

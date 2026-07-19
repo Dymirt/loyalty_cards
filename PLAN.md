@@ -16,13 +16,15 @@ controlled SaaS launch: approve Marta as the first tenant, certify the real
 commercial/printing workflow, onboard one additional tenant safely, and then
 remove only those compatibility paths proven unnecessary.
 
-The immediate goal is not feature expansion. It is a traceable first production
-cycle with valid provider connections, approved commercial data, verified
-backups, central printing and signed tenant acceptance.
+Until the Phase 12 gate closes, the immediate goal remains a traceable first
+production cycle with valid provider connections, approved commercial data,
+verified backups, central printing and signed tenant acceptance. Public sales
+communication may improve in parallel, but it must not activate another tenant,
+invent prices or widen the production rollout.
 
 ## Current baseline
 
-- Phases 0–11 are implemented and the current MariaDB suite passes all 240
+- Phases 0–11 are implemented and the current MariaDB suite passes all 242
   automated tests; the earlier SQLite baseline has three expected
   database-specific skips.
 - The active public, tenant and platform interfaces use Polish; native Django
@@ -36,6 +38,10 @@ backups, central printing and signed tenant acceptance.
 - No plan, price book, payment provider or historical fulfillment event has been
   invented for Marta.
 - Additional paying tenants remain disabled.
+- The public Polish sales journey is benefit-led and separates prospective
+  tenants from existing cardholders. It uses only verifiable product
+  capabilities, one clear consultation path and no invented results, prices or
+  testimonials.
 
 ## Launch blockers
 
@@ -146,6 +152,52 @@ except expected platform-wide operational heartbeat/alert history.
 Acceptance gate: active traffic no longer depends on retired paths, retention is
 approved and auditable, measured capacity supports the next tenant cohort, and
 no new runtime stack was added without explicit approval.
+
+## Phase 16 — Repeatable tenant acquisition and faster onboarding
+
+- [x] Replace technical public copy with Polish benefit-led pages for the home,
+  benefits, connections, offer and contact journey.
+- [x] Give prospective tenants one consistent call to action and keep the
+  cardholder registration area visibly separate from the business offer.
+- [x] Explain the value for the customer, front-line team and business owner
+  without unapproved performance claims, testimonials or prices.
+- [ ] Publish focused pages for the first approved business segments, starting
+  with cafés/restaurants and appointment-based services. Each page must use a
+  real segment need and an approved offer, not duplicated keyword copy.
+- [ ] Add a guided programme preview where a prospect can choose a business
+  type, colours and card format, then request the resulting start proposal.
+- [ ] Prepare approved launch kits with ready-to-customise programme wording,
+  staff instructions, counter materials and registration QR artwork for each
+  target segment.
+- [ ] Give every qualified lead a visible owner, next action and follow-up date;
+  retain the original enquiry and every contact outcome as history.
+- [ ] Add a short readiness questionnaire covering locations, expected members,
+  first print run, current POS, desired Wallet formats and communication needs,
+  so the first conversation starts with a useful brief.
+- [ ] Create a guided tenant launch checklist that shows brand approval,
+  connection readiness, card proof, staff preparation and launch status in one
+  place.
+- [ ] Offer a safe demonstration programme using synthetic people and cards so
+  prospects can experience the owner and customer journeys without seeing a
+  real tenant's data.
+- [ ] Publish an Atelier-Café case study only after Marta approves the name,
+  content and any figures. Record the measurement period and never imply
+  causation that the evidence does not support.
+- [ ] Add referral and partner attribution only with clear consent and published
+  privacy terms; do not add behavioural advertising or hidden visitor tracking.
+- [ ] After commercial approval, present simple start packages by outcome
+  (digital start, physical-and-digital launch, multi-location) while keeping the
+  signed plan and print calculation authoritative.
+- [ ] Measure the sales journey using privacy-approved aggregate events:
+  offer viewed, contact started, qualified lead, proposal sent, tenant accepted
+  and time to launch. Use the results to remove onboarding friction rather than
+  invent marketing claims.
+
+Acceptance gate: a prospect can understand the offer, identify a suitable start
+path and submit a useful brief on mobile without technical knowledge; every
+public claim and case-study figure has an owner and approval; lead follow-up is
+traceable; a second tenant can move from enquiry to signed acceptance using the
+same documented journey without exposing another firm's data.
 
 ## Deferred product work
 

@@ -1,6 +1,7 @@
 {% load i18n %}
 <div id="contact-form" class="rounded-2xl border border-emerald-200 bg-emerald-50 p-6" role="status" aria-live="polite">
     <p class="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-800">{% translate "Zapytanie zapisane" %}</p>
-    <h2 class="mt-2 text-2xl font-bold text-emerald-950">{% translate "Dziękujemy za kontakt" %}</h2>
-    <p class="mt-3 leading-7 text-emerald-900">{% translate "Wiadomość została zapisana bezpiecznie. Skontaktujemy się w sprawie programu lojalnościowego." %}</p>
+    <h2 class="mt-2 text-2xl font-bold text-emerald-950">{% translate "Dziękujemy — znamy już pierwszy krok" %}</h2>
+    <p class="mt-3 leading-7 text-emerald-900">{% translate "Skontaktujemy się w sprawie potrzeb Twojej firmy i propozycji startu programu lojalnościowego." %}</p>
+    <a href="{% url 'marketing:features' %}" class="mt-4 inline-block font-semibold text-emerald-900 underline">{% translate "W międzyczasie zobacz korzyści dla firmy →" %}</a>
 </div>

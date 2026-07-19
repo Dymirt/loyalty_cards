@@ -12,9 +12,16 @@ class MarketingLeadForm(forms.Form):
         label=_("Telefon (opcjonalnie)"), max_length=40, required=False
     )
     message = forms.CharField(
-        label=_("Jakiego programu lojalnościowego potrzebujesz?"),
+        label=_("Opowiedz krótko o firmie i planowanym programie"),
         max_length=4000,
-        widget=forms.Textarea(attrs={"rows": 5}),
+        widget=forms.Textarea(
+            attrs={
+                "rows": 5,
+                "placeholder": _(
+                    "Np. prowadzę kawiarnię, korzystam z Dotykačka i chcę zacząć od 300 kart."
+                ),
+            }
+        ),
     )
     privacy_consent = forms.BooleanField(
         label=_("Wyrażam zgodę na kontakt w sprawie zapytania."),

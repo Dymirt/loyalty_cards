@@ -1,10 +1,20 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block title %}{% translate "Kontakt · Loyalty Studio" %}{% endblock %}
-{% block head_metadata %}<meta name="description" content="{% translate 'Skontaktuj się z Loyalty Studio w sprawie wdrożenia programu lojalnościowego.' %}">{% endblock %}
+{% block title %}{% translate "Zapytaj o program lojalnościowy · Loyalty Studio" %}{% endblock %}
+{% block head_metadata %}<meta name="description" content="{% translate 'Opowiedz nam o swojej firmie i otrzymaj propozycję startu programu lojalnościowego pod Twoją marką.' %}">{% endblock %}
 {% block content %}
-<div class="grid gap-10 py-8 sm:py-14 lg:grid-cols-[.8fr_1.2fr]">
-    <header><p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Kontakt" %}</p><h1 class="mt-4 text-4xl font-black tracking-tight">{% translate "Opowiedz nam o swojej firmie" %}</h1><p class="mt-5 text-lg leading-8 text-ink-700">{% translate "Wystarczy krótka informacja o lokalu, obecnym POS, liczbie klientów i planowanej liczbie kart." %}</p><div class="mt-8 rounded-2xl bg-stone-100 p-5"><p class="text-sm text-ink-700">{% translate "Kontakt platformy" %}</p><p class="mt-1 font-semibold">{{ marketing_legal_name }}</p><a href="mailto:{{ marketing_contact_email }}" class="mt-2 inline-block font-semibold text-accent-700">{{ marketing_contact_email }}</a>{% if marketing_legal_address %}<p class="mt-2 text-sm text-ink-700">{{ marketing_legal_address }}</p>{% endif %}</div></header>
-    <section class="portal-card" aria-labelledby="contact-form-title"><h2 id="contact-form-title" class="text-2xl font-bold">{% translate "Zapytaj o wdrożenie" %}</h2><p class="mt-2 text-sm leading-6 text-ink-700">{% translate "Pola formularza służą wyłącznie do odpowiedzi na Twoje zapytanie." %}</p><div class="mt-6">{% include "marketing/partials/contact_form.html" %}</div></section>
+<div class="grid gap-10 py-8 sm:py-14 lg:grid-cols-[.85fr_1.15fr]">
+    <header>
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-accent-700">{% translate "Bezpłatne zapytanie" %}</p>
+        <h1 class="mt-4 text-4xl font-black tracking-tight">{% translate "Zobacz, jak może wyglądać program dla Twojej marki" %}</h1>
+        <p class="mt-5 text-lg leading-8 text-ink-700">{% translate "Napisz kilka słów o swojej firmie. Dobierzemy kierunek startu do liczby klientów, kart, zespołu i systemu sprzedaży, z którego korzystasz." %}</p>
+        <div class="mt-8 space-y-4">
+            <article class="flex gap-4"><span class="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">1</span><div><h2 class="font-bold">{% translate "Poznajemy potrzeby" %}</h2><p class="mt-1 text-sm leading-6 text-ink-700">{% translate "Cel programu, grupa klientów i sposób obsługi." %}</p></div></article>
+            <article class="flex gap-4"><span class="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">2</span><div><h2 class="font-bold">{% translate "Proponujemy dobry start" %}</h2><p class="mt-1 text-sm leading-6 text-ink-700">{% translate "Zakres kart, wyglądu, połączeń i pierwszego nakładu." %}</p></div></article>
+            <article class="flex gap-4"><span class="grid size-10 shrink-0 place-items-center rounded-xl bg-accent-100 font-black text-accent-700">3</span><div><h2 class="font-bold">{% translate "Ty podejmujesz decyzję" %}</h2><p class="mt-1 text-sm leading-6 text-ink-700">{% translate "Formularz nie uruchamia płatności ani zobowiązania." %}</p></div></article>
+        </div>
+        <div class="mt-8 rounded-2xl bg-stone-100 p-5"><p class="text-sm text-ink-700">{% translate "Wolisz napisać bezpośrednio?" %}</p><p class="mt-1 font-semibold">{{ marketing_legal_name }}</p><a href="mailto:{{ marketing_contact_email }}" class="mt-2 inline-block break-all font-semibold text-accent-700">{{ marketing_contact_email }}</a>{% if marketing_legal_address %}<p class="mt-2 text-sm text-ink-700">{{ marketing_legal_address }}</p>{% endif %}</div>
+    </header>
+    <section class="portal-card" aria-labelledby="contact-form-title"><h2 id="contact-form-title" class="text-2xl font-bold">{% translate "Poproś o propozycję startu" %}</h2><p class="mt-2 text-sm leading-6 text-ink-700">{% translate "Wystarczą podstawowe informacje. Odpowiemy w sprawie Twojego programu lojalnościowego." %}</p><div class="mt-6">{% include "marketing/partials/contact_form.html" %}</div></section>
 </div>
 {% endblock %}
