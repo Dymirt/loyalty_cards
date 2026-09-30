@@ -132,7 +132,7 @@ Django 5.2 application
         +-- SMTP email
 ```
 
-The deployed baseline uses Python 3.11, Django 5.2.16, Apache, and MariaDB
+The deployed baseline uses Python 3.11, Django 5.2.17, Apache, and MariaDB
 10.11. The source was recovered from the live container on 16 July 2026; no
 production deployment was changed while creating this repository.
 
@@ -471,6 +471,7 @@ renewal and deployment procedure.
 | `GET`, `POST` | `/dotykacka/platform/billing` | Platform superuser | Publish plan/price versions and assign subscriptions/packs |
 | `GET`, `POST` | `/dotykacka/platform/operations` | Platform superuser | Detailed health, safe provider configuration and append-only alert handling |
 | `GET` | `/admin/` | Staff | Django administration |
+| `GET`, `POST` | `/admin/customers/customerexportapitoken/` | Authorized staff/tenant owner | Create, review and revoke tenant customer-export tokens |
 | `GET` | `/api/v1/clients/` | Tenant bearer token | Paginated clients with email addresses |
 | `GET` | `/dotykacka/customers` | Superuser | Customer and card operations |
 | `POST` | `/dotykacka/send_pass/<barcode>` | Superuser | Send one customer's passes |
@@ -483,27 +484,49 @@ renders the token value.
 
 ## Customer import API
 
-Create credentials under **Admin → Klienci → Tokeny API eksportu klientów**.
-Each token is bound to one tenant, so a consuming system can read only that
-business's customers. A new bearer token is displayed exactly once; the
-database stores only its SHA-256 digest and a visible prefix. The admin list
-records its last use and provides the **Unieważnij wybrane aktywne tokeny**
-action. Creation and revocation are written to the platform audit history.
+The production API is read-only. It exports only customers belonging to the
+tenant assigned to the bearer token, and it does not provide create, update or
+delete operations.
 
-Clients with an email address can be imported with:
+### Endpoints
+
+| Method | Production URL | Purpose |
+| --- | --- | --- |
+| `GET` | `https://club.mbstudio.online/api/v1/clients/` | Return the first page of customers that have an email address |
+| `GET` | `https://club.mbstudio.online/api/v1/clients/?page=<number>&page_size=<size>` | Return a selected page; `page_size` defaults to 100 and may not exceed 500 |
+| `GET`, `POST` | `https://club.mbstudio.online/admin/customers/customerexportapitoken/` | Create and revoke tenant-scoped API tokens in Django admin |
+
+### Create a token
+
+1. Sign in to Django admin and open **Klienci → Tokeny API eksportu klientów**.
+2. Select **Dodaj token API eksportu klienta**.
+3. Choose the tenant, for example Marta Banaszek, and enter a descriptive token
+   name for the consuming system.
+4. Save and immediately copy the displayed `lst_live_...` token. The raw token
+   is shown once and cannot be recovered later.
+
+Each token is bound to one tenant, so a consuming system can read only that
+business's customers. The database stores only the token's SHA-256 digest and a
+visible prefix. The admin list records its last use and provides the
+**Unieważnij wybrane aktywne tokeny** action. Creation and revocation are
+written to the platform audit history.
+
+### Request customers
+
+Send the token in the HTTP `Authorization` header. Do not put it in the URL:
 
 ```bash
-curl \
+curl --fail-with-body \
+  -H "Accept: application/json" \
   -H "Authorization: Bearer lst_live_REPLACE_WITH_TOKEN" \
   "https://club.mbstudio.online/api/v1/clients/?page=1&page_size=100"
 ```
 
 The response contains only `client_id`, `first_name`, `last_name`, and `email`,
 plus `count`, `page`, `page_size`, `next`, and `previous` pagination metadata.
-`page_size` defaults to 100 and is limited to 500. Records without an email
-address are excluded. Missing, invalid, inactive-tenant, and revoked tokens
-receive HTTP 401. Rate-limit responses use HTTP 429 and include `Retry-After`.
-All API responses disable caching.
+Records without an email address are excluded. Continue requesting the URL in
+`next` until it is `null` to import every page. Treat `client_id` as the stable
+external identifier when updating an existing record in the consuming system.
 
 Example result:
 
@@ -514,9 +537,31 @@ Example result:
   "page_size": 100,
   "next": null,
   "previous": null,
-  "results": [{"client_id": "MB-12", "first_name": "Anna", "last_name": "Nowak", "email": "anna@example.com"}]
+  "results": [
+    {
+      "client_id": "MB-12",
+      "first_name": "Anna",
+      "last_name": "Nowak",
+      "email": "anna@example.com"
+    }
+  ]
 }
 ```
+
+### Responses and token safety
+
+| HTTP status | Meaning |
+| --- | --- |
+| `200` | Page returned successfully |
+| `400` | Invalid `page` or `page_size` |
+| `401` | Token is missing, invalid, revoked, or belongs to an inactive tenant |
+| `404` | Requested page does not exist |
+| `405` | Method other than `GET` was used |
+| `429` | Rate limit reached; wait for the number of seconds in `Retry-After` |
+
+All API responses disable caching. Store the token as a secret, never commit it
+to source control or log it, use HTTPS only, and revoke it in admin immediately
+if it is exposed or the consuming system no longer needs access.
 
 ## Checks
 
