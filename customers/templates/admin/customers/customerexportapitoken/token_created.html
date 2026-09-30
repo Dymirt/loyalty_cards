@@ -1,0 +1,36 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div id="content-main">
+    <p>
+      {% blocktranslate with token_name=original.name tenant_name=original.tenant %}
+        Token dla <strong>{{ token_name }}</strong> został utworzony dla
+        <strong>{{ tenant_name }}</strong>. Skopiuj go teraz — ze względów
+        bezpieczeństwa nie będzie można wyświetlić go ponownie.
+      {% endblocktranslate %}
+    </p>
+    <div class="module aligned">
+      <label for="api-token"><strong>{% translate "Token Bearer" %}</strong></label>
+      <input
+        id="api-token"
+        type="text"
+        class="vTextField"
+        size="80"
+        readonly
+        value="{{ raw_token }}"
+      >
+    </div>
+    <p>
+      {% blocktranslate %}
+        Klient powinien przesyłać go w nagłówku
+        <code>Authorization: Bearer &lt;token&gt;</code>.
+      {% endblocktranslate %}
+    </p>
+    <p>
+      <a class="button" href="{% url 'admin:customers_customerexportapitoken_changelist' %}">
+        {% translate "Wróć do listy tokenów API" %}
+      </a>
+    </p>
+  </div>
+{% endblock %}

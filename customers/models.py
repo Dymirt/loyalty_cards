@@ -1,7 +1,12 @@
 """Customer-domain models and legacy customer compatibility aliases."""
 
+import hashlib
+import secrets
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from dotykacka.models import Klient, Tenant
@@ -10,6 +15,78 @@ from dotykacka.models import Klient, Tenant
 # ``Klient`` keeps its historical Django model label and database table.  New
 # code uses the product-language alias while old imports remain valid.
 Customer = Klient
+
+
+class CustomerExportApiToken(models.Model):
+    """Revocable, tenant-scoped credential for exporting customer contacts."""
+
+    TOKEN_PREFIX = "lst_live_"
+    VISIBLE_PREFIX_LENGTH = 20
+
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.PROTECT,
+        related_name="customer_export_api_tokens",
+    )
+    name = models.CharField(
+        max_length=160,
+        help_text=_("Nazwa klienta lub systemu korzystającego z API."),
+    )
+    token_prefix = models.CharField(max_length=20, unique=True, editable=False)
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_customer_export_api_tokens",
+        blank=True,
+        null=True,
+        editable=False,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(blank=True, null=True, editable=False)
+    revoked_at = models.DateTimeField(blank=True, null=True, editable=False)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+        verbose_name = _("token API eksportu klientów")
+        verbose_name_plural = _("tokeny API eksportu klientów")
+
+    def __str__(self):
+        return f"{self.tenant}: {self.name} ({self.token_prefix}…)"
+
+    @property
+    def is_active(self):
+        return self.revoked_at is None and self.tenant.is_active
+
+    @staticmethod
+    def digest(raw_token):
+        return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def generate_credentials(cls):
+        raw_token = f"{cls.TOKEN_PREFIX}{secrets.token_urlsafe(32)}"
+        return (
+            raw_token,
+            raw_token[: cls.VISIBLE_PREFIX_LENGTH],
+            cls.digest(raw_token),
+        )
+
+    @classmethod
+    def issue(cls, *, tenant, name, created_by=None):
+        raw_token, token_prefix, token_hash = cls.generate_credentials()
+        token = cls.objects.create(
+            tenant=tenant,
+            name=name,
+            token_prefix=token_prefix,
+            token_hash=token_hash,
+            created_by=created_by,
+        )
+        return token, raw_token
+
+    def revoke(self):
+        if self.revoked_at is None:
+            self.revoked_at = timezone.now()
+            self.save(update_fields=("revoked_at",))
 
 
 class CustomerExternalIdentity(models.Model):
@@ -110,6 +187,7 @@ class ConsentRecord(models.Model):
 __all__ = [
     "ConsentRecord",
     "Customer",
+    "CustomerExportApiToken",
     "CustomerExternalIdentity",
     "Klient",
 ]

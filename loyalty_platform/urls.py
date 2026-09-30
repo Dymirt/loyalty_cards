@@ -22,6 +22,10 @@ turnkey_compat_patterns = (
 
 
 urlpatterns = [
+    path(
+        "api/v1/",
+        include("operations.customer_export_urls", namespace="customers_api"),
+    ),
     path("i18n/", include("django.conf.urls.i18n")),
     path("health/live", operations_views.liveness, name="health_live"),
     path("health/ready", operations_views.readiness, name="health_ready"),

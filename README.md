@@ -471,6 +471,7 @@ renewal and deployment procedure.
 | `GET`, `POST` | `/dotykacka/platform/billing` | Platform superuser | Publish plan/price versions and assign subscriptions/packs |
 | `GET`, `POST` | `/dotykacka/platform/operations` | Platform superuser | Detailed health, safe provider configuration and append-only alert handling |
 | `GET` | `/admin/` | Staff | Django administration |
+| `GET` | `/api/v1/clients/` | Tenant bearer token | Paginated clients with email addresses |
 | `GET` | `/dotykacka/customers` | Superuser | Customer and card operations |
 | `POST` | `/dotykacka/send_pass/<barcode>` | Superuser | Send one customer's passes |
 | `POST` | `/dotykacka/add_all_to_brevo` | Superuser | Synchronize contacts to Brevo |
@@ -479,6 +480,43 @@ renewal and deployment procedure.
 
 The legacy access-token diagnostic route is restricted to superusers and never
 renders the token value.
+
+## Customer import API
+
+Create credentials under **Admin → Klienci → Tokeny API eksportu klientów**.
+Each token is bound to one tenant, so a consuming system can read only that
+business's customers. A new bearer token is displayed exactly once; the
+database stores only its SHA-256 digest and a visible prefix. The admin list
+records its last use and provides the **Unieważnij wybrane aktywne tokeny**
+action. Creation and revocation are written to the platform audit history.
+
+Clients with an email address can be imported with:
+
+```bash
+curl \
+  -H "Authorization: Bearer lst_live_REPLACE_WITH_TOKEN" \
+  "https://club.mbstudio.online/api/v1/clients/?page=1&page_size=100"
+```
+
+The response contains only `client_id`, `first_name`, `last_name`, and `email`,
+plus `count`, `page`, `page_size`, `next`, and `previous` pagination metadata.
+`page_size` defaults to 100 and is limited to 500. Records without an email
+address are excluded. Missing, invalid, inactive-tenant, and revoked tokens
+receive HTTP 401. Rate-limit responses use HTTP 429 and include `Retry-After`.
+All API responses disable caching.
+
+Example result:
+
+```json
+{
+  "count": 1,
+  "page": 1,
+  "page_size": 100,
+  "next": null,
+  "previous": null,
+  "results": [{"client_id": "MB-12", "first_name": "Anna", "last_name": "Nowak", "email": "anna@example.com"}]
+}
+```
 
 ## Checks
 

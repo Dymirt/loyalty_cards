@@ -28,6 +28,7 @@ EXTRACTED_MODELS = {
         "billing.usageevent",
     },
     "customers": {
+        "customers.customerexportapitoken",
         "customers.customerexternalidentity",
         "customers.consentrecord",
     },
