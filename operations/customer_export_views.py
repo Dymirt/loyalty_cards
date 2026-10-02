@@ -64,7 +64,7 @@ def client_list(request):
         .exclude(email__isnull=True)
         .exclude(email="")
         .order_by("pk")
-        .values("klient_id", "first_name", "last_name", "email")
+        .values("klient_id", "first_name", "last_name", "email", "phone")
     )
     paginator = Paginator(customers, page_size)
     try:
@@ -96,6 +96,7 @@ def client_list(request):
                     "client_id": customer["klient_id"],
                     "first_name": customer["first_name"] or "",
                     "last_name": customer["last_name"] or "",
+                    "phone": customer["phone"] or "",
                     "email": customer["email"],
                 }
                 for customer in page.object_list

@@ -522,11 +522,14 @@ curl --fail-with-body \
   "https://club.mbstudio.online/api/v1/clients/?page=1&page_size=100"
 ```
 
-The response contains only `client_id`, `first_name`, `last_name`, and `email`,
-plus `count`, `page`, `page_size`, `next`, and `previous` pagination metadata.
-Records without an email address are excluded. Continue requesting the URL in
-`next` until it is `null` to import every page. Treat `client_id` as the stable
-external identifier when updating an existing record in the consuming system.
+The response contains the complete safe customer profile stored by the
+platform: `client_id`, `first_name`, `last_name`, `phone`, and `email`, plus
+`count`, `page`, `page_size`, `next`, and `previous` pagination metadata. The
+database does not contain customer address or birth-date fields. Internal
+database/tenant identifiers and signed Wallet URLs are not exposed. Records
+without an email address are excluded. Continue requesting the URL in `next`
+until it is `null` to import every page. Treat `client_id` as the stable external
+identifier when updating an existing record in the consuming system.
 
 Example result:
 
@@ -542,6 +545,7 @@ Example result:
       "client_id": "MB-12",
       "first_name": "Anna",
       "last_name": "Nowak",
+      "phone": "+48501234567",
       "email": "anna@example.com"
     }
   ]

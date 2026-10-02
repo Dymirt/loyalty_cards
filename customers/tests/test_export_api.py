@@ -75,6 +75,7 @@ class CustomerExportApiTests(TestCase):
                     "client_id": self.customer.klient_id,
                     "first_name": "Anna",
                     "last_name": "Nowak",
+                    "phone": "501234567",
                     "email": "anna@example.test",
                 }
             ],
