@@ -178,12 +178,17 @@ class SecurityBoundaryTests(TestCase):
             self.assertEqual(private_response.status_code, 200)
             self.assertEqual(private_response["Cache-Control"], "private, no-store")
 
-    def test_apache_does_not_publish_media_or_log_query_strings(self):
-        config = (Path(__file__).parents[2] / "docker/apache/loyalty.conf").read_text(
-            encoding="utf-8"
-        )
-        self.assertNotIn("Alias /media/", config)
-        self.assertIn("%m %U %H", config)
-        self.assertNotIn("%q", config)
-        self.assertIn("LimitRequestBody 67108864", config)
-        self.assertIn("WSGIApplicationGroup %{GLOBAL}", config)
+    def test_apache_preserves_security_controls_and_bearer_auth(self):
+        project_root = Path(__file__).parents[2]
+        for relative_path in (
+            "docker/apache/loyalty.conf",
+            "deploy/production/apache.conf",
+        ):
+            with self.subTest(config=relative_path):
+                config = (project_root / relative_path).read_text(encoding="utf-8")
+                self.assertNotIn("Alias /media/", config)
+                self.assertIn("%m %U %H", config)
+                self.assertNotIn("%q", config)
+                self.assertIn("LimitRequestBody 67108864", config)
+                self.assertIn("WSGIPassAuthorization On", config)
+                self.assertIn("WSGIApplicationGroup %{GLOBAL}", config)
