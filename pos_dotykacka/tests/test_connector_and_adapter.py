@@ -11,6 +11,7 @@ from customers.models import CustomerExternalIdentity
 from integrations.contracts import (
     IntegrationAuthenticationError,
     IntegrationConfigurationError,
+    IntegrationError,
     RetryableIntegrationError,
 )
 from pos_dotykacka.models import DotykackaAccessToken, DotykackaConnectState
@@ -435,3 +436,30 @@ class DotykackaAdapterTests(TestCase):
         identity = CustomerExternalIdentity.objects.get(customer=customer)
         self.assertEqual(identity.remote_id, "77")
         self.assertEqual(identity.tenant, tenant)
+
+    def test_customer_create_payload_contains_all_required_api_fields(self):
+        tenant = create_tenant()
+        connection = configure_dotykacka(tenant)
+        customer = create_klient("SC-13", tenant=tenant)
+        adapter = DotykackaAdapter(connection, session=Mock())
+
+        payload = adapter._customer_payload(customer)
+
+        self.assertEqual(payload["points"], 0.0)
+        self.assertIsInstance(payload["points"], float)
+        self.assertEqual(payload["flags"], "0")
+        self.assertEqual(payload["_discountGroupId"], 456)
+
+    def test_customer_validation_error_has_redacted_provider_code(self):
+        tenant = create_tenant()
+        connection = configure_dotykacka(tenant)
+        customer = create_klient("SC-14", tenant=tenant)
+        self._cached_token(connection, "cached")
+        http = Mock()
+        http.post.return_value = Response(400, {"message": "sensitive details"})
+
+        with self.assertRaises(IntegrationError) as error:
+            DotykackaAdapter(connection, session=http).upsert_customer(customer)
+
+        self.assertEqual(error.exception.error_code, "dotykacka_http_400")
+        self.assertNotIn("sensitive", str(error.exception))

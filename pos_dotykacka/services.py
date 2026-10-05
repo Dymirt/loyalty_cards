@@ -20,6 +20,7 @@ from customers.models import CustomerExternalIdentity
 from integrations.contracts import (
     IntegrationAuthenticationError,
     IntegrationConfigurationError,
+    IntegrationError,
     ProviderResult,
     RetryableIntegrationError,
     SystemCheckResult,
@@ -378,6 +379,30 @@ class DotykackaAdapter:
             )
         return response
 
+    @staticmethod
+    def _raise_for_status(response):
+        """Translate provider HTTP failures into redacted integration errors."""
+
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            status_code = (
+                response.status_code
+                if isinstance(response.status_code, int)
+                else 0
+            )
+            error_code = (
+                f"dotykacka_http_{status_code}"
+                if status_code
+                else "dotykacka_http_error"
+            )
+            if status_code == 429 or status_code >= 500:
+                raise RetryableIntegrationError(
+                    error_code=error_code,
+                    retry_after=_retry_after(response),
+                ) from exc
+            raise IntegrationError(error_code=error_code) from exc
+
     def _customers_url(self):
         return f"{self.api_base_url}/v2/clouds/{quote(str(self.cloud_id))}/customers"
 
@@ -399,7 +424,7 @@ class DotykackaAdapter:
                 response = self._authorized(
                     "get", self._customers_url(), params={"page": page}
                 )
-            response.raise_for_status()
+            self._raise_for_status(response)
             payload = response.json()
             customers.extend(payload.get("data", []))
             last_page = int(payload.get("lastPage") or page)
@@ -447,6 +472,7 @@ class DotykackaAdapter:
             "internalNote": "",
             "lastName": customer.last_name or "",
             "phone": customer.phone or "",
+            "points": 0.0,
             "tags": [],
             "vatId": "",
             "zip": "",
@@ -480,10 +506,10 @@ class DotykackaAdapter:
                 None,
             )
             if match is None:
-                response.raise_for_status()
+                self._raise_for_status(response)
             payload = match
         else:
-            response.raise_for_status()
+            self._raise_for_status(response)
             body = response.json() if response.content else {}
             if isinstance(body, list):
                 payload = body[0] if body else {}
