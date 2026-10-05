@@ -1,7 +1,7 @@
 from io import StringIO
 from unittest.mock import patch
 
-from django.core.management import call_command
+from django.core.management import call_command, CommandError
 from django.test import TestCase
 
 from customers.models import CustomerExternalIdentity
@@ -104,3 +104,53 @@ class RetryFailedCustomerSyncsCommandTests(TestCase):
         self.assertEqual(other_code.status, IntegrationJob.Status.FAILED)
         self.assertEqual(other_kind.status, IntegrationJob.Status.FAILED)
         self.assertIn("requeued=1", stdout.getvalue())
+
+    def test_command_aborts_when_production_safety_checks_do_not_match(self):
+        target = self._failed_job()
+
+        with self.assertRaisesMessage(CommandError, "Expected 2 matching jobs, found 1"):
+            call_command("retry_failed_customer_syncs", expect_count=2)
+        with self.assertRaisesMessage(CommandError, "Required job IDs did not match: 43"):
+            call_command(
+                "retry_failed_customer_syncs",
+                expect_count=1,
+                require_job_id=[43],
+            )
+
+        target.refresh_from_db()
+        self.assertEqual(target.status, IntegrationJob.Status.FAILED)
+
+    @patch("pos_dotykacka.management.commands.retry_failed_customer_syncs.retry_failed_job")
+    def test_command_waits_for_jobs_and_external_ids(self, retry_job):
+        target = self._failed_job()
+
+        def complete_job(*, job):
+            IntegrationJob.objects.filter(pk=job.pk).update(
+                status=IntegrationJob.Status.SUCCEEDED,
+                last_error_code="",
+            )
+            CustomerExternalIdentity.objects.update_or_create(
+                tenant=self.tenant,
+                customer=self.customer,
+                provider="dotykacka",
+                defaults={
+                    "remote_id": "remote-22",
+                    "sync_status": CustomerExternalIdentity.SyncStatus.SYNCED,
+                    "last_error_code": "",
+                },
+            )
+
+        retry_job.side_effect = complete_job
+        stdout = StringIO()
+
+        call_command(
+            "retry_failed_customer_syncs",
+            apply=True,
+            expect_count=1,
+            require_job_id=[target.pk],
+            wait_seconds=1,
+            stdout=stdout,
+        )
+
+        self.assertIn("requeued=1", stdout.getvalue())
+        self.assertIn("verified=1 customer_ids=1", stdout.getvalue())
