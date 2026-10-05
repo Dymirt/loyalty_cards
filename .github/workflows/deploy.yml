@@ -117,35 +117,6 @@ jobs:
           curl --fail --silent --show-error --retry 12 --retry-all-errors \
             --retry-delay 5 --max-time 15 https://club.mbstudio.online/health/ready >/dev/null
 
-      - name: Run the one-time Dotykacka customer synchronization repair
-        shell: bash
-        run: |
-          set -euo pipefail
-          ssh_options=(
-            -i "$HOME/.ssh/loyalty_deploy"
-            -p "$DEPLOY_PORT"
-            -o BatchMode=yes
-            -o IdentitiesOnly=yes
-            -o StrictHostKeyChecking=yes
-          )
-          repair_marker="/home/$DEPLOY_USER/.dotykacka-customer-sync-repair-v1"
-          if ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "test -f '$repair_marker'"; then
-            echo "Dotykacka customer synchronization repair already completed."
-          else
-            # Preview and apply both enforce the production incident's exact
-            # cardinality and known job ID before changing any database state.
-            ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-              "cd /var/www/loyalty_platform/current && \
-              .venv/bin/python manage.py retry_failed_customer_syncs \
-              --expect-count 9 --require-job-id 43"
-            ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-              "cd /var/www/loyalty_platform/current && \
-              .venv/bin/python manage.py retry_failed_customer_syncs --apply \
-              --expect-count 9 --require-job-id 43 --wait-seconds 180 && \
-              touch '$repair_marker'"
-          fi
-
       - name: Record the deployment summary
         shell: bash
         env:
