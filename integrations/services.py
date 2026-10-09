@@ -17,6 +17,7 @@ SAFE_PAYLOAD_KEYS = frozenset(
         "wallet_id",
         "connection_id",
         "enrollment_link_id",
+        "campaign_recipient_id",
         "reason",
     }
 )

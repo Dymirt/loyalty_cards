@@ -247,6 +247,7 @@ class IntegrationConnection(models.Model):
         DOTYKACKA = "dotykacka", "Dotykačka"
         BREVO = "brevo", "Brevo"
         GOOGLE_WALLET = "google_wallet", "Google Wallet"
+        OPENAI = "openai", "OpenAI"
 
     tenant = models.ForeignKey(Tenant, on_delete=models.PROTECT, related_name="integrations")
     provider = models.CharField(max_length=32, choices=Provider.choices)

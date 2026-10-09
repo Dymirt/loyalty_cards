@@ -56,6 +56,10 @@ urlpatterns = [
         "dotykacka/",
         include(("card_artwork.urls", "card_artwork"), namespace="card_artwork"),
     ),
+    path(
+        "dotykacka/",
+        include(("communications.urls", "communications"), namespace="communications"),
+    ),
     path("dotykacka/", include(("enrollment.urls", "enrollment"), namespace="enrollment")),
     path("dotykacka/", include("dotykacka.urls")),
     path(

@@ -102,10 +102,19 @@ class Command(BaseCommand):
                 "expected_minimum": options["expect_min_tokens"],
                 "actual": result["token_count"],
             }
-        required_providers = {provider for provider, _ in IntegrationConnection.Provider.choices}
-        if set(result["integration_providers"]) != required_providers:
+        required_providers = {
+            IntegrationConnection.Provider.DOTYKACKA,
+            IntegrationConnection.Provider.BREVO,
+            IntegrationConnection.Provider.GOOGLE_WALLET,
+        }
+        known_providers = {provider for provider, _ in IntegrationConnection.Provider.choices}
+        actual_providers = set(result["integration_providers"])
+        if not required_providers.issubset(actual_providers) or not actual_providers.issubset(
+            known_providers
+        ):
             mismatches["integration_providers"] = {
-                "expected": sorted(required_providers),
+                "required": sorted(required_providers),
+                "allowed": sorted(known_providers),
                 "actual": result["integration_providers"],
             }
         if mismatches:

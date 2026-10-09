@@ -70,7 +70,9 @@ def _marta_invariant_mismatches(counts):
             mismatches[key] = {"expected": expected, "actual": actual}
 
     required_providers = {
-        value for value, _label in IntegrationConnection.Provider.choices
+        IntegrationConnection.Provider.DOTYKACKA,
+        IntegrationConnection.Provider.BREVO,
+        IntegrationConnection.Provider.GOOGLE_WALLET,
     }
     missing_providers = sorted(
         required_providers - set(counts["integration_providers"])

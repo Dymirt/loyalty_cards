@@ -32,7 +32,12 @@ EXTRACTED_MODELS = {
         "customers.customerexternalidentity",
         "customers.consentrecord",
     },
-    "communications": {"communications.communicationdelivery"},
+    "communications": {
+        "communications.campaignasset",
+        "communications.campaignrecipient",
+        "communications.communicationdelivery",
+        "communications.emailcampaign",
+    },
     "card_artwork": {
         "card_artwork.cardartworksource",
         "card_artwork.cropplan",

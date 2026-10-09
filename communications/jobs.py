@@ -16,6 +16,12 @@ from .services import (
     mark_email_delivery_unknown,
     send_pass_email,
 )
+from .campaigns import (
+    CAMPAIGN_EMAIL_JOB,
+    refresh_campaign_delivery_status,
+    send_campaign_email,
+)
+from .models import CampaignRecipient
 
 
 EMAIL_JOB = "communications.email.pass"
@@ -72,4 +78,61 @@ def send_pass_email_job(job):
 register_job_handler(EMAIL_JOB, send_pass_email_job)
 
 
-__all__ = ["EMAIL_JOB", "send_pass_email_job"]
+def send_campaign_email_job(job):
+    recipient = CampaignRecipient.objects.select_related(
+        "campaign__tenant__brand",
+        "customer",
+    ).get(
+        pk=job.payload["campaign_recipient_id"],
+        tenant=job.tenant,
+    )
+    if recipient.status == CampaignRecipient.Status.SENT:
+        return recipient
+    recipient.status = CampaignRecipient.Status.SENDING
+    recipient.error_code = ""
+    recipient.save(update_fields=("status", "error_code", "updated_at"))
+    refresh_campaign_delivery_status(recipient.campaign_id)
+    delivery, should_send = begin_email_delivery(
+        job=job,
+        customer=recipient.customer,
+        subject=recipient.campaign.subject,
+        generation=1,
+        template_key=f"email-campaign-{recipient.campaign_id}-v1",
+    )
+    if not should_send:
+        recipient.status = CampaignRecipient.Status.SENT
+        recipient.sent_at = delivery.completed_at or delivery.started_at
+        recipient.save(update_fields=("status", "sent_at", "updated_at"))
+        refresh_campaign_delivery_status(recipient.campaign_id)
+        return recipient
+    try:
+        sent = send_campaign_email(recipient)
+        if not sent:
+            raise RuntimeError("Email backend returned no delivery confirmation.")
+    except Exception as exc:
+        mark_email_delivery_unknown(delivery)
+        recipient.status = CampaignRecipient.Status.FAILED
+        recipient.error_code = "email_delivery_outcome_unknown"
+        recipient.save(update_fields=("status", "error_code", "updated_at"))
+        refresh_campaign_delivery_status(recipient.campaign_id)
+        raise IntegrationError(
+            "Campaign email delivery outcome is unknown.",
+            error_code="email_delivery_outcome_unknown",
+        ) from exc
+    delivery = mark_email_delivery_sent(delivery)
+    recipient.status = CampaignRecipient.Status.SENT
+    recipient.sent_at = delivery.completed_at
+    recipient.save(update_fields=("status", "sent_at", "updated_at"))
+    refresh_campaign_delivery_status(recipient.campaign_id)
+    return recipient
+
+
+register_job_handler(CAMPAIGN_EMAIL_JOB, send_campaign_email_job)
+
+
+__all__ = [
+    "CAMPAIGN_EMAIL_JOB",
+    "EMAIL_JOB",
+    "send_campaign_email_job",
+    "send_pass_email_job",
+]

@@ -178,6 +178,13 @@ EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "webmaster@localhost")
+
+OPENAI_API_BASE_URL = config(
+    "OPENAI_API_BASE_URL",
+    default="https://api.openai.com/v1",
+)
+OPENAI_EMAIL_MODEL = config("OPENAI_EMAIL_MODEL", default="gpt-6-luna")
+OPENAI_HTTP_TIMEOUT = config("OPENAI_HTTP_TIMEOUT", default=45, cast=int)
 EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=15, cast=int)
 
 # Legacy first-tenant import aliases. Runtime tenant configuration is database-owned;
@@ -303,7 +310,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = config(
     "DATA_UPLOAD_MAX_NUMBER_FIELDS", default=200, cast=int
 )
 DATA_UPLOAD_MAX_NUMBER_FILES = config(
-    "DATA_UPLOAD_MAX_NUMBER_FILES", default=4, cast=int
+    "DATA_UPLOAD_MAX_NUMBER_FILES", default=8, cast=int
 )
 
 MARKETING_CONTACT_RATE_LIMIT = config(

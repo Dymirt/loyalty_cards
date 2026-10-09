@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% blocktranslate with tenant_name=tenant.name %}Kampanie e-mail · {{ tenant_name }}{% endblocktranslate %}{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'css/communications.v1.css' %}?v=1">{% endblock %}
+
+{% block content %}
+{% include "tenants/partials/nav.html" %}
+<div class="campaign-page-head">
+    <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.16em] text-accent-700">{% translate "Komunikacja z klientami" %}</p>
+        <h1 class="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{% translate "Kampanie e-mail" %}</h1>
+        <p class="mt-2 max-w-3xl text-ink-700">{% translate "Twórz wiadomości w stylu marki i planuj wysyłkę do posiadaczy kart z aktualną zgodą marketingową." %}</p>
+    </div>
+    <a href="{% url 'communications:new' tenant.slug %}" class="portal-button">{% translate "Nowa kampania" %}</a>
+</div>
+
+<section class="campaign-signal-grid" aria-label="{% translate 'Gotowość kampanii' %}">
+    <article class="campaign-signal">
+        <span class="campaign-signal-label">{% translate "Gotowi odbiorcy" %}</span>
+        <strong>{{ eligible_recipient_count }}</strong>
+        <span>{% translate "karta + e-mail + zgoda" %}</span>
+    </article>
+    <article class="campaign-signal">
+        <span class="campaign-signal-label">{% translate "Generator" %}</span>
+        <strong>{% if openai_ready %}OpenAI{% else %}{% translate "Tryb bazowy" %}{% endif %}</strong>
+        <span>{% if openai_ready %}{% translate "połączenie aktywne" %}{% else %}{% translate "ustaw klucz w Integracjach" %}{% endif %}</span>
+    </article>
+    <article class="campaign-signal">
+        <span class="campaign-signal-label">{% translate "Zaplanowane" %}</span>
+        <strong>{{ scheduled_campaigns|length }}</strong>
+        <span>{% translate "kolejne wysyłki" %}</span>
+    </article>
+</section>
+
+<section class="campaign-section" aria-labelledby="scheduled-title">
+    <div class="campaign-section-head">
+        <div><p class="campaign-kicker">{% translate "Kalendarz" %}</p><h2 id="scheduled-title">{% translate "Zaplanowane komunikaty" %}</h2></div>
+    </div>
+    {% if scheduled_campaigns %}
+        <div class="campaign-table-wrap">
+            <table class="campaign-table">
+                <thead><tr><th>{% translate "Wiadomość" %}</th><th>{% translate "Termin" %}</th><th>{% translate "Odbiorcy" %}</th><th>{% translate "Status" %}</th><th><span class="sr-only">{% translate "Akcje" %}</span></th></tr></thead>
+                <tbody>
+                {% for item in scheduled_campaigns %}
+                    <tr>
+                        <td><strong>{{ item.subject|default:item.name }}</strong><span>{{ item.goal|truncatechars:90 }}</span></td>
+                        <td><time datetime="{{ item.scheduled_for|date:'c' }}">{{ item.scheduled_for|date:"d.m.Y, H:i" }}</time></td>
+                        <td><strong>{{ item.recipient_count }}</strong><span>{% blocktranslate with sent=item.sent_count %}wysłano: {{ sent }}{% endblocktranslate %}</span></td>
+                        <td><span class="campaign-status campaign-status-{{ item.status }}">{{ item.get_status_display }}</span></td>
+                        <td><a href="{% url 'communications:edit' tenant.slug item.pk %}" class="campaign-link">{% translate "Podgląd" %}</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="campaign-empty"><strong>{% translate "Brak zaplanowanych wysyłek" %}</strong><p>{% translate "Gdy ustawisz termin dla szkicu, pojawi się tutaj razem z liczbą odbiorców." %}</p></div>
+    {% endif %}
+</section>
+
+<section class="campaign-section" aria-labelledby="history-title">
+    <div class="campaign-section-head">
+        <div><p class="campaign-kicker">{% translate "Biblioteka" %}</p><h2 id="history-title">{% translate "Szkice i historia" %}</h2></div>
+    </div>
+    {% if campaign_history %}
+        <div class="campaign-card-grid">
+            {% for item in campaign_history %}
+                <article class="campaign-record">
+                    <div class="campaign-record-top"><span class="campaign-status campaign-status-{{ item.status }}">{{ item.get_status_display }}</span><time datetime="{{ item.updated_at|date:'c' }}">{{ item.updated_at|date:"d.m.Y" }}</time></div>
+                    <h3>{{ item.subject|default:item.name }}</h3>
+                    <p>{{ item.goal|truncatechars:130 }}</p>
+                    <div class="campaign-record-foot"><span>{% if item.generation_source == 'openai' %}AI · {{ item.ai_model }}{% else %}{% translate "Szkic bazowy" %}{% endif %}</span><a href="{% url 'communications:edit' tenant.slug item.pk %}" class="campaign-link">{% if item.is_editable %}{% translate "Otwórz szkic" %}{% else %}{% translate "Zobacz" %}{% endif %}</a></div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="campaign-empty"><strong>{% translate "Nie ma jeszcze kampanii" %}</strong><p>{% translate "Utwórz pierwszy szkic na podstawie celu, linków i zdjęć marki." %}</p></div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% if campaign %}{{ campaign.name }}{% else %}{% translate "Nowa kampania" %}{% endif %} · {{ tenant.name }}{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'css/communications.v1.css' %}?v=1">{% endblock %}
+
+{% block content %}
+{% include "tenants/partials/nav.html" %}
+<div class="campaign-page-head campaign-page-head-compact">
+    <div>
+        <a href="{% url 'communications:list' tenant.slug %}" class="campaign-back">{% translate "Wszystkie kampanie" %}</a>
+        <h1 class="mt-3 text-3xl font-bold tracking-tight">{% if campaign %}{{ campaign.subject|default:campaign.name }}{% else %}{% translate "Nowa kampania" %}{% endif %}</h1>
+        {% if campaign %}<p class="mt-2 text-ink-700">{{ campaign.get_status_display }} · {% blocktranslate with date=campaign.updated_at|date:"d.m.Y, H:i" %}ostatnia zmiana {{ date }}{% endblocktranslate %}</p>{% else %}<p class="mt-2 text-ink-700">{% translate "Od materiałów marki do gotowej wiadomości." %}</p>{% endif %}
+    </div>
+    {% if campaign %}<span class="campaign-status campaign-status-{{ campaign.status }}">{{ campaign.get_status_display }}</span>{% endif %}
+</div>
+
+{% if campaign and not campaign.is_editable %}
+    <div class="campaign-lock-note"><strong>{% translate "Treść została zamrożona w chwili planowania." %}</strong><span>{% translate "Dzięki temu wszyscy odbiorcy dostaną dokładnie ten sam zatwierdzony komunikat." %}</span></div>
+{% endif %}
+
+<div class="campaign-studio {% if campaign and not campaign.is_editable %}campaign-studio-readonly{% endif %}">
+    <section class="campaign-controls" aria-labelledby="editor-title">
+        <div class="campaign-panel-title"><span>01</span><div><p class="campaign-kicker">{% translate "Brief" %}</p><h2 id="editor-title">{% translate "Materiały i cel" %}</h2></div></div>
+        {% if not openai_ready %}
+            <div class="campaign-ai-note">
+                <div><strong>{% translate "OpenAI nie jest jeszcze połączone" %}</strong><p>{% translate "Możesz zapisać szkic i użyć generatora bazowego. Po dodaniu klucza wygenerujesz pełny wariant AI." %}</p></div>
+                {% if can_manage_integrations %}<a href="{% url 'integrations:settings' tenant.slug %}">{% translate "Ustaw integrację" %}</a>{% endif %}
+            </div>
+        {% endif %}
+        {% if campaign and not campaign.is_editable %}
+            <div class="campaign-readonly-brief"><span>{% translate "Cel komunikacji" %}</span><p>{{ campaign.goal }}</p>{% if campaign.reference_links %}<span>{% translate "Linki" %}</span><ul>{% for link in campaign.reference_links %}<li><a href="{{ link }}" rel="noreferrer">{{ link }}</a></li>{% endfor %}</ul>{% endif %}</div>
+        {% else %}
+            <form method="post" enctype="multipart/form-data" class="campaign-form">
+                {% csrf_token %}
+                {% for error in form.non_field_errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
+                {% include "components/form_field.html" with field=form.goal %}
+                {% include "components/form_field.html" with field=form.links %}
+                <div class="campaign-upload-field">
+                    {% include "components/form_field.html" with field=form.images %}
+                    {% if assets %}
+                        <div class="campaign-asset-grid" aria-label="{% translate 'Dodane materiały' %}">
+                            {% for asset in assets %}<figure><img src="{% url 'communications:asset' tenant.slug campaign.pk asset.pk %}" alt=""><figcaption>{{ asset.original_name|truncatechars:28 }}</figcaption></figure>{% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="campaign-actions">
+                    <button type="submit" name="action" value="save" class="portal-button-secondary">{% translate "Zapisz szkic" %}</button>
+                    <button type="submit" name="action" value="generate" class="portal-button">{% translate "Generuj z AI" %}</button>
+                </div>
+                <div class="campaign-schedule-box">
+                    <div><p class="campaign-kicker">{% translate "Wysyłka" %}</p><h3>{% translate "Zaplanuj komunikat" %}</h3><p>{% blocktranslate count counter=eligible_recipient_count %}Do {{ counter }} posiadacza karty ze zgodą marketingową.{% plural %}Do {{ counter }} posiadaczy kart ze zgodą marketingową.{% endblocktranslate %}</p></div>
+                    {% include "components/form_field.html" with field=form.scheduled_for %}
+                    <button type="submit" name="action" value="schedule" class="campaign-schedule-button" {% if not eligible_recipient_count %}disabled{% endif %}>{% translate "Zaplanuj wysyłkę" %}</button>
+                </div>
+            </form>
+        {% endif %}
+    </section>
+
+    <aside class="campaign-preview-panel" aria-labelledby="preview-title">
+        <div class="campaign-panel-title"><span>02</span><div><p class="campaign-kicker">{% translate "Wiadomość" %}</p><h2 id="preview-title">{% translate "Podgląd e-maila" %}</h2></div></div>
+        <div class="campaign-mail-meta">
+            <div><span>{% translate "Temat" %}</span><strong>{% if campaign and campaign.subject %}{{ campaign.subject }}{% else %}{% translate "Jeszcze nie wygenerowano" %}{% endif %}</strong></div>
+            {% if campaign and campaign.html_content %}<span class="campaign-generator-badge">{% if campaign.generation_source == 'openai' %}OpenAI · {{ campaign.ai_model }}{% else %}{% translate "Generator bazowy" %}{% endif %}</span>{% endif %}
+        </div>
+        <div class="campaign-device">
+            <div class="campaign-device-bar"><i></i><i></i><i></i><span>{{ tenant.brand.public_name|default:tenant.name }}</span></div>
+            {% if campaign %}<iframe title="{% translate 'Podgląd wygenerowanej wiadomości' %}" src="{% url 'communications:preview' tenant.slug campaign.pk %}" sandbox></iframe>{% else %}<div class="campaign-preview-empty"><span>AI</span><strong>{% translate "Twój e-mail pojawi się tutaj" %}</strong><p>{% translate "Dodaj brief, linki i zdjęcia, a następnie wygeneruj pierwszy szkic." %}</p></div>{% endif %}
+        </div>
+        {% if campaign and campaign.scheduled_for %}<div class="campaign-send-summary"><span>{% translate "Termin" %}<strong>{{ campaign.scheduled_for|date:"d.m.Y, H:i" }}</strong></span><span>{% translate "Odbiorcy" %}<strong>{{ campaign.recipient_count }}</strong></span><span>{% translate "Wysłano" %}<strong>{{ campaign.sent_count }}</strong></span></div>{% endif %}
+    </aside>
+</div>
+{% endblock %}

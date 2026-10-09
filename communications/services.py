@@ -138,7 +138,14 @@ Pozdrawiamy,
 
 
 @transaction.atomic
-def begin_email_delivery(*, job, customer, subject, generation=1):
+def begin_email_delivery(
+    *,
+    job,
+    customer,
+    subject,
+    generation=1,
+    template_key="loyalty-card-ready-v1",
+):
     existing = (
         CommunicationDelivery.objects.select_for_update()
         .filter(integration_job=job)
@@ -159,6 +166,7 @@ def begin_email_delivery(*, job, customer, subject, generation=1):
         tenant=customer.tenant,
         customer=customer,
         integration_job=job,
+        template_key=template_key,
         generation=generation,
         recipient_sha256=hashlib.sha256(
             customer.email.strip().lower().encode("utf-8")

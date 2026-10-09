@@ -50,7 +50,10 @@ EXTRACTED_MODEL_TABLES = {
     "billing.usageevent": "billing_usageevent",
     "card_artwork.cardartworksource": "card_artwork_cardartworksource",
     "card_artwork.cropplan": "card_artwork_cropplan",
+    "communications.campaignasset": "communications_campaignasset",
+    "communications.campaignrecipient": "communications_campaignrecipient",
     "communications.communicationdelivery": "communications_communicationdelivery",
+    "communications.emailcampaign": "communications_emailcampaign",
     "customers.consentrecord": "customers_consentrecord",
     "customers.customerexportapitoken": "customers_customerexportapitoken",
     "customers.customerexternalidentity": "customers_customerexternalidentity",
@@ -126,6 +129,11 @@ EXTRACTED_URL_NAMES = {
     "cards:platform_print_center",
     "customers_api:clients",
     "customers:list",
+    "communications:list",
+    "communications:new",
+    "communications:edit",
+    "communications:preview",
+    "communications:asset",
     "enrollment:register",
     "enrollment:tenant_register",
     "enrollment:public_status",
@@ -207,6 +215,7 @@ LEGACY_DOTYKACKA_MIGRATIONS = {
     "0013_backfill_card_designs",
     "0014_promote_dotykacka_refresh_tokens",
     "0015_alter_cardartifact_kind_alter_cardbatch_status_and_more",
+    "0016_alter_integrationconnection_provider",
 }
 
 EXTRACTED_MIGRATIONS = {
@@ -231,6 +240,7 @@ EXTRACTED_MIGRATIONS = {
     ("printing", "0002_alter_fulfillmentevent_event_type_and_more"),
     ("communications", "0001_initial"),
     ("communications", "0002_alter_communicationdelivery_channel_and_more"),
+    ("communications", "0003_emailcampaign_campaignrecipient_campaignasset_and_more"),
     ("enrollment", "0001_initial"),
     ("enrollment", "0002_alter_enrollmentaccesslink_purpose_and_more"),
     ("tenants", "0001_initial"),
@@ -359,7 +369,7 @@ def collect_extraction_inventory(*, include_rows=True):
         )
 
     return {
-        "schema_version": 8,
+        "schema_version": 9,
         "settings_module": os.environ.get("DJANGO_SETTINGS_MODULE", ""),
         "root_urlconf": settings.ROOT_URLCONF,
         "wsgi_application": settings.WSGI_APPLICATION,
