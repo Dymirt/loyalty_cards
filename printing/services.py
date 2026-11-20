@@ -28,6 +28,7 @@ from billing.services import consume_print_quote
 from card_artwork.models import CardArtifact, CardDesign, CropPlan
 from card_artwork.services import bytes_sha256, generate_card_artifacts, resolve_artifact_path
 from cards.models import CardBatch, PhysicalCard
+from cards.virtual import VIRTUAL_CARD_FIRST_NUMBER
 from dotykacka.models import AuditEvent
 from tenants.models import Tenant
 
@@ -397,6 +398,10 @@ def allocate_print_run(*, print_request, actor):
     )
     start_number = highest + 1
     end_number = highest + print_request.quantity
+    if end_number >= VIRTUAL_CARD_FIRST_NUMBER:
+        raise ValidationError(
+            _("Numery od 601 są zarezerwowane dla kart wirtualnych.")
+        )
     design_snapshot = _design_snapshot(print_request.design)
     quote = Quote.objects.select_for_update().prefetch_related("lines").get(
         pk=print_request.quote_id

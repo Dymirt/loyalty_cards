@@ -57,6 +57,7 @@ class Command(BaseCommand):
             "customer_count": Klient.objects.filter(
                 tenant=tenant,
                 physical_card__isnull=False,
+                physical_card__number__lte=600,
             ).count(),
             "total_customer_count": Klient.objects.filter(tenant=tenant).count(),
             "virtual_customer_count": Klient.objects.filter(

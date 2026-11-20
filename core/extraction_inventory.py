@@ -229,6 +229,7 @@ LEGACY_DOTYKACKA_MIGRATIONS = {
     "0016_alter_integrationconnection_provider",
     "0017_walletpass_card_design",
     "0018_marta_virtual_card_design_catalog",
+    "0019_physicalcard_artwork_source_and_more",
 }
 
 EXTRACTED_MIGRATIONS = {

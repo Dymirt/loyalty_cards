@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
 from dotykacka.card_codes import CardCodeError, parse_card_code
-from dotykacka.models import AccessToken, Klient
+from dotykacka.models import AccessToken, Klient, PhysicalCard
 
 
 VIRTUAL_CARD_CODE_RE = re.compile(r"^[A-Z0-9]+-V-[A-F0-9]{16}$")
@@ -50,11 +50,36 @@ class Command(BaseCommand):
             raise CommandError("The inventory range must satisfy 1 <= start <= end.")
 
         all_card_codes = list(Klient.objects.values_list("klient_id", flat=True))
+        application_card_codes = set(
+            Klient.objects.filter(virtual_card_application__isnull=False).values_list(
+                "klient_id", flat=True
+            )
+        )
         virtual_card_codes = [
-            code for code in all_card_codes if VIRTUAL_CARD_CODE_RE.fullmatch(code)
+            code
+            for code in all_card_codes
+            if VIRTUAL_CARD_CODE_RE.fullmatch(code) or code in application_card_codes
         ]
+
+        def belongs_to_legacy_range(code):
+            try:
+                parsed = parse_card_code(
+                    code,
+                    expected_prefix=prefix,
+                    max_number=2_147_483_647,
+                )
+            except CardCodeError:
+                return False
+            return start <= parsed.number <= end
+
         card_codes = [
-            code for code in all_card_codes if not VIRTUAL_CARD_CODE_RE.fullmatch(code)
+            code
+            for code in all_card_codes
+            if not VIRTUAL_CARD_CODE_RE.fullmatch(code)
+            and (
+                code not in application_card_codes
+                or belongs_to_legacy_range(code)
+            )
         ]
         duplicate_count = sum(
             1 for total in Counter(card_codes).values() if total > 1
@@ -86,6 +111,9 @@ class Command(BaseCommand):
         token_count = AccessToken.objects.count()
         user_count = get_user_model().objects.count()
         expected_card_count = end - start + 1
+        physical_cards = PhysicalCard.objects.filter(
+            tenant__slug=settings.LEGACY_DEFAULT_TENANT_SLUG
+        )
         result = {
             "status": "ok",
             "customer_count": customer_count,
@@ -99,6 +127,15 @@ class Command(BaseCommand):
             "expected_card_count": expected_card_count,
             "assigned_card_count": len(assigned_numbers),
             "available_card_count": expected_card_count - len(assigned_numbers),
+            "physical_card_count": physical_cards.count(),
+            "physical_assigned_card_count": physical_cards.filter(
+                status=PhysicalCard.Status.ASSIGNED,
+                customer__isnull=False,
+            ).count(),
+            "physical_available_card_count": physical_cards.filter(
+                status=PhysicalCard.Status.AVAILABLE,
+                customer__isnull=True,
+            ).count(),
             "missing_asset_count": len(missing_assets),
             "assets_checked": not options["skip_assets"],
         }

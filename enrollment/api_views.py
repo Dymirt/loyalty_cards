@@ -13,7 +13,7 @@ from django.views.decorators.http import require_GET, require_POST
 from billing.services import EntitlementLimitError
 from dotykacka.models import PhysicalCard
 from .api_auth import api_error, virtual_card_key_required
-from .catalog import virtual_card_designs
+from .catalog import VIRTUAL_CARD_FIRST_NUMBER, virtual_card_designs
 from .models import VirtualCardApplication
 from .services import (
     VirtualCardIdempotencyConflict,
@@ -50,6 +50,9 @@ def _card_payload(request, card):
         "id": card.pk,
         "name": card.code,
         "card_code": card.code,
+        "artwork_source_card_code": (
+            card.artwork_source.code if card.artwork_source_id else None
+        ),
         "preview_url": front_url,
         "front_url": front_url,
         "back_url": request.build_absolute_uri(
@@ -227,8 +230,11 @@ def create_virtual_card(request):
     except ValueError as exc:
         return api_error(str(exc), status=400, code="invalid_request")
     tenant = request.virtual_card_api_key.tenant
+    virtual_card_designs(tenant)
     try:
         selected_card = tenant.physical_cards.get(
+            number__gte=VIRTUAL_CARD_FIRST_NUMBER,
+            artwork_source__isnull=False,
             **(
                 {"pk": cleaned["card_id"]}
                 if "card_id" in cleaned
@@ -277,7 +283,10 @@ def create_virtual_card(request):
             code="issuance_unavailable",
         )
     application = VirtualCardApplication.objects.select_related(
-        "customer__wallet_pass", "card_design", "physical_card__tenant"
+        "customer__wallet_pass",
+        "card_design",
+        "physical_card__tenant",
+        "physical_card__artwork_source",
     ).prefetch_related("followups__integration_job").get(pk=result.application.pk)
     payload = _application_payload(request, application)
     response = JsonResponse(
@@ -294,7 +303,10 @@ def create_virtual_card(request):
 def virtual_card_detail(request, public_id):
     application = (
         VirtualCardApplication.objects.select_related(
-            "customer__wallet_pass", "card_design", "physical_card__tenant"
+            "customer__wallet_pass",
+            "card_design",
+            "physical_card__tenant",
+            "physical_card__artwork_source",
         ).prefetch_related(
             "followups__integration_job"
         ).filter(

@@ -155,6 +155,32 @@ class PrintingServiceTests(TestCase):
         self.assertEqual(same_run.pk, first_run.pk)
         self.assertEqual(PrintQuoteConsumption.objects.count(), 2)
 
+    def test_physical_print_allocation_cannot_enter_virtual_number_range(self):
+        batch = CardBatch.objects.create(
+            tenant=self.tenant,
+            design=self.design,
+            name="Physical cards through 600",
+            card_prefix=self.tenant.card_prefix,
+            start_number=600,
+            end_number=600,
+            status=CardBatch.Status.GENERATED,
+        )
+        PhysicalCard.objects.create(
+            tenant=self.tenant,
+            batch=batch,
+            code=f"{self.tenant.card_prefix}-600",
+            number=600,
+            status=PhysicalCard.Status.AVAILABLE,
+        )
+        request = self.submit()
+        approve_print_request(print_request=request, actor=self.operator)
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Numery od 601 są zarezerwowane dla kart wirtualnych.",
+        ):
+            allocate_print_run(print_request=request, actor=self.operator)
+
     def test_worker_builds_valid_immutable_traceable_package(self):
         run, package = self.generate()
         run.refresh_from_db()

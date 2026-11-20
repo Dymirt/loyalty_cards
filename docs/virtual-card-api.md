@@ -1,10 +1,12 @@
 # Virtual card API
 
-The virtual-card API assigns one of the tenant's already-rendered, unregistered
-`MB-*` cards to a new customer. The physical plastic is not delivered; its
-existing front artwork and card number become the source for Apple Wallet and
-Google Wallet. The resulting Wallet cards are delivered only to the submitted
-email address.
+The virtual-card API creates unique card identities starting at `MB-601` while
+reusing the tenant's already-rendered `MB-1..600` artwork files. No front, back
+or preview image is copied or rendered again. `MB-601` uses the artwork of
+`MB-1`, `MB-602` uses `MB-2`, and the mapping repeats after 600 source cards.
+Apple Wallet and Google Wallet receive the new unique card code and barcode,
+but display the saved front artwork from the mapped source card. The resulting
+Wallet cards are delivered only to the submitted email address.
 
 ## Authentication
 
@@ -23,21 +25,22 @@ GET /api/v1/virtual-card-designs/
 Authorization: Bearer lvc_live_...
 ```
 
-The response contains exactly four currently available prepared cards, ordered
-by card number. These are the real unregistered `MB-*` cards, not synthetic
-style records. Each item contains the database `id`, `card_code`, and URLs for
-the saved front and back. `preview_url` is the same image as `front_url`.
+The response contains exactly four currently available virtual identities,
+ordered by card number. Each item contains its database `id`, unique
+`card_code`, mapped `artwork_source_card_code`, and URLs that serve the existing
+source front and back files. `preview_url` is the same image as `front_url`.
 
 ```json
 {
   "results": [
     {
-      "id": 12,
-      "name": "MB-12",
-      "card_code": "MB-12",
-      "preview_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/front",
-      "front_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/front",
-      "back_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/back"
+      "id": 742,
+      "name": "MB-601",
+      "card_code": "MB-601",
+      "artwork_source_card_code": "MB-1",
+      "preview_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/742/front",
+      "front_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/742/front",
+      "back_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/742/back"
     }
   ]
 }
@@ -60,7 +63,7 @@ Content-Type: application/json
   "last_name": "Nowak",
   "email": "anna@example.com",
   "phone": "+48500100200",
-  "card_code": "MB-12",
+  "card_code": "MB-601",
   "marketing_consent": true
 }
 ```
@@ -75,15 +78,15 @@ save URL; those are delivered only to the customer's email address.
 {
   "request_id": "b2b21475-5077-4cf9-87e2-c46118a39e98",
   "state": "processing",
-  "card_id": "MB-12",
+  "card_id": "MB-601",
   "card_created": true,
   "card": {
-    "id": "MB-12",
+    "id": "MB-601",
     "created": true,
     "wallet_pass_id": "19e2f1bc-3f24-4fb7-a5c6-2c94366f661e",
-    "inventory_card_id": 12,
-    "front_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/front",
-    "back_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/back"
+    "inventory_card_id": 742,
+    "front_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/742/front",
+    "back_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/742/back"
   },
   "delivery": {
     "apple_wallet": {
@@ -125,6 +128,9 @@ blocks all subsequent requests authenticated with it.
 
 The Apple pass is sent as a `.pkpass` attachment and as an expiring signed
 "Add to Apple Wallet" link in the email. The signed link is never returned by
-the API. Both Apple Wallet and Google Wallet use the saved `*_front.jpg` file
-of the selected `MB-*` card; the saved `*_back.jpg` remains available in the
-catalog response but is not used as the Wallet hero/strip artwork.
+the API. Both Apple Wallet and Google Wallet use the already-saved
+`*_front.jpg` file of the mapped `MB-1..600` artwork source. The new `MB-601+`
+row stores no copied front or back file. Its unique code is used for the
+customer identity, barcode, Apple serial association and Google object. The
+source `*_back.jpg` remains available in the catalog response but is not used
+as the Wallet hero/strip artwork.

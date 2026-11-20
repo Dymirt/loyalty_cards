@@ -17,13 +17,17 @@ CARD_IMAGE_FIELDS = {
 
 
 def physical_card_asset_path(card, side):
-    """Resolve an immutable legacy card image without allowing path traversal."""
+    """Resolve a saved card image, following a virtual card's immutable source."""
 
     try:
         field_name = CARD_IMAGE_FIELDS[side]
     except KeyError as exc:
         raise ValidationError(_("Nieznana strona karty.")) from exc
-    relative_path = getattr(card, field_name, "")
+    asset_card = card
+    relative_path = getattr(asset_card, field_name, "")
+    if not relative_path and card.artwork_source_id:
+        asset_card = card.artwork_source
+        relative_path = getattr(asset_card, field_name, "")
     if not relative_path:
         raise ValidationError(_("Karta nie ma zapisanego pliku %(side)s.") % {"side": side})
     media_root = Path(settings.MEDIA_ROOT).resolve()
@@ -41,6 +45,7 @@ def tenant_inventory_queryset(tenant_model):
             filter=Q(
                 physical_cards__status=PhysicalCard.Status.AVAILABLE,
                 physical_cards__customer__isnull=True,
+                physical_cards__artwork_source__isnull=True,
             ),
             distinct=True,
         ),
@@ -49,6 +54,7 @@ def tenant_inventory_queryset(tenant_model):
             filter=Q(
                 physical_cards__status=PhysicalCard.Status.ASSIGNED,
                 physical_cards__customer__isnull=False,
+                physical_cards__artwork_source__isnull=True,
             ),
             distinct=True,
         ),
@@ -81,4 +87,5 @@ def card_is_available(*, tenant, code):
         code=code,
         status=PhysicalCard.Status.AVAILABLE,
         customer__isnull=True,
+        artwork_source__isnull=True,
     ).exists()

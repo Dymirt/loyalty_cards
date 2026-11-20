@@ -27,6 +27,7 @@ from enrollment.models import (
     VirtualCardApplication,
     VirtualCardFollowUp,
 )
+from enrollment.catalog import virtual_artwork_source_number, virtual_card_designs
 from enrollment.links import url_for_virtual_apple_pass
 from communications.services import send_pass_email
 from integrations.models import IntegrationJob
@@ -59,6 +60,7 @@ class VirtualCardApiTests(TestCase):
                 start=1,
             )
         ]
+        self.virtual_cards = list(virtual_card_designs(self.tenant))
         self.api_key, self.raw_key = VirtualCardApiKey.issue(
             tenant=self.tenant,
             name="Website backend",
@@ -69,7 +71,7 @@ class VirtualCardApiTests(TestCase):
             "last_name": "Nowak",
             "email": "anna@example.test",
             "phone": "+48500100200",
-            "card_code": self.cards[0].code,
+            "card_code": self.virtual_cards[0].code,
             "marketing_consent": True,
         }
 
@@ -99,7 +101,7 @@ class VirtualCardApiTests(TestCase):
             **self.headers,
         )
 
-    def test_design_api_lists_four_available_prepared_cards_for_the_tenant(self):
+    def test_design_api_lists_four_unique_virtual_cards_with_reused_artwork(self):
         other = create_tenant(name="Other", slug="other-virtual", card_prefix="OVC")
         create_physical_card(other, number=1)
 
@@ -111,10 +113,14 @@ class VirtualCardApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             [item["id"] for item in response.json()["results"]],
-            [card.pk for card in self.cards[:4]],
+            [card.pk for card in self.virtual_cards],
         )
         self.assertEqual(
             [item["card_code"] for item in response.json()["results"]],
+            [f"{self.tenant.card_prefix}-{number}" for number in range(601, 605)],
+        )
+        self.assertEqual(
+            [item["artwork_source_card_code"] for item in response.json()["results"]],
             [card.code for card in self.cards[:4]],
         )
         self.assertIn("front_url", response.json()["results"][0])
@@ -123,7 +129,7 @@ class VirtualCardApiTests(TestCase):
         self.assertEqual(preview.status_code, 200)
         self.assertEqual(preview["Content-Type"], "image/jpeg")
 
-    def test_catalog_exposes_only_four_lowest_available_card_codes(self):
+    def test_catalog_exposes_only_four_lowest_available_virtual_card_codes(self):
         response = self.client.get(
             reverse("virtual_cards_api:designs"),
             **self.headers,
@@ -131,8 +137,35 @@ class VirtualCardApiTests(TestCase):
 
         self.assertEqual(
             [item["card_code"] for item in response.json()["results"]],
-            [card.code for card in self.cards[:4]],
+            [f"{self.tenant.card_prefix}-{number}" for number in range(601, 605)],
         )
+
+    def test_virtual_number_maps_cyclically_to_the_original_600_artworks(self):
+        self.assertEqual(virtual_artwork_source_number(601), 1)
+        self.assertEqual(virtual_artwork_source_number(602), 2)
+        self.assertEqual(virtual_artwork_source_number(1200), 600)
+        self.assertEqual(virtual_artwork_source_number(1201), 1)
+
+    def test_catalog_replenishes_after_issuance_without_rendering_new_assets(self):
+        issued = self.post_card()
+        self.assertEqual(issued.status_code, 202)
+
+        response = self.client.get(
+            reverse("virtual_cards_api:designs"),
+            **self.headers,
+        )
+
+        self.assertEqual(
+            [item["card_code"] for item in response.json()["results"]],
+            [f"{self.tenant.card_prefix}-{number}" for number in range(602, 606)],
+        )
+        replacement = PhysicalCard.objects.get(
+            tenant=self.tenant,
+            number=605,
+        )
+        self.assertEqual(replacement.artwork_source, self.cards[4])
+        self.assertEqual(replacement.front_image_path, "")
+        self.assertEqual(replacement.back_image_path, "")
 
     def test_api_assigns_selected_prepared_card_and_wallet_email_jobs(self):
         configure_dotykacka(self.tenant)
@@ -159,13 +192,23 @@ class VirtualCardApiTests(TestCase):
         )
         wallet = WalletPass.objects.get(customer=customer)
         self.assertEqual(wallet.card_design, self.design_one)
-        self.assertEqual(wallet.physical_card, self.cards[0])
+        self.assertEqual(wallet.physical_card, self.virtual_cards[0])
+        self.virtual_cards[0].refresh_from_db()
         self.cards[0].refresh_from_db()
-        self.assertEqual(self.cards[0].customer, customer)
-        self.assertEqual(self.cards[0].status, PhysicalCard.Status.ASSIGNED)
-        self.assertEqual(customer.klient_id, self.cards[0].code)
-        self.assertEqual(application.physical_card, self.cards[0])
-        self.assertEqual(response.json()["card_design"]["name"], self.cards[0].code)
+        self.assertEqual(self.virtual_cards[0].customer, customer)
+        self.assertEqual(self.virtual_cards[0].status, PhysicalCard.Status.ASSIGNED)
+        self.assertEqual(self.virtual_cards[0].artwork_source, self.cards[0])
+        self.assertEqual(self.virtual_cards[0].front_image_path, "")
+        self.assertEqual(self.virtual_cards[0].back_image_path, "")
+        self.assertIsNone(self.cards[0].customer)
+        self.assertEqual(self.cards[0].status, PhysicalCard.Status.AVAILABLE)
+        self.assertEqual(customer.klient_id, self.virtual_cards[0].code)
+        self.assertEqual(application.physical_card, self.virtual_cards[0])
+        self.assertEqual(response.json()["card_design"]["name"], self.virtual_cards[0].code)
+        self.assertEqual(
+            response.json()["card_design"]["artwork_source_card_code"],
+            self.cards[0].code,
+        )
         self.assertTrue(response.json()["card"]["front_url"].endswith("/front"))
         self.assertEqual(application.usage_event.kind, UsageEvent.Kind.VIRTUAL_CARD_ISSUED)
         self.assertTrue(ConsentRecord.objects.get(customer=customer).granted)
@@ -270,7 +313,7 @@ class VirtualCardApiTests(TestCase):
         self.assertIn(
             reverse(
                 "enrollment:virtual_card_asset",
-                args=[self.tenant.slug, self.cards[0].pk, "front"],
+                args=[self.tenant.slug, self.virtual_cards[0].pk, "front"],
             ),
             url_builder.call_args.kwargs["customer_image_url"],
         )
@@ -289,6 +332,15 @@ class VirtualCardApiTests(TestCase):
         self.assertEqual(revoked.status_code, 401)
         self.assertEqual(VirtualCardApplication.objects.count(), 0)
 
+    def test_original_physical_artwork_card_cannot_be_issued_as_virtual(self):
+        response = self.post_card(
+            payload=dict(self.payload, card_code=self.cards[0].code),
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "invalid_card")
+        self.assertFalse(VirtualCardApplication.objects.exists())
+
     def test_public_form_uses_selected_prepared_card_and_only_confirms_email_delivery(self):
         response = self.client.post(
             reverse("enrollment:virtual_card_form", args=[self.tenant.slug]),
@@ -297,7 +349,7 @@ class VirtualCardApiTests(TestCase):
                 "last_name": "Kowalska",
                 "email": "maria@example.test",
                 "phone": "501234567",
-                "physical_card": self.cards[1].pk,
+                "physical_card": self.virtual_cards[1].pk,
                 "marketing_consent": "on",
                 "request_id": str(uuid4()),
             },
@@ -307,8 +359,9 @@ class VirtualCardApiTests(TestCase):
         self.assertContains(response, "maria@example.test", status_code=201)
         application = VirtualCardApplication.objects.get(source="public_form")
         self.assertEqual(application.card_design, self.design_one)
-        self.assertEqual(application.physical_card, self.cards[1])
-        self.assertEqual(application.customer.klient_id, self.cards[1].code)
+        self.assertEqual(application.physical_card, self.virtual_cards[1])
+        self.assertEqual(application.physical_card.artwork_source, self.cards[1])
+        self.assertEqual(application.customer.klient_id, self.virtual_cards[1].code)
         self.assertIsNone(application.api_key)
         self.assertNotContains(response, "pay.google.com", status_code=201)
 
@@ -328,12 +381,12 @@ class VirtualCardApiTests(TestCase):
     def test_legacy_card_design_id_field_selects_the_returned_inventory_card(self):
         payload = dict(self.payload)
         payload.pop("card_code")
-        payload["card_design_id"] = self.cards[0].pk
+        payload["card_design_id"] = self.virtual_cards[0].pk
 
         response = self.post_card(payload=payload)
 
         self.assertEqual(response.status_code, 202)
-        self.assertEqual(response.json()["card_id"], self.cards[0].code)
+        self.assertEqual(response.json()["card_id"], self.virtual_cards[0].code)
 
 
 class VirtualCardApiKeyPortalTests(TestCase):

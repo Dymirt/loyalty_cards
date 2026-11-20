@@ -91,7 +91,7 @@ class VirtualCardApiKey(models.Model):
 
 
 class VirtualCardApplication(AppendOnlyMixin, models.Model):
-    """One accepted request assigning a prepared MB-* visual to Wallet cards."""
+    """One accepted request assigning a unique MB-601+ identity to reused artwork."""
 
     class Source(models.TextChoices):
         API = "api", _("API")

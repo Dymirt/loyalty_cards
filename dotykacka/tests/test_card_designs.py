@@ -154,14 +154,21 @@ class CardDesignMigrationBaselineTests(TestCase):
             },
         )
 
-    def test_marta_virtual_catalog_contains_four_prepared_unassigned_cards(self):
+    def test_marta_virtual_catalog_reuses_four_prepared_artworks_for_mb_601_plus(self):
         tenant = default_tenant()
 
         cards = list(virtual_card_designs(tenant))
 
-        self.assertEqual([card.code for card in cards], ["MB-1", "MB-2", "MB-3", "MB-4"])
-        self.assertTrue(all(card.front_image_path.endswith("_front.jpg") for card in cards))
-        self.assertTrue(all(card.back_image_path.endswith("_back.jpg") for card in cards))
+        self.assertEqual(
+            [card.code for card in cards],
+            ["MB-601", "MB-602", "MB-603", "MB-604"],
+        )
+        self.assertEqual(
+            [card.artwork_source.code for card in cards],
+            ["MB-1", "MB-2", "MB-3", "MB-4"],
+        )
+        self.assertTrue(all(card.front_image_path == "" for card in cards))
+        self.assertTrue(all(card.back_image_path == "" for card in cards))
 
     def test_phase_three_backfill_verifier_is_read_only(self):
         output = StringIO()

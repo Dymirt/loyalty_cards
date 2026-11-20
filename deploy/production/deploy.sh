@@ -177,7 +177,7 @@ run_manage migrate --noinput
 run_manage migrate --plan
 run_manage verify_app_extraction --strict
 
-read -r expected_customers expected_tokens expected_users expected_assigned expected_available < <(
+read -r expected_customers expected_tokens expected_users expected_cards expected_assigned expected_available < <(
     python3 - "$STATE/preflight-$SHA.json" <<'PY'
 import json
 import sys
@@ -187,8 +187,9 @@ print(
     result["customer_count"],
     result["token_count"],
     result["user_count"],
-    result["assigned_card_count"],
-    result["available_card_count"],
+    result["physical_card_count"],
+    result["physical_assigned_card_count"],
+    result["physical_available_card_count"],
 )
 PY
 )
@@ -196,7 +197,7 @@ run_manage verify_marta_backfill \
     --expect-memberships "$expected_users" \
     --expect-customers "$expected_customers" \
     --expect-tokens "$expected_tokens" \
-    --expect-cards 600 \
+    --expect-cards "$expected_cards" \
     --expect-assigned "$expected_assigned" \
     --expect-available "$expected_available"
 run_manage shell -c '

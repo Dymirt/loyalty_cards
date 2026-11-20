@@ -358,6 +358,13 @@ class PhysicalCard(models.Model):
         blank=True,
         null=True,
     )
+    artwork_source = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="virtual_artwork_cards",
+        blank=True,
+        null=True,
+    )
     code = models.CharField(max_length=60, unique=True)
     number = models.PositiveIntegerField()
     status = models.CharField(
@@ -378,8 +385,31 @@ class PhysicalCard(models.Model):
             models.UniqueConstraint(
                 fields=("tenant", "number"),
                 name="unique_tenant_physical_card_number",
-            )
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(artwork_source__isnull=True, number__lt=601)
+                    | models.Q(artwork_source__isnull=False, number__gte=601)
+                ),
+                name="physical_virtual_card_number_ranges",
+            ),
         ]
+
+    def clean(self):
+        errors = {}
+        if self.artwork_source_id:
+            if self.pk and self.artwork_source_id == self.pk:
+                errors["artwork_source"] = _("Karta nie może używać własnej grafiki jako źródła.")
+            if self.artwork_source.tenant_id != self.tenant_id:
+                errors["artwork_source"] = _("Źródło grafiki musi należeć do tej samej firmy.")
+            if self.artwork_source.artwork_source_id:
+                errors["artwork_source"] = _("Źródłem grafiki musi być oryginalna karta.")
+            if self.number < 601:
+                errors["number"] = _("Numer karty wirtualnej musi zaczynać się od 601.")
+        elif self.number >= 601:
+            errors["number"] = _("Numery od 601 są zarezerwowane dla kart wirtualnych.")
+        if errors:
+            raise ValidationError(errors)
 
 
 class CardArtifact(ImmutableVersionMixin, models.Model):

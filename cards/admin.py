@@ -5,7 +5,14 @@ from .models import CardBatch, PhysicalCard
 
 @admin.register(PhysicalCard)
 class PhysicalCardAdmin(admin.ModelAdmin):
-    list_display = ("code", "tenant", "status", "customer", "is_legacy")
+    list_display = (
+        "code",
+        "tenant",
+        "status",
+        "customer",
+        "artwork_source",
+        "is_legacy",
+    )
     list_filter = ("tenant", "status", "is_legacy")
     search_fields = ("code",)
 

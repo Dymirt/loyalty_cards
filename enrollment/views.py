@@ -275,7 +275,10 @@ def virtual_card_asset(request, tenant_slug, card_id, asset_kind):
         slug=tenant_slug,
         is_active=True,
     )
-    card = get_object_or_404(tenant.physical_cards, pk=card_id)
+    card = get_object_or_404(
+        tenant.physical_cards.select_related("artwork_source"),
+        pk=card_id,
+    )
     if asset_kind not in {"front", "back"}:
         raise Http404(_("Nieznany materiał karty."))
     try:

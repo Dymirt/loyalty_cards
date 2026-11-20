@@ -9,10 +9,12 @@ def portal_summary(tenant):
         "available_card_count": tenant.physical_cards.filter(
             status=PhysicalCard.Status.AVAILABLE,
             customer__isnull=True,
+            artwork_source__isnull=True,
         ).count(),
         "assigned_card_count": tenant.physical_cards.filter(
             status=PhysicalCard.Status.ASSIGNED,
             customer__isnull=False,
+            artwork_source__isnull=True,
         ).count(),
         "integration_statuses": {
             connection.provider: connection.enabled

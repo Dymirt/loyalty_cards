@@ -23,6 +23,7 @@ from tenants.models import Tenant, TenantDomain
 from wallets.services import wallet_identity
 
 from .links import issue_access_link, token_for_link
+from .catalog import VIRTUAL_CARD_FIRST_NUMBER
 from .models import (
     Enrollment,
     EnrollmentAccessLink,
@@ -227,9 +228,17 @@ def register_virtual_card(
         enqueue_virtual_card_followups(existing)
         return VirtualCardResult(application=existing, created=False)
     physical_card = lock_available_card(tenant=tenant, code=physical_card.code)
+    if (
+        physical_card.number < VIRTUAL_CARD_FIRST_NUMBER
+        or physical_card.artwork_source_id is None
+    ):
+        raise ValidationError(
+            _("Karty wirtualne muszą pochodzić z unikalnej puli numerów od 601.")
+        )
+    artwork_source = physical_card.artwork_source
     card_design = (
         tenant.card_designs.select_related("brand_revision")
-        .filter(pk=physical_card.batch.design_id)
+        .filter(pk=artwork_source.batch.design_id)
         .first()
     )
     if card_design is None:
@@ -263,6 +272,8 @@ def register_virtual_card(
             "card_design_id": card_design.pk,
             "physical_card_id": physical_card.pk,
             "card_code": physical_card.code,
+            "artwork_source_card_id": artwork_source.pk,
+            "artwork_source_card_code": artwork_source.code,
         },
     )
     revision = card_design.brand_revision
@@ -277,6 +288,8 @@ def register_virtual_card(
             "card_design_id": card_design.pk,
             "physical_card_id": physical_card.pk,
             "card_code": physical_card.code,
+            "artwork_source_card_id": artwork_source.pk,
+            "artwork_source_card_code": artwork_source.code,
             "virtual_card": True,
         },
     )
@@ -309,6 +322,8 @@ def register_virtual_card(
             "card_design_id": card_design.pk,
             "physical_card_id": physical_card.pk,
             "card_code": physical_card.code,
+            "artwork_source_card_id": artwork_source.pk,
+            "artwork_source_card_code": artwork_source.code,
             "api_key_id": getattr(api_key, "pk", None),
             "job_count": len(jobs),
             "source": source,

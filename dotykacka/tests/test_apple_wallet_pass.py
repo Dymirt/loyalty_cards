@@ -7,6 +7,7 @@ from django.test import TestCase, override_settings
 from PIL import Image
 
 from cards.services import assign_locked_card
+from dotykacka.models import PhysicalCard
 from dotykacka.services.apple_wallet import (
     apple_pass_payload,
     build_apple_pass,
@@ -85,3 +86,51 @@ class AppleWalletPassTests(TestCase):
 
                 self.assertTrue(pass_path.is_file())
                 self.assertEqual(artifact.physical_card, card)
+
+    @override_settings(
+        APPLE_WALLET_PASS_TYPE_IDENTIFIER="pass.example.test",
+        APPLE_WALLET_TEAM_IDENTIFIER="TEAM123",
+    )
+    def test_virtual_mb_601_uses_mb_1_front_without_rendering_or_copying_it(self):
+        with TemporaryDirectory() as directory:
+            with self.settings(
+                MEDIA_ROOT=directory,
+                APPLE_WALLET_TEMPLATE_DIR=directory,
+            ):
+                source = create_physical_card(number=1)
+                virtual = PhysicalCard(
+                    tenant=source.tenant,
+                    batch=source.batch,
+                    artwork_source=source,
+                    code="MB-601",
+                    number=601,
+                    status=PhysicalCard.Status.AVAILABLE,
+                )
+                virtual.full_clean()
+                virtual.save()
+                relative_front = Path("cards/card-1/MB-1_front.jpg")
+                front_path = Path(directory) / relative_front
+                front_path.parent.mkdir(parents=True)
+                Image.new("RGB", (1011, 638), "#D94A64").save(
+                    front_path,
+                    format="JPEG",
+                )
+                source.front_image_path = relative_front.as_posix()
+                source.save(update_fields=("front_image_path",))
+                customer = create_klient(virtual.code)
+                assign_locked_card(card=virtual, customer=customer)
+                wallet = wallet_identity(customer, card_design=source.batch.design)
+
+                with patch(
+                    "wallet_apple.services.render_card",
+                    side_effect=AssertionError("renderer must not recreate MB-1 artwork"),
+                ), patch("wallet_apple.services.sign_manifest"):
+                    pass_path, artifact = build_apple_pass(
+                        customer=customer,
+                        wallet=wallet,
+                        design=source.batch.design,
+                    )
+
+                self.assertTrue(pass_path.is_file())
+                self.assertEqual(artifact.physical_card, virtual)
+                self.assertEqual(virtual.front_image_path, "")

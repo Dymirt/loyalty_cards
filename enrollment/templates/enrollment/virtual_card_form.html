@@ -27,7 +27,7 @@
                                 <span class="virtual-design-visual">
                                     <img src="{% url 'enrollment:virtual_card_asset' tenant.slug card.pk 'front' %}" alt="{% blocktranslate with card_code=card.code %}Przód karty {{ card_code }}{% endblocktranslate %}">
                                 </span>
-                                <span class="virtual-design-name"><strong>{{ card.code }}</strong><small>{% translate "gotowy awers i rewers" %}</small></span>
+                                <span class="virtual-design-name"><strong>{{ card.code }}</strong><small>{% blocktranslate with source_code=card.artwork_source.code %}grafika z {{ source_code }}{% endblocktranslate %}</small></span>
                             </label>
                         {% endfor %}
                     </div>

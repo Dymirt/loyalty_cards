@@ -4,7 +4,7 @@
 {% block head_extra %}<link rel="stylesheet" href="{% static 'css/virtual-cards.v1.css' %}?v=1">{% endblock %}
 {% block content %}
 {% include "tenants/partials/nav.html" %}
-<div class="virtual-api-head"><div><p class="virtual-eyebrow">{% translate "Integracja firmy" %}</p><h1>{% translate "API kart wirtualnych" %}</h1><p>{% translate "Przyjmuj dane klienta z własnej strony, przypisuj jedną z gotowych kart MB-* i wysyłaj ją do Apple/Google Wallet." %}</p></div><a class="portal-button-secondary" href="{{ public_form_url }}" target="_blank" rel="noopener">{% translate "Otwórz formularz klienta" %}</a></div>
+<div class="virtual-api-head"><div><p class="virtual-eyebrow">{% translate "Integracja firmy" %}</p><h1>{% translate "API kart wirtualnych" %}</h1><p>{% translate "Twórz unikalne karty MB-601+ z istniejącą grafiką MB-1..600 i wysyłaj je do Apple/Google Wallet bez ponownego renderowania obrazów." %}</p></div><a class="portal-button-secondary" href="{{ public_form_url }}" target="_blank" rel="noopener">{% translate "Otwórz formularz klienta" %}</a></div>
 
 {% if raw_key %}<section class="virtual-secret-panel" role="status"><p class="virtual-eyebrow">{% translate "Nowy klucz — skopiuj teraz" %}</p><h2>{% translate "Nie pokażemy go ponownie" %}</h2><code>{{ raw_key }}</code><p>{% translate "Przekaż klucz wyłącznie administratorowi backendu. Nie umieszczaj go w HTML ani JavaScript przeglądarki." %}</p></section>{% endif %}
 
@@ -22,7 +22,7 @@
     "last_name": "Nowak",
     "email": "anna@example.com",
     "phone": "+48500100200",
-    "card_code": "MB-12",
+    "card_code": "MB-601",
     "marketing_consent": true
   }'</code></pre><p class="portal-help">{% translate "Odpowiedź nie zawiera kart ani linków Wallet. Klient otrzyma je tylko e-mailem." %}</p></section>
 
