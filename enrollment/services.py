@@ -57,6 +57,7 @@ class VirtualCardIdempotencyConflict(ValidationError):
 def published_brand_release(tenant):
     design = (
         tenant.card_designs
+        .filter(is_virtual_catalog=False)
         .select_related("brand_revision")
         .order_by("-version", "-pk")
         .first()

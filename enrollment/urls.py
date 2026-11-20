@@ -24,6 +24,11 @@ urlpatterns = [
         name="public_apple_pass",
     ),
     path(
+        "virtual-card/wallet/<str:token>/apple-pass",
+        views.public_virtual_apple_pass,
+        name="public_virtual_apple_pass",
+    ),
+    path(
         "c/<slug:tenant_slug>/enrollments",
         views.tenant_enrollments,
         name="manage",

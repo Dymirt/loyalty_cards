@@ -16,6 +16,7 @@ from .models import EnrollmentAccessLink, VirtualCardApplication
 
 
 LINK_SALT = "loyalty.enrollment.access.v1"
+VIRTUAL_CARD_LINK_SALT = "loyalty.virtual-card.apple.v1"
 
 
 class EnrollmentLinkError(ValueError):
@@ -58,6 +59,36 @@ def url_for_link(link):
     )
 
 
+def token_for_virtual_card(application):
+    return signing.TimestampSigner(salt=VIRTUAL_CARD_LINK_SALT).sign(
+        str(application.public_id)
+    )
+
+
+def resolve_virtual_card_link(token):
+    try:
+        value = signing.TimestampSigner(salt=VIRTUAL_CARD_LINK_SALT).unsign(
+            token,
+            max_age=timedelta(days=settings.ENROLLMENT_LINK_TTL_DAYS),
+        )
+        public_id = UUID(value)
+    except (signing.BadSignature, signing.SignatureExpired, ValueError) as exc:
+        raise EnrollmentLinkError("Invalid virtual-card access link.") from exc
+    try:
+        return VirtualCardApplication.objects.select_related(
+            "tenant", "customer__wallet_pass"
+        ).get(public_id=public_id)
+    except VirtualCardApplication.DoesNotExist as exc:
+        raise EnrollmentLinkError("Invalid virtual-card access link.") from exc
+
+
+def url_for_virtual_apple_pass(application):
+    return settings.APP_BASE_URL.rstrip("/") + reverse(
+        "enrollment:public_virtual_apple_pass",
+        args=[token_for_virtual_card(application)],
+    )
+
+
 def resolve_access_link(token, *, now=None):
     try:
         value = signing.Signer(salt=LINK_SALT).unsign(token)
@@ -90,6 +121,7 @@ def email_application_context_for_job(job):
         if application.tenant_id != job.tenant_id:
             raise IntegrationError(error_code="virtual_card_tenant_mismatch")
         return EmailApplicationContext(
+            apple_wallet_url=url_for_virtual_apple_pass(application),
             brand_snapshot=application.brand_snapshot,
             generation=1,
         )
@@ -116,6 +148,9 @@ __all__ = [
     "email_application_context_for_job",
     "issue_access_link",
     "resolve_access_link",
+    "resolve_virtual_card_link",
     "token_for_link",
+    "token_for_virtual_card",
     "url_for_link",
+    "url_for_virtual_apple_pass",
 ]

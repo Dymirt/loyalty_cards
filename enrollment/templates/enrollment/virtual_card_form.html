@@ -25,9 +25,7 @@
                             <label class="virtual-design-option">
                                 <input type="radio" name="card_design" value="{{ design.pk }}" {% if form.card_design.value|stringformat:"s" == design.pk|stringformat:"s" %}checked{% endif %} required>
                                 <span class="virtual-design-visual" style="background:{{ design.panel_color }}">
-                                    {% if design.background_source %}<img src="{% url 'enrollment:virtual_card_design_asset' tenant.slug design.pk 'background' %}" alt="">{% endif %}
-                                    {% if design.logo %}<img class="virtual-design-logo" src="{% url 'enrollment:virtual_card_design_asset' tenant.slug design.pk 'logo' %}" alt="">{% endif %}
-                                    <i style="color:{{ design.foreground_color }}">{{ design.front_text|default:registration_brand.public_name }}</i>
+                                    <img src="{% url 'enrollment:virtual_card_design_asset' tenant.slug design.pk 'preview' %}" alt="{% blocktranslate with design_name=design.name %}Podgląd projektu {{ design_name }}{% endblocktranslate %}">
                                 </span>
                                 <span class="virtual-design-name"><strong>{{ design.name }}</strong><small>{% blocktranslate with version=design.version %}wersja {{ version }}{% endblocktranslate %}</small></span>
                             </label>

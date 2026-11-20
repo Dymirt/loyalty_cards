@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--tenant", default=settings.LEGACY_DEFAULT_TENANT_SLUG)
-        parser.add_argument("--expect-designs", type=int, default=1)
+        parser.add_argument("--expect-designs", type=int, default=5)
         parser.add_argument("--expect-brand-revisions", type=int, default=1)
         parser.add_argument("--expect-wallets", type=int, default=267)
         parser.add_argument("--expect-linked-batches", type=int, default=1)

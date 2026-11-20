@@ -1,6 +1,7 @@
 """Public enrollment and authorized tenant follow-up HTTP adapters."""
 
 import mimetypes
+from io import BytesIO
 
 from django.conf import settings
 from django.contrib import messages
@@ -14,6 +15,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from cards.models import PhysicalCard
+from dotykacka.services.card_designs import render_card, spec_from_design
 from communications.services import customer_apple_pass
 from dotykacka.models import AuditEvent
 from tenants.authorization import (
@@ -33,8 +35,14 @@ from .forms import (
     VirtualCardRegistrationForm,
     registration_form_data,
 )
+from .catalog import virtual_card_designs
 from .jobs import EMAIL_JOB_KIND, enqueue_enrollment_followups
-from .links import EnrollmentLinkError, EnrollmentLinkExpired, resolve_access_link
+from .links import (
+    EnrollmentLinkError,
+    EnrollmentLinkExpired,
+    resolve_access_link,
+    resolve_virtual_card_link,
+)
 from .models import (
     Enrollment,
     EnrollmentFollowUp,
@@ -182,7 +190,7 @@ def _virtual_card_form_context(*, tenant, form, application=None):
         "tenant": tenant,
         "registration_brand": registration_brand_for_tenant(tenant),
         "form": form,
-        "designs": tenant.card_designs.order_by("-version", "-pk"),
+        "designs": virtual_card_designs(tenant),
         "wallet_available": apple_enabled or google_connection is not None,
         "application": application,
     }
@@ -266,6 +274,15 @@ def virtual_card_design_asset(request, tenant_slug, design_id, asset_kind):
         is_active=True,
     )
     design = get_object_or_404(tenant.card_designs, pk=design_id)
+    if asset_kind == "preview":
+        rendered = render_card(
+            spec_from_design(design),
+            f"{tenant.card_prefix}-1",
+        )
+        response = FileResponse(BytesIO(rendered.front), content_type="image/jpeg")
+        response["Cache-Control"] = "public, max-age=3600"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
     if asset_kind == "background":
         asset = design.background_source
     elif asset_kind == "logo":
@@ -350,6 +367,28 @@ def public_apple_pass(request, token):
         filename="loyalty-card.pkpass",
         content_type="application/vnd.apple.pkpass",
     )
+
+
+@require_GET
+def public_virtual_apple_pass(request, token):
+    try:
+        application = resolve_virtual_card_link(token)
+    except EnrollmentLinkError:
+        raise Http404(_("Nieprawidłowy lub wygasły link Apple Wallet."))
+    path = customer_apple_pass(
+        application.customer,
+        create_identity=False,
+    )
+    if not path.is_file():
+        raise Http404(_("Karta Apple Wallet nie jest jeszcze gotowa."))
+    response = FileResponse(
+        path.open("rb"),
+        as_attachment=True,
+        filename="loyalty-card.pkpass",
+        content_type="application/vnd.apple.pkpass",
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 def _tenant_or_forbidden(request, tenant_slug):
@@ -681,6 +720,7 @@ __all__ = [
     "enrollment_detail",
     "ensure_followups",
     "public_apple_pass",
+    "public_virtual_apple_pass",
     "public_status",
     "register_customer_form",
     "request_domain",

@@ -12,6 +12,8 @@ from customers.models import Customer
 from dotykacka.models import CardDesign
 from tenants.forms import style_portal_form
 
+from .catalog import virtual_card_designs
+
 
 class LoyaltyCustomerRegistrationForm(CustomerProfileForm):
     barcode = forms.CharField(max_length=60, label=_("Kod karty"))
@@ -68,9 +70,7 @@ class VirtualCardRegistrationForm(CustomerProfileForm):
         kwargs.setdefault("initial", {})
         kwargs["initial"].setdefault("request_id", uuid4())
         super().__init__(*args, **kwargs)
-        self.fields["card_design"].queryset = tenant.card_designs.select_related(
-            "brand_revision"
-        ).order_by("-version", "-pk")
+        self.fields["card_design"].queryset = virtual_card_designs(tenant)
         if not self.is_bound:
             first_design = self.fields["card_design"].queryset.first()
             if first_design is not None:

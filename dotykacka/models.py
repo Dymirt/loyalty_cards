@@ -162,6 +162,7 @@ class CardDesign(ImmutableVersionMixin, models.Model):
     )
     version = models.PositiveIntegerField()
     name = models.CharField(max_length=160)
+    is_virtual_catalog = models.BooleanField(default=False)
     background_source = models.ImageField(
         upload_to=card_design_background_path,
         max_length=500,

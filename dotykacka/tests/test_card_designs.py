@@ -18,6 +18,7 @@ from dotykacka.models import (
     TenantBrandRevision,
 )
 from card_artwork.models import CardArtworkSource
+from enrollment.catalog import virtual_card_designs
 from dotykacka.services.card_designs import (
     DesignSpec,
     bytes_sha256,
@@ -153,12 +154,28 @@ class CardDesignMigrationBaselineTests(TestCase):
             },
         )
 
+    def test_marta_virtual_catalog_contains_four_published_styles(self):
+        tenant = default_tenant()
+
+        designs = list(virtual_card_designs(tenant))
+
+        self.assertEqual([design.version for design in designs], [5, 4, 3, 2])
+        self.assertEqual(
+            [design.name for design in designs],
+            [
+                "Atelier Monochrome",
+                "Fashion Rosé",
+                "Café Crème",
+                "Atelier Signature",
+            ],
+        )
+
     def test_phase_three_backfill_verifier_is_read_only(self):
         output = StringIO()
 
         call_command(
             "verify_card_design_backfill",
-            expect_designs=1,
+            expect_designs=5,
             expect_brand_revisions=1,
             expect_wallets=0,
             expect_linked_batches=1,

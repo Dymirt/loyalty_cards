@@ -61,6 +61,7 @@ def send_pass_email(
     *,
     brand_snapshot=None,
     application_link_url="",
+    apple_wallet_url="",
     require_apple=True,
 ) -> int:
     if not customer.email:
@@ -94,6 +95,7 @@ def send_pass_email(
     safe_signature = escape(signature)
     safe_google_url = escape(customer.google_jwt_url or "", quote=True)
     safe_application_url = escape(application_link_url or "", quote=True)
+    safe_apple_url = escape(apple_wallet_url or "", quote=True)
     subject = email_subject_for(customer, brand_snapshot)
     application_text = (
         f"Status i bezpieczne pobieranie: {application_link_url}\n"
@@ -104,7 +106,7 @@ def send_pass_email(
 
 Twoja karta lojalnościowa {public_name} jest gotowa.
 Google Wallet: {customer.google_jwt_url or ''}
-Apple Wallet: {'karta w załączniku (.pkpass)' if pass_path.is_file() else 'niedostępna'}
+Apple Wallet: {apple_wallet_url or ('karta w załączniku (.pkpass)' if pass_path.is_file() else 'niedostępna')}
 {application_text}
 
 Pozdrawiamy,
@@ -116,9 +118,18 @@ Pozdrawiamy,
         else ""
     )
     google_html = (
-        f'<a href="{safe_google_url}">Dodaj do Google Wallet</a>'
+        f'<a href="{safe_google_url}" style="display:inline-block;margin:4px;padding:12px 18px;border-radius:8px;background:#111;color:#fff;text-decoration:none;font-family:Arial,sans-serif;font-weight:bold">Dodaj do Google Wallet</a>'
         if customer.google_jwt_url
         else "Google Wallet jest przygotowywany."
+    )
+    apple_html = (
+        f'<a href="{safe_apple_url}" style="display:inline-block;margin:4px;padding:12px 18px;border-radius:8px;background:#111;color:#fff;text-decoration:none;font-family:Arial,sans-serif;font-weight:bold">Dodaj do Apple Wallet</a>'
+        if apple_wallet_url and pass_path.is_file()
+        else (
+            '<span style="display:block;margin:8px;font-family:Arial,sans-serif;color:#444">Apple Wallet: otwórz załącznik loyalty-card.pkpass.</span>'
+            if pass_path.is_file()
+            else "Apple Wallet jest przygotowywany."
+        )
     )
     html_content = f"""<!doctype html>
 <html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
@@ -127,8 +138,8 @@ Pozdrawiamy,
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden">
       <tr><td align="center" style="padding:24px 24px 8px"><img src="{escape(logo_url, quote=True)}" width="120" alt="{safe_public_name}" style="display:block;height:auto"></td></tr>
       <tr><td style="padding:8px 24px;font-family:Arial,sans-serif;color:#111;font-size:18px"><p>Dzień dobry {safe_name},</p><p>Twoja karta lojalnościowa {safe_public_name} jest gotowa.</p></td></tr>
-      <tr><td align="center" style="padding:0 24px 8px;font-family:Arial,sans-serif;color:#444;font-size:14px">Podgląd i bezpieczne pobieranie karty są dostępne wyłącznie przez link statusu poniżej.</td></tr>
-      <tr><td align="center" style="padding:8px 24px 24px">{google_html}{application_html}</td></tr>
+      <tr><td align="center" style="padding:0 24px 8px;font-family:Arial,sans-serif;color:#444;font-size:14px">Wybierz odpowiedni przycisk Wallet. Kartę Apple znajdziesz również w załączniku loyalty-card.pkpass.</td></tr>
+      <tr><td align="center" style="padding:8px 24px 24px">{apple_html}{google_html}{application_html}</td></tr>
       <tr><td style="padding:0 24px 24px;font-family:Arial,sans-serif;color:#444;font-size:14px">Pozdrawiamy,<br>{safe_signature}</td></tr>
     </table>
   </td></tr></table>

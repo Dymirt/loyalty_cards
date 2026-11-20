@@ -7,6 +7,7 @@ from typing import Callable
 @dataclass(frozen=True)
 class EmailApplicationContext:
     application_link_url: str = ""
+    apple_wallet_url: str = ""
     brand_snapshot: dict = field(default_factory=dict)
     generation: int = 1
 

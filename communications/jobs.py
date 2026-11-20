@@ -62,6 +62,7 @@ def send_pass_email_job(job):
             customer,
             brand_snapshot=context.brand_snapshot,
             application_link_url=context.application_link_url,
+            apple_wallet_url=context.apple_wallet_url,
             require_apple=apple_enabled,
         )
         if not sent:

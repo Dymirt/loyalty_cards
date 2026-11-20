@@ -12,8 +12,8 @@ from django.views.decorators.http import require_GET, require_POST
 
 from billing.services import EntitlementLimitError
 from dotykacka.models import CardDesign
-
 from .api_auth import api_error, virtual_card_key_required
+from .catalog import virtual_card_designs
 from .models import VirtualCardApplication
 from .services import (
     VirtualCardIdempotencyConflict,
@@ -45,6 +45,12 @@ def _design_payload(request, design):
         "version": design.version,
         "foreground_color": design.foreground_color,
         "panel_color": design.panel_color,
+        "preview_url": request.build_absolute_uri(
+            reverse(
+                "enrollment:virtual_card_design_asset",
+                kwargs={**asset_base, "asset_kind": "preview"},
+            )
+        ),
         "background_url": request.build_absolute_uri(
             reverse(
                 "enrollment:virtual_card_design_asset",
@@ -61,13 +67,54 @@ def _design_payload(request, design):
 
 
 def _application_payload(request, application):
+    customer = application.customer
+    wallet = getattr(customer, "wallet_pass", None)
+    jobs_by_kind = {
+        followup.kind: followup.integration_job
+        for followup in application.followups.all()
+    }
+
+    def delivery(kind, *, ready=False, identifier=None):
+        job = jobs_by_kind.get(kind)
+        return {
+            "status": job.status if job else "not_requested",
+            "ready": bool(
+                ready or (job and job.status == "succeeded")
+            ),
+            "identifier": str(identifier) if identifier else None,
+            "last_error_code": job.last_error_code if job else "",
+        }
+
+    apple_ready = bool(wallet and wallet.apple_pass_path)
+    google_ready = bool(wallet and wallet.google_save_url)
     return {
         "request_id": str(application.public_id),
         "state": virtual_card_application_state(application),
-        "email": application.customer.email,
+        "card_id": customer.klient_id,
+        "card_created": wallet is not None,
+        "email": customer.email,
+        "card": {
+            "id": customer.klient_id,
+            "created": wallet is not None,
+            "wallet_pass_id": str(wallet.apple_serial) if wallet else None,
+            "design_id": application.card_design_id,
+        },
         "card_design": {
             "id": application.card_design_id,
             "name": application.card_design.name,
+        },
+        "delivery": {
+            "apple_wallet": delivery(
+                "wallet.apple.issue",
+                ready=apple_ready,
+                identifier=wallet.apple_serial if wallet else None,
+            ),
+            "google_wallet": delivery(
+                "wallet.google.issue",
+                ready=google_ready,
+                identifier=wallet.google_object_id if wallet else None,
+            ),
+            "email": delivery("communications.email.pass"),
         },
         "created_at": application.created_at.isoformat(),
         "status_url": request.build_absolute_uri(
@@ -134,9 +181,7 @@ def _clean_payload(request):
 @require_GET
 @virtual_card_key_required
 def design_list(request):
-    designs = request.virtual_card_api_key.tenant.card_designs.select_related(
-        "tenant"
-    ).order_by("-version", "-pk")
+    designs = virtual_card_designs(request.virtual_card_api_key.tenant)
     response = JsonResponse(
         {"results": [_design_payload(request, design) for design in designs]}
     )
@@ -163,8 +208,7 @@ def create_virtual_card(request):
         return api_error(str(exc), status=400, code="invalid_request")
     tenant = request.virtual_card_api_key.tenant
     try:
-        design = CardDesign.objects.select_related("brand_revision").get(
-            tenant=tenant,
+        design = virtual_card_designs(tenant).get(
             pk=cleaned["card_design_id"],
         )
     except CardDesign.DoesNotExist:
@@ -202,7 +246,7 @@ def create_virtual_card(request):
             code="issuance_unavailable",
         )
     application = VirtualCardApplication.objects.select_related(
-        "customer", "card_design"
+        "customer__wallet_pass", "card_design"
     ).prefetch_related("followups__integration_job").get(pk=result.application.pk)
     payload = _application_payload(request, application)
     response = JsonResponse(
@@ -218,7 +262,9 @@ def create_virtual_card(request):
 @virtual_card_key_required
 def virtual_card_detail(request, public_id):
     application = (
-        VirtualCardApplication.objects.select_related("customer", "card_design").prefetch_related(
+        VirtualCardApplication.objects.select_related(
+            "customer__wallet_pass", "card_design"
+        ).prefetch_related(
             "followups__integration_job"
         ).filter(
             public_id=public_id,

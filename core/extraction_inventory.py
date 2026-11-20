@@ -198,7 +198,7 @@ EXTRACTED_URL_NAMES = {
 
 MARTA_BASELINE_ROWS = {
     "dotykacka.cardbatch": 1,
-    "dotykacka.carddesign": 1,
+    "dotykacka.carddesign": 5,
     "dotykacka.integrationconnection": 3,
     "dotykacka.klient": 267,
     "dotykacka.physicalcard": 600,
@@ -227,6 +227,7 @@ LEGACY_DOTYKACKA_MIGRATIONS = {
     "0015_alter_cardartifact_kind_alter_cardbatch_status_and_more",
     "0016_alter_integrationconnection_provider",
     "0017_walletpass_card_design",
+    "0018_marta_virtual_card_design_catalog",
 }
 
 EXTRACTED_MIGRATIONS = {
@@ -381,7 +382,7 @@ def collect_extraction_inventory(*, include_rows=True):
         )
 
     return {
-        "schema_version": 10,
+        "schema_version": 11,
         "settings_module": os.environ.get("DJANGO_SETTINGS_MODULE", ""),
         "root_urlconf": settings.ROOT_URLCONF,
         "wsgi_application": settings.WSGI_APPLICATION,
