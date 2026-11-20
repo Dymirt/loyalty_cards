@@ -54,7 +54,15 @@ class Command(BaseCommand):
             "status": "ok",
             "tenant_count": Tenant.objects.filter(pk=tenant.pk).count(),
             "membership_count": tenant.memberships.count(),
-            "customer_count": Klient.objects.filter(tenant=tenant).count(),
+            "customer_count": Klient.objects.filter(
+                tenant=tenant,
+                physical_card__isnull=False,
+            ).count(),
+            "total_customer_count": Klient.objects.filter(tenant=tenant).count(),
+            "virtual_customer_count": Klient.objects.filter(
+                tenant=tenant,
+                virtual_card_application__isnull=False,
+            ).count(),
             "token_count": AccessToken.objects.filter(connection__tenant=tenant).count(),
             "physical_card_count": PhysicalCard.objects.filter(tenant=tenant).count(),
             "assigned_card_count": PhysicalCard.objects.filter(

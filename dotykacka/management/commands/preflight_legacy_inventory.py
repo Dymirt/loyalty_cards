@@ -1,15 +1,19 @@
 """Read-only validation of the Marta legacy database and card inventory."""
 
+from collections import Counter
 import json
 from pathlib import Path
+import re
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Count
 
 from dotykacka.card_codes import CardCodeError, parse_card_code
 from dotykacka.models import AccessToken, Klient
+
+
+VIRTUAL_CARD_CODE_RE = re.compile(r"^[A-Z0-9]+-V-[A-F0-9]{16}$")
 
 
 def expected_asset_paths(media_root: Path, prefix: str, number: int) -> tuple[Path, ...]:
@@ -45,11 +49,16 @@ class Command(BaseCommand):
         if start < 1 or end < start:
             raise CommandError("The inventory range must satisfy 1 <= start <= end.")
 
-        card_codes = list(Klient.objects.values_list("klient_id", flat=True))
-        duplicate_groups = Klient.objects.values("klient_id").annotate(
-            total=Count("id")
-        ).filter(total__gt=1)
-        duplicate_count = duplicate_groups.count()
+        all_card_codes = list(Klient.objects.values_list("klient_id", flat=True))
+        virtual_card_codes = [
+            code for code in all_card_codes if VIRTUAL_CARD_CODE_RE.fullmatch(code)
+        ]
+        card_codes = [
+            code for code in all_card_codes if not VIRTUAL_CARD_CODE_RE.fullmatch(code)
+        ]
+        duplicate_count = sum(
+            1 for total in Counter(card_codes).values() if total > 1
+        )
 
         invalid_code_count = 0
         out_of_range_count = 0
@@ -80,6 +89,8 @@ class Command(BaseCommand):
         result = {
             "status": "ok",
             "customer_count": customer_count,
+            "total_customer_count": len(all_card_codes),
+            "virtual_customer_count": len(virtual_card_codes),
             "user_count": user_count,
             "token_count": token_count,
             "duplicate_code_groups": duplicate_count,

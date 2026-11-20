@@ -11,6 +11,8 @@ class MartaRolloutInvariantTests(SimpleTestCase):
     def baseline_counts(self):
         return {
             "customers": 267,
+            "physical_customers": 267,
+            "virtual_customers": 0,
             "cards": 600,
             "cards_with_customer": 267,
             "access_tokens": 261,
@@ -32,9 +34,20 @@ class MartaRolloutInvariantTests(SimpleTestCase):
         counts = deepcopy(self.baseline_counts())
         counts.update(
             customers=269,
+            physical_customers=269,
             cards_with_customer=269,
             wallet_identities=269,
             access_tokens=264,
+        )
+        self.assertEqual(_marta_invariant_mismatches(counts), {})
+
+    def test_virtual_customer_growth_passes_without_a_physical_card(self):
+        counts = deepcopy(self.baseline_counts())
+        counts.update(
+            customers=268,
+            physical_customers=267,
+            virtual_customers=1,
+            wallet_identities=268,
         )
         self.assertEqual(_marta_invariant_mismatches(counts), {})
 
@@ -49,6 +62,7 @@ class MartaRolloutInvariantTests(SimpleTestCase):
     def test_relational_or_tenant_isolation_mismatch_is_rejected(self):
         counts = deepcopy(self.baseline_counts())
         counts["customers"] = 268
+        counts["physical_customers"] = 268
         counts["cross_tenant_wallet_cards"] = 1
         mismatches = _marta_invariant_mismatches(counts)
         self.assertIn("customer_card_ownership", mismatches)

@@ -42,7 +42,7 @@ def _marta_invariant_mismatches(counts):
     exact_relations = {
         "customer_card_ownership": (
             counts["cards_with_customer"],
-            counts["customers"],
+            counts["physical_customers"],
         ),
         "customer_wallet_identity": (
             counts["wallet_identities"],
@@ -109,6 +109,14 @@ class Command(BaseCommand):
         counts = {
             "tenant": tenant.slug,
             "customers": Klient.objects.filter(tenant=tenant).count(),
+            "physical_customers": Klient.objects.filter(
+                tenant=tenant,
+                physical_card__isnull=False,
+            ).count(),
+            "virtual_customers": Klient.objects.filter(
+                tenant=tenant,
+                virtual_card_application__isnull=False,
+            ).count(),
             "cards": physical_cards.count(),
             "assigned_cards": physical_cards.filter(
                 status=PhysicalCard.Status.ASSIGNED

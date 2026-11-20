@@ -69,3 +69,26 @@ class LegacyInventoryPreflightTests(TestCase):
                 skip_assets=True,
                 stdout=StringIO(),
             )
+
+    def test_virtual_card_codes_do_not_change_legacy_inventory_counts(self):
+        create_superuser()
+        create_klient("MB-1")
+        create_klient("MB-V-0123456789ABCDEF")
+        with TemporaryDirectory() as directory:
+            self.create_assets(Path(directory), 1, 1)
+            output = StringIO()
+            call_command(
+                "preflight_legacy_inventory",
+                media_root=directory,
+                start=1,
+                end=1,
+                expect_customers=1,
+                expect_users=1,
+                as_json=True,
+                stdout=output,
+            )
+
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["customer_count"], 1)
+        self.assertEqual(result["virtual_customer_count"], 1)
+        self.assertEqual(result["total_customer_count"], 2)
