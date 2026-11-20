@@ -1,5 +1,7 @@
 """Public enrollment and authorized tenant follow-up HTTP adapters."""
 
+import mimetypes
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -24,16 +26,31 @@ from tenants.forms import TenantDomainRequestForm
 from tenants.models import Tenant
 from operations.rate_limits import rate_limit_response
 
-from .forms import FollowUpActionForm, LoyaltyCustomerRegistrationForm, registration_form_data
+from .forms import (
+    FollowUpActionForm,
+    LoyaltyCustomerRegistrationForm,
+    VirtualCardApiKeyCreateForm,
+    VirtualCardRegistrationForm,
+    registration_form_data,
+)
 from .jobs import EMAIL_JOB_KIND, enqueue_enrollment_followups
 from .links import EnrollmentLinkError, EnrollmentLinkExpired, resolve_access_link
-from .models import Enrollment, EnrollmentFollowUp
+from .models import (
+    Enrollment,
+    EnrollmentFollowUp,
+    VirtualCardApiKey,
+    VirtualCardApplication,
+)
 from .services import (
     registration_brand_for_tenant,
     register_customer_with_card,
+    register_virtual_card,
     request_tenant_domain,
     resend_enrollment_email,
     retry_enrollment_followup,
+    virtual_card_application_state,
+    virtual_card_request_checksum,
+    virtual_wallet_availability,
 )
 
 
@@ -157,6 +174,115 @@ def register_customer_form(request, tenant_slug=None):
         request, _("Zarejestrowano kartę. Integracje są realizowane w tle.")
     )
     return redirect("enrollment:public_status", token=result.access_token)
+
+
+def _virtual_card_form_context(*, tenant, form, application=None):
+    apple_enabled, google_connection = virtual_wallet_availability(tenant)
+    return {
+        "tenant": tenant,
+        "registration_brand": registration_brand_for_tenant(tenant),
+        "form": form,
+        "designs": tenant.card_designs.order_by("-version", "-pk"),
+        "wallet_available": apple_enabled or google_connection is not None,
+        "application": application,
+    }
+
+
+@require_http_methods(["GET", "POST"])
+def virtual_card_form(request, tenant_slug):
+    tenant = get_public_tenant(tenant_slug)
+    if request.method == "POST":
+        limited = rate_limit_response(
+            request,
+            scope="virtual_card.public_form",
+            limit=settings.VIRTUAL_CARD_PUBLIC_RATE_LIMIT,
+            window_seconds=settings.PUBLIC_RATE_LIMIT_WINDOW_SECONDS,
+            extra_identity=f"tenant:{tenant.pk}",
+        )
+        if limited is not None:
+            return limited
+    form = VirtualCardRegistrationForm(
+        request.POST or None,
+        tenant=tenant,
+    )
+    if request.method == "GET":
+        return render(
+            request,
+            "enrollment/virtual_card_form.html",
+            _virtual_card_form_context(tenant=tenant, form=form),
+        )
+    if not form.is_valid():
+        return render(
+            request,
+            "enrollment/virtual_card_form.html",
+            _virtual_card_form_context(tenant=tenant, form=form),
+            status=400,
+        )
+    design = form.cleaned_data["card_design"]
+    cleaned = {
+        "first_name": form.cleaned_data["first_name"],
+        "last_name": form.cleaned_data["last_name"],
+        "email": form.cleaned_data["email"].lower(),
+        "phone": form.cleaned_data["phone"],
+        "card_design_id": design.pk,
+        "marketing_consent": True,
+    }
+    try:
+        result = register_virtual_card(
+            tenant=tenant,
+            card_design=design,
+            cleaned_data=cleaned,
+            idempotency_key=f"public-form:{form.cleaned_data['request_id']}",
+            request_sha256=virtual_card_request_checksum(cleaned),
+            source=VirtualCardApplication.Source.PUBLIC_FORM,
+        )
+    except ValidationError as exc:
+        form.add_error(None, exc)
+        return render(
+            request,
+            "enrollment/virtual_card_form.html",
+            _virtual_card_form_context(tenant=tenant, form=form),
+            status=409,
+        )
+    response = render(
+        request,
+        "enrollment/virtual_card_success.html",
+        _virtual_card_form_context(
+            tenant=tenant,
+            form=form,
+            application=result.application,
+        ),
+        status=201 if result.created else 200,
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@require_GET
+def virtual_card_design_asset(request, tenant_slug, design_id, asset_kind):
+    tenant = get_object_or_404(
+        Tenant.objects.select_related("brand"),
+        slug=tenant_slug,
+        is_active=True,
+    )
+    design = get_object_or_404(tenant.card_designs, pk=design_id)
+    if asset_kind == "background":
+        asset = design.background_source
+    elif asset_kind == "logo":
+        asset = design.logo
+    else:
+        raise Http404(_("Nieznany materiał projektu."))
+    if not asset:
+        raise Http404(_("Projekt nie ma tego materiału."))
+    try:
+        asset.open("rb")
+    except OSError as exc:
+        raise Http404(_("Plik projektu nie istnieje.")) from exc
+    content_type = mimetypes.guess_type(asset.name)[0] or "image/jpeg"
+    response = FileResponse(asset, content_type=content_type)
+    response["Cache-Control"] = "public, max-age=3600"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 def _resolve_public_link_or_response(token):
@@ -447,6 +573,110 @@ def request_domain(request, tenant_slug):
     )
 
 
+def _virtual_card_api_context(*, request, tenant, form=None, raw_key=""):
+    applications = list(
+        tenant.virtual_card_applications.select_related(
+            "customer", "card_design", "api_key"
+        ).prefetch_related("followups__integration_job")[:100]
+    )
+    state_labels = {
+        "queued": _("W kolejce"),
+        "processing": _("Przygotowywanie"),
+        "email_sent": _("E-mail wysłany"),
+        "failed": _("Błąd"),
+    }
+    for application in applications:
+        application.delivery_state = virtual_card_application_state(application)
+        application.delivery_state_label = state_labels[application.delivery_state]
+    return {
+        "tenant": tenant,
+        "form": form or VirtualCardApiKeyCreateForm(),
+        "api_keys": tenant.virtual_card_api_keys.select_related("created_by"),
+        "applications": applications,
+        "raw_key": raw_key,
+        "designs_endpoint": request.build_absolute_uri(
+            reverse("virtual_cards_api:designs")
+        ),
+        "create_endpoint": request.build_absolute_uri(
+            reverse("virtual_cards_api:create")
+        ),
+        "public_form_url": request.build_absolute_uri(
+            reverse("enrollment:virtual_card_form", args=[tenant.slug])
+        ),
+        "active_nav": "virtual_card_api",
+        "can_manage_integrations": True,
+        "can_manage_card_designs": True,
+        "can_manage_billing": True,
+        "can_manage_printing": True,
+        "can_manage_enrollments": True,
+    }
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def virtual_card_api_keys(request, tenant_slug):
+    tenant, forbidden = _tenant_or_forbidden(request, tenant_slug)
+    if forbidden:
+        return forbidden
+    form = VirtualCardApiKeyCreateForm(request.POST or None)
+    raw_key = ""
+    status = 200
+    if request.method == "POST":
+        if not form.is_valid():
+            status = 400
+        else:
+            key, raw_key = VirtualCardApiKey.issue(
+                tenant=tenant,
+                name=form.cleaned_data["name"],
+                created_by=request.user,
+            )
+            AuditEvent.objects.create(
+                tenant=tenant,
+                actor=request.user,
+                action="virtual_card.api_key_created",
+                object_type="VirtualCardApiKey",
+                object_id=str(key.pk),
+                metadata={"name": key.name, "token_prefix": key.token_prefix},
+            )
+            form = VirtualCardApiKeyCreateForm()
+            status = 201
+    response = render(
+        request,
+        "enrollment/virtual_card_api_keys.html",
+        _virtual_card_api_context(
+            request=request,
+            tenant=tenant,
+            form=form,
+            raw_key=raw_key,
+        ),
+        status=status,
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+@require_POST
+def revoke_virtual_card_api_key(request, tenant_slug, key_id):
+    tenant, forbidden = _tenant_or_forbidden(request, tenant_slug)
+    if forbidden:
+        return forbidden
+    key = get_object_or_404(VirtualCardApiKey, tenant=tenant, pk=key_id)
+    was_active = key.revoked_at is None
+    key.revoke()
+    if was_active:
+        AuditEvent.objects.create(
+            tenant=tenant,
+            actor=request.user,
+            action="virtual_card.api_key_revoked",
+            object_type="VirtualCardApiKey",
+            object_id=str(key.pk),
+            metadata={"name": key.name, "token_prefix": key.token_prefix},
+        )
+        messages.success(request, _("Klucz API został unieważniony."))
+    return redirect("enrollment:virtual_card_api_keys", tenant_slug=tenant.slug)
+
+
 __all__ = [
     "enrollment_detail",
     "ensure_followups",
@@ -454,7 +684,11 @@ __all__ = [
     "public_status",
     "register_customer_form",
     "request_domain",
+    "revoke_virtual_card_api_key",
     "resend_email",
     "retry_followup",
     "tenant_enrollments",
+    "virtual_card_api_keys",
+    "virtual_card_design_asset",
+    "virtual_card_form",
 ]

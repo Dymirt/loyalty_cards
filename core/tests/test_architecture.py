@@ -69,6 +69,9 @@ EXTRACTED_MODELS = {
         "enrollment.enrollmentaccesslink",
         "enrollment.enrollmentevent",
         "enrollment.enrollmentfollowup",
+        "enrollment.virtualcardapikey",
+        "enrollment.virtualcardapplication",
+        "enrollment.virtualcardfollowup",
     },
 }
 
@@ -194,6 +197,8 @@ class ExtractedArchitectureTests(SimpleTestCase):
             ("/dotykacka/register", "enrollment.views"),
             ("/dotykacka/c/example/enrollments", "enrollment.views"),
             ("/dotykacka/enrollment/status/example", "enrollment.views"),
+            ("/dotykacka/c/example/virtual-card", "enrollment.views"),
+            ("/api/v1/virtual-cards/", "enrollment.api_views"),
         )
         for path, module in routes:
             with self.subTest(path=path):

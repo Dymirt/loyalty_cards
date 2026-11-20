@@ -9,6 +9,7 @@ from cards.codes import CardCodeError, parse_card_code
 from cards.services import card_is_available
 from customers.forms import CustomerProfileForm
 from customers.models import Customer
+from dotykacka.models import CardDesign
 from tenants.forms import style_portal_form
 
 
@@ -48,6 +49,48 @@ class LoyaltyCustomerRegistrationForm(CustomerProfileForm):
                 _("Ta karta nie należy do dostępnej puli kart.")
             )
         return barcode
+
+
+class VirtualCardRegistrationForm(CustomerProfileForm):
+    card_design = forms.ModelChoiceField(
+        queryset=CardDesign.objects.none(),
+        label=_("Wygląd karty"),
+        empty_label=None,
+    )
+    marketing_consent = forms.BooleanField(
+        required=True,
+        label=_("Zgoda marketingowa"),
+    )
+    request_id = forms.UUIDField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, tenant, **kwargs):
+        self.tenant = tenant
+        kwargs.setdefault("initial", {})
+        kwargs["initial"].setdefault("request_id", uuid4())
+        super().__init__(*args, **kwargs)
+        self.fields["card_design"].queryset = tenant.card_designs.select_related(
+            "brand_revision"
+        ).order_by("-version", "-pk")
+        if not self.is_bound:
+            first_design = self.fields["card_design"].queryset.first()
+            if first_design is not None:
+                self.initial.setdefault("card_design", first_design.pk)
+        consent_text = tenant.brand.marketing_consent_text
+        if consent_text:
+            self.fields["marketing_consent"].label = consent_text
+        style_portal_form(self)
+
+
+class VirtualCardApiKeyCreateForm(forms.Form):
+    name = forms.CharField(
+        max_length=160,
+        label=_("Nazwa klucza"),
+        help_text=_("Np. formularz strony Atelier Café albo integracja CRM."),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        style_portal_form(self)
 
 
 def registration_form_data(post_data):

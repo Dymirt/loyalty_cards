@@ -12,7 +12,7 @@ from communications.registry import EmailApplicationContext
 from integrations.contracts import IntegrationError
 from tenants.models import TenantDomain
 
-from .models import EnrollmentAccessLink
+from .models import EnrollmentAccessLink, VirtualCardApplication
 
 
 LINK_SALT = "loyalty.enrollment.access.v1"
@@ -80,7 +80,19 @@ def resolve_access_link(token, *, now=None):
 def email_application_context_for_job(job):
     link_id = job.payload.get("enrollment_link_id")
     if not link_id:
-        return EmailApplicationContext()
+        application_id = job.payload.get("virtual_card_application_id")
+        if not application_id:
+            return EmailApplicationContext()
+        try:
+            application = VirtualCardApplication.objects.get(pk=application_id)
+        except VirtualCardApplication.DoesNotExist as exc:
+            raise IntegrationError(error_code="virtual_card_application_missing") from exc
+        if application.tenant_id != job.tenant_id:
+            raise IntegrationError(error_code="virtual_card_tenant_mismatch")
+        return EmailApplicationContext(
+            brand_snapshot=application.brand_snapshot,
+            generation=1,
+        )
     try:
         link = EnrollmentAccessLink.objects.select_related("enrollment").get(pk=link_id)
     except EnrollmentAccessLink.DoesNotExist as exc:

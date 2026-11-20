@@ -1,5 +1,7 @@
-"""Immutable local enrollment, access-link, and follow-up trace records."""
+"""Immutable physical and virtual enrollment trace records."""
 
+import hashlib
+import secrets
 from uuid import uuid4
 
 from django.conf import settings
@@ -17,6 +19,188 @@ class AppendOnlyMixin:
 
     def delete(self, *args, **kwargs):
         raise ValidationError(_("Historii rejestracji nie można usuwać."))
+
+
+class VirtualCardApiKey(models.Model):
+    """Revocable tenant credential limited to virtual-card issuance."""
+
+    TOKEN_PREFIX = "lvc_live_"
+    VISIBLE_PREFIX_LENGTH = 20
+
+    tenant = models.ForeignKey(
+        "dotykacka.Tenant",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_api_keys",
+    )
+    name = models.CharField(max_length=160)
+    token_prefix = models.CharField(max_length=20, unique=True, editable=False)
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_virtual_card_api_keys",
+        blank=True,
+        null=True,
+        editable=False,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(blank=True, null=True, editable=False)
+    revoked_at = models.DateTimeField(blank=True, null=True, editable=False)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self):
+        return f"{self.tenant}: {self.name} ({self.token_prefix}…)"
+
+    @property
+    def is_active(self):
+        return self.revoked_at is None and self.tenant.is_active
+
+    @staticmethod
+    def digest(raw_token):
+        return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def generate_credentials(cls):
+        raw_token = f"{cls.TOKEN_PREFIX}{secrets.token_urlsafe(32)}"
+        return (
+            raw_token,
+            raw_token[: cls.VISIBLE_PREFIX_LENGTH],
+            cls.digest(raw_token),
+        )
+
+    @classmethod
+    def issue(cls, *, tenant, name, created_by=None):
+        raw_token, token_prefix, token_hash = cls.generate_credentials()
+        key = cls.objects.create(
+            tenant=tenant,
+            name=name,
+            token_prefix=token_prefix,
+            token_hash=token_hash,
+            created_by=created_by,
+        )
+        return key, raw_token
+
+    def revoke(self):
+        if self.revoked_at is None:
+            from django.utils import timezone
+
+            self.revoked_at = timezone.now()
+            self.save(update_fields=("revoked_at",))
+
+
+class VirtualCardApplication(AppendOnlyMixin, models.Model):
+    """One accepted request that creates only Wallet cards, never a physical card."""
+
+    class Source(models.TextChoices):
+        API = "api", _("API")
+        PUBLIC_FORM = "public_form", _("Formularz publiczny")
+
+    tenant = models.ForeignKey(
+        "dotykacka.Tenant",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_applications",
+    )
+    api_key = models.ForeignKey(
+        VirtualCardApiKey,
+        on_delete=models.PROTECT,
+        related_name="applications",
+        blank=True,
+        null=True,
+    )
+    customer = models.OneToOneField(
+        "dotykacka.Klient",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_application",
+    )
+    card_design = models.ForeignKey(
+        "dotykacka.CardDesign",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_applications",
+    )
+    consent_record = models.OneToOneField(
+        "customers.ConsentRecord",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_application",
+    )
+    usage_event = models.OneToOneField(
+        "billing.UsageEvent",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_application",
+        blank=True,
+        null=True,
+    )
+    public_id = models.UUIDField(default=uuid4, unique=True, editable=False)
+    idempotency_key = models.CharField(max_length=160)
+    request_sha256 = models.CharField(max_length=64)
+    source = models.CharField(max_length=24, choices=Source.choices)
+    brand_snapshot = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("tenant", "idempotency_key"),
+                name="unique_tenant_virtual_card_request",
+            )
+        ]
+        ordering = ("-created_at", "-pk")
+
+    def __str__(self):
+        return f"{self.tenant}: {self.public_id}"
+
+    def clean(self):
+        errors = {}
+        for name in ("customer", "card_design", "consent_record"):
+            value = getattr(self, name, None)
+            if value is not None and value.tenant_id != self.tenant_id:
+                errors[name] = _("Wniosek i powiązane dane muszą należeć do jednej firmy.")
+        if self.api_key_id and self.api_key.tenant_id != self.tenant_id:
+            errors["api_key"] = _("Klucz API musi należeć do tej samej firmy.")
+        if self.usage_event_id and self.usage_event.tenant_id != self.tenant_id:
+            errors["usage_event"] = _("Użycie musi należeć do tej samej firmy.")
+        if errors:
+            raise ValidationError(errors)
+
+
+class VirtualCardFollowUp(AppendOnlyMixin, models.Model):
+    """Durable jobs created for a virtual-card application."""
+
+    application = models.ForeignKey(
+        VirtualCardApplication,
+        on_delete=models.PROTECT,
+        related_name="followups",
+    )
+    integration_job = models.OneToOneField(
+        "integrations.IntegrationJob",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_followup",
+    )
+    kind = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("application", "kind"),
+                name="unique_virtual_card_followup_kind",
+            )
+        ]
+        ordering = ("created_at", "pk")
+
+    def clean(self):
+        errors = {}
+        if (
+            self.integration_job_id
+            and self.application_id
+            and self.integration_job.tenant_id != self.application.tenant_id
+        ):
+            errors["integration_job"] = _("Zadanie musi należeć do firmy wniosku.")
+        if self.integration_job_id and self.kind != self.integration_job.kind:
+            errors["kind"] = _("Rodzaj zadania musi odpowiadać zadaniu integracji.")
+        if errors:
+            raise ValidationError(errors)
 
 
 class Enrollment(AppendOnlyMixin, models.Model):
@@ -254,4 +438,7 @@ __all__ = [
     "EnrollmentAccessLink",
     "EnrollmentEvent",
     "EnrollmentFollowUp",
+    "VirtualCardApiKey",
+    "VirtualCardApplication",
+    "VirtualCardFollowUp",
 ]

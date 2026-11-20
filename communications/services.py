@@ -7,6 +7,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives, get_connection
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -77,6 +78,17 @@ def send_pass_email(
     public_name = brand_snapshot.get("public_name") or brand.public_name or customer.tenant.name
     signature = brand_snapshot.get("email_signature") or brand.email_signature or public_name
     logo_path = brand_snapshot.get("logo_path") or brand.logo_path or "logo_atelier_cafe.png"
+    if brand_snapshot.get("card_design_id") and brand_snapshot.get("card_design_logo"):
+        logo_url = settings.APP_BASE_URL.rstrip("/") + reverse(
+            "enrollment:virtual_card_design_asset",
+            args=[
+                customer.tenant.slug,
+                brand_snapshot["card_design_id"],
+                "logo",
+            ],
+        )
+    else:
+        logo_url = f"{settings.APP_BASE_URL.rstrip('/')}/media/{logo_path}"
     safe_name = escape(customer_name)
     safe_public_name = escape(public_name)
     safe_signature = escape(signature)
@@ -113,7 +125,7 @@ Pozdrawiamy,
 <body style="margin:0;padding:0;background:#f5f5f7">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
     <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden">
-      <tr><td align="center" style="padding:24px 24px 8px"><img src="{settings.APP_BASE_URL}/media/{escape(logo_path, quote=True)}" width="120" alt="{safe_public_name}" style="display:block;height:auto"></td></tr>
+      <tr><td align="center" style="padding:24px 24px 8px"><img src="{escape(logo_url, quote=True)}" width="120" alt="{safe_public_name}" style="display:block;height:auto"></td></tr>
       <tr><td style="padding:8px 24px;font-family:Arial,sans-serif;color:#111;font-size:18px"><p>Dzień dobry {safe_name},</p><p>Twoja karta lojalnościowa {safe_public_name} jest gotowa.</p></td></tr>
       <tr><td align="center" style="padding:0 24px 8px;font-family:Arial,sans-serif;color:#444;font-size:14px">Podgląd i bezpieczne pobieranie karty są dostępne wyłącznie przez link statusu poniżej.</td></tr>
       <tr><td align="center" style="padding:8px 24px 24px">{google_html}{application_html}</td></tr>

@@ -445,6 +445,13 @@ class WalletPass(models.Model):
         blank=True,
         null=True,
     )
+    card_design = models.ForeignKey(
+        CardDesign,
+        on_delete=models.PROTECT,
+        related_name="wallet_passes",
+        blank=True,
+        null=True,
+    )
     apple_serial = models.UUIDField(default=uuid4, unique=True, editable=False)
     google_object_id = models.CharField(
         max_length=220,
@@ -464,6 +471,8 @@ class WalletPass(models.Model):
             errors["customer"] = _("Klient musi należeć do firmy przypisanej do Wallet.")
         if self.physical_card_id and self.physical_card.tenant_id != self.tenant_id:
             errors["physical_card"] = _("Karta musi należeć do firmy przypisanej do Wallet.")
+        if self.card_design_id and self.card_design.tenant_id != self.tenant_id:
+            errors["card_design"] = _("Projekt musi należeć do firmy przypisanej do Wallet.")
         if errors:
             raise ValidationError(errors)
 
@@ -481,6 +490,11 @@ class WalletPass(models.Model):
                 and self.google_object_id != previous.google_object_id
             ):
                 raise ValidationError(_("Tożsamości obiektu Google Wallet nie można zmieniać."))
+            if (
+                previous.card_design_id
+                and self.card_design_id != previous.card_design_id
+            ):
+                raise ValidationError(_("Projektu wydanej karty Wallet nie można zmieniać."))
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

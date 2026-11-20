@@ -25,6 +25,7 @@ from cryptography.x509.oid import NameOID
 
 from card_artwork.models import CardArtifact, CardDesign
 from card_artwork.services import bytes_sha256, render_card, spec_from_design
+from cards.codes import CardCodeError
 from integrations.contracts import SystemCheckResult
 from wallets.models import WalletPass
 from wallets.services import apple_pass_path, wallet_identity
@@ -227,15 +228,18 @@ class AppleWalletIssuer:
             stored_path = Path(settings.MEDIA_ROOT) / wallet.apple_pass_path
             if stored_path.is_file() and not force:
                 return stored_path
-        legacy_path = apple_pass_path(customer.klient_id)
-        if legacy_path.is_file() and not force:
+        try:
+            legacy_path = apple_pass_path(customer.klient_id)
+        except CardCodeError:
+            legacy_path = None
+        if legacy_path is not None and legacy_path.is_file() and not force:
             if not wallet.apple_pass_path:
                 wallet.apple_pass_path = str(
                     legacy_path.relative_to(settings.MEDIA_ROOT)
                 )
                 wallet.save(update_fields=("apple_pass_path", "updated_at"))
             return legacy_path
-        design = CardDesign.objects.filter(tenant=customer.tenant).first()
+        design = wallet.card_design or CardDesign.objects.filter(tenant=customer.tenant).first()
         if design is None:
             raise ImproperlyConfigured(
                 _("Ta firma nie ma opublikowanego projektu karty.")

@@ -2,7 +2,11 @@
 
 from dataclasses import dataclass
 from functools import partial
+import hashlib
+import json
+from uuid import uuid4
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Max
@@ -12,12 +16,21 @@ from billing.services import record_card_issuance
 from cards.services import assign_locked_card, lock_available_card
 from customers.services import create_customer, record_marketing_consent
 from dotykacka.models import AuditEvent
+from integrations.models import IntegrationConnection
 from integrations.models import IntegrationJob
 from integrations.services import enqueue_job, retry_failed_job
 from tenants.models import Tenant, TenantDomain
+from wallets.services import wallet_identity
 
 from .links import issue_access_link, token_for_link
-from .models import Enrollment, EnrollmentAccessLink, EnrollmentEvent, EnrollmentFollowUp
+from .models import (
+    Enrollment,
+    EnrollmentAccessLink,
+    EnrollmentEvent,
+    EnrollmentFollowUp,
+    VirtualCardApplication,
+    VirtualCardFollowUp,
+)
 
 
 EMAIL_JOB_KIND = "communications.email.pass"
@@ -29,6 +42,16 @@ class EnrollmentResult:
     enrollment: Enrollment
     access_link: EnrollmentAccessLink
     access_token: str
+
+
+@dataclass(frozen=True)
+class VirtualCardResult:
+    application: VirtualCardApplication
+    created: bool
+
+
+class VirtualCardIdempotencyConflict(ValidationError):
+    pass
 
 
 def published_brand_release(tenant):
@@ -78,6 +101,213 @@ def published_brand_release(tenant):
 
 def registration_brand_for_tenant(tenant):
     return published_brand_release(tenant)[2]
+
+
+def brand_snapshot_for_design(tenant, design):
+    revision = design.brand_revision
+    fields = (
+        "public_name",
+        "tagline",
+        "address",
+        "phone",
+        "email",
+        "website_url",
+        "email_subject",
+        "email_signature",
+        "marketing_consent_text",
+    )
+    snapshot = {name: getattr(revision, name, "") for name in fields}
+    snapshot.update(
+        {
+            "tenant_id": tenant.pk,
+            "tenant_slug": tenant.slug,
+            "brand_revision_id": revision.pk,
+            "brand_revision_version": revision.version,
+            "brand_checksum": revision.snapshot_checksum,
+            "card_design_id": design.pk,
+            "card_design_version": design.version,
+            "card_design_checksum": design.design_checksum,
+            "card_design_logo": bool(design.logo),
+            "logo_path": design.logo.name if design.logo else tenant.brand.logo_path,
+            "background_image_path": (
+                design.background_source.name
+                if design.background_source
+                else tenant.brand.background_image_path
+            ),
+        }
+    )
+    return snapshot
+
+
+def virtual_wallet_availability(tenant):
+    apple_enabled = bool(
+        settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER
+        and settings.APPLE_WALLET_TEAM_IDENTIFIER
+    )
+    google_connection = IntegrationConnection.objects.filter(
+        tenant=tenant,
+        provider=IntegrationConnection.Provider.GOOGLE_WALLET,
+        enabled=True,
+    ).first()
+    return apple_enabled, google_connection
+
+
+def virtual_card_request_checksum(cleaned_data):
+    payload = {
+        "first_name": cleaned_data["first_name"],
+        "last_name": cleaned_data["last_name"],
+        "email": cleaned_data["email"].lower(),
+        "phone": cleaned_data["phone"],
+        "card_design_id": cleaned_data["card_design_id"],
+        "marketing_consent": True,
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def enqueue_virtual_card_followups(application):
+    apple_enabled, google_connection = virtual_wallet_availability(application.tenant)
+    specs = []
+    if apple_enabled:
+        specs.append(("wallet.apple.issue", None))
+    if google_connection is not None:
+        specs.append(("wallet.google.issue", google_connection))
+    if specs:
+        specs.append((EMAIL_JOB_KIND, None))
+    jobs = []
+    for kind, connection in specs:
+        job = enqueue_job(
+            tenant=application.tenant,
+            connection=connection,
+            kind=kind,
+            idempotency_key=f"virtual-card:{application.public_id}:{kind}:v1",
+            payload={
+                "customer_id": application.customer_id,
+                "virtual_card_application_id": application.pk,
+            },
+        )
+        followup, _created = VirtualCardFollowUp.objects.get_or_create(
+            application=application,
+            kind=kind,
+            defaults={"integration_job": job},
+        )
+        if followup.integration_job_id != job.pk:
+            raise ValueError("Virtual-card follow-up key was reused with different inputs.")
+        jobs.append(job)
+    return jobs
+
+
+@transaction.atomic
+def register_virtual_card(
+    *,
+    tenant,
+    card_design,
+    cleaned_data,
+    idempotency_key,
+    request_sha256,
+    source,
+    api_key=None,
+):
+    tenant = Tenant.objects.select_for_update().select_related("brand").get(pk=tenant.pk)
+    if api_key is not None:
+        api_key = type(api_key).objects.select_for_update().get(pk=api_key.pk)
+        if not api_key.is_active or api_key.tenant_id != tenant.pk:
+            raise ValidationError(_("Klucz API nie jest aktywny dla tej firmy."))
+    existing = VirtualCardApplication.objects.filter(
+        tenant=tenant,
+        idempotency_key=idempotency_key,
+    ).first()
+    if existing is not None:
+        if existing.request_sha256 != request_sha256:
+            raise VirtualCardIdempotencyConflict(
+                _("Ten klucz idempotencji został wcześniej użyty z innymi danymi.")
+            )
+        enqueue_virtual_card_followups(existing)
+        return VirtualCardResult(application=existing, created=False)
+    card_design = tenant.card_designs.select_related("brand_revision").get(
+        pk=card_design.pk,
+    )
+    apple_enabled, google_connection = virtual_wallet_availability(tenant)
+    if not apple_enabled and google_connection is None:
+        raise ValidationError(_("Ta firma nie ma aktywnego wydawcy kart Wallet."))
+    public_id = uuid4()
+    card_code = f"{tenant.card_prefix}-V-{public_id.hex[:16].upper()}"
+    customer = create_customer(
+        tenant=tenant,
+        card_code=card_code,
+        first_name=cleaned_data["first_name"],
+        last_name=cleaned_data["last_name"],
+        email=cleaned_data["email"],
+        phone=cleaned_data["phone"],
+    )
+    usage_result = record_card_issuance(
+        tenant=tenant,
+        card_identity=public_id,
+        physical=False,
+        metadata={"source": source, "card_design_id": card_design.pk},
+    )
+    revision = card_design.brand_revision
+    consent_text = revision.marketing_consent_text or tenant.brand.marketing_consent_text
+    consent = record_marketing_consent(
+        customer=customer,
+        consent_text=consent_text or "Marketing consent",
+        source=source,
+        policy_version=f"brand:{revision.version}:{revision.snapshot_checksum[:16]}",
+        metadata={
+            "brand_revision_id": revision.pk,
+            "card_design_id": card_design.pk,
+            "virtual_card": True,
+        },
+    )
+    wallet_identity(customer, card_design=card_design)
+    application = VirtualCardApplication(
+        tenant=tenant,
+        api_key=api_key,
+        customer=customer,
+        card_design=card_design,
+        consent_record=consent,
+        usage_event=usage_result.event,
+        public_id=public_id,
+        idempotency_key=idempotency_key,
+        request_sha256=request_sha256,
+        source=source,
+        brand_snapshot=brand_snapshot_for_design(tenant, card_design),
+    )
+    application.full_clean()
+    application.save()
+    jobs = enqueue_virtual_card_followups(application)
+    AuditEvent.objects.create(
+        tenant=tenant,
+        actor=None,
+        action="virtual_card.application_created",
+        object_type="VirtualCardApplication",
+        object_id=str(application.pk),
+        metadata={
+            "public_id": str(application.public_id),
+            "card_design_id": card_design.pk,
+            "api_key_id": getattr(api_key, "pk", None),
+            "job_count": len(jobs),
+            "source": source,
+        },
+    )
+    return VirtualCardResult(application=application, created=True)
+
+
+def virtual_card_application_state(application):
+    statuses = list(
+        application.followups.values_list("kind", "integration_job__status")
+    )
+    if not statuses:
+        return "queued"
+    if any(status == IntegrationJob.Status.FAILED for _kind, status in statuses):
+        return "failed"
+    email_status = next(
+        (status for kind, status in statuses if kind == EMAIL_JOB_KIND),
+        None,
+    )
+    if email_status == IntegrationJob.Status.SUCCEEDED:
+        return "email_sent"
+    return "processing"
 
 
 def _append_event(
@@ -352,10 +582,18 @@ def request_tenant_domain(*, tenant, actor, hostname):
 
 __all__ = [
     "EnrollmentResult",
+    "VirtualCardIdempotencyConflict",
+    "VirtualCardResult",
+    "brand_snapshot_for_design",
+    "enqueue_virtual_card_followups",
     "published_brand_release",
     "registration_brand_for_tenant",
     "register_customer_with_card",
+    "register_virtual_card",
     "request_tenant_domain",
     "resend_enrollment_email",
     "retry_enrollment_followup",
+    "virtual_card_application_state",
+    "virtual_card_request_checksum",
+    "virtual_wallet_availability",
 ]

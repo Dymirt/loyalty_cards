@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{% translate "API kart wirtualnych" %} · {{ tenant.name }}{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'css/virtual-cards.v1.css' %}?v=1">{% endblock %}
+{% block content %}
+{% include "tenants/partials/nav.html" %}
+<div class="virtual-api-head"><div><p class="virtual-eyebrow">{% translate "Integracja firmy" %}</p><h1>{% translate "API kart wirtualnych" %}</h1><p>{% translate "Przyjmuj dane klienta z własnej strony i wysyłaj wybrany wariant Apple/Google Wallet bez wydawania karty fizycznej." %}</p></div><a class="portal-button-secondary" href="{{ public_form_url }}" target="_blank" rel="noopener">{% translate "Otwórz formularz klienta" %}</a></div>
+
+{% if raw_key %}<section class="virtual-secret-panel" role="status"><p class="virtual-eyebrow">{% translate "Nowy klucz — skopiuj teraz" %}</p><h2>{% translate "Nie pokażemy go ponownie" %}</h2><code>{{ raw_key }}</code><p>{% translate "Przekaż klucz wyłącznie administratorowi backendu. Nie umieszczaj go w HTML ani JavaScript przeglądarki." %}</p></section>{% endif %}
+
+<div class="virtual-api-grid">
+    <section class="portal-card"><h2 class="text-xl font-bold">{% translate "Utwórz klucz API" %}</h2><p class="mt-1 text-sm text-ink-700">{% translate "Każda integracja powinna mieć osobny klucz, który można niezależnie unieważnić." %}</p><form method="post" class="mt-5 space-y-4">{% csrf_token %}{% include "components/form_field.html" with field=form.name %}<button class="portal-button" type="submit">{% translate "Wygeneruj klucz" %}</button></form></section>
+    <section class="portal-card"><h2 class="text-xl font-bold">{% translate "Adresy API" %}</h2><dl class="virtual-endpoints"><div><dt>GET</dt><dd><code>{{ designs_endpoint }}</code></dd></div><div><dt>POST</dt><dd><code>{{ create_endpoint }}</code></dd></div></dl><p class="portal-help">{% translate "Autoryzacja: Authorization: Bearer TWÓJ_KLUCZ. Przy POST wymagany jest unikalny nagłówek Idempotency-Key." %}</p></section>
+</div>
+
+<section class="portal-card mt-8"><h2 class="text-xl font-bold">{% translate "Przykładowe żądanie" %}</h2><pre class="virtual-code"><code>curl -X POST '{{ create_endpoint }}' \
+  -H 'Authorization: Bearer lvc_live_...' \
+  -H 'Idempotency-Key: order-2026-0001' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "first_name": "Anna",
+    "last_name": "Nowak",
+    "email": "anna@example.com",
+    "phone": "+48500100200",
+    "card_design_id": 1,
+    "marketing_consent": true
+  }'</code></pre><p class="portal-help">{% translate "Odpowiedź nie zawiera kart ani linków Wallet. Klient otrzyma je tylko e-mailem." %}</p></section>
+
+<section class="portal-card mt-8"><h2 class="text-xl font-bold">{% translate "Klucze firmy" %}</h2><div class="mt-5 overflow-x-auto"><table class="w-full min-w-3xl text-left text-sm"><thead><tr class="border-b"><th class="px-3 py-3">{% translate "Nazwa" %}</th><th class="px-3 py-3">{% translate "Prefiks" %}</th><th class="px-3 py-3">{% translate "Utworzono" %}</th><th class="px-3 py-3">{% translate "Ostatnie użycie" %}</th><th class="px-3 py-3 text-right">{% translate "Status" %}</th></tr></thead><tbody>{% for key in api_keys %}<tr class="border-b"><td class="px-3 py-4 font-semibold">{{ key.name }}</td><td class="px-3 py-4 font-mono">{{ key.token_prefix }}…</td><td class="px-3 py-4">{{ key.created_at|date:"d.m.Y H:i" }}</td><td class="px-3 py-4">{{ key.last_used_at|date:"d.m.Y H:i"|default:"—" }}</td><td class="px-3 py-4 text-right">{% if key.revoked_at %}<span class="portal-status bg-stone-200 text-stone-700">{% translate "Unieważniony" %}</span>{% else %}<form method="post" action="{% url 'enrollment:revoke_virtual_card_api_key' tenant.slug key.pk %}">{% csrf_token %}<button class="font-semibold text-red-700" type="submit">{% translate "Unieważnij" %}</button></form>{% endif %}</td></tr>{% empty %}<tr><td colspan="5" class="px-3 py-8 text-center text-ink-700">{% translate "Nie utworzono jeszcze żadnego klucza." %}</td></tr>{% endfor %}</tbody></table></div></section>
+
+<section class="portal-card mt-8"><h2 class="text-xl font-bold">{% translate "Ostatnie zgłoszenia wirtualne" %}</h2><div class="mt-5 overflow-x-auto"><table class="w-full min-w-4xl text-left text-sm"><thead><tr class="border-b"><th class="px-3 py-3">{% translate "Data" %}</th><th class="px-3 py-3">{% translate "Klient" %}</th><th class="px-3 py-3">{% translate "Projekt" %}</th><th class="px-3 py-3">{% translate "Źródło" %}</th><th class="px-3 py-3">{% translate "Stan" %}</th></tr></thead><tbody>{% for item in applications %}<tr class="border-b"><td class="px-3 py-4">{{ item.created_at|date:"d.m.Y H:i" }}</td><td class="px-3 py-4"><strong>{{ item.customer.first_name }} {{ item.customer.last_name }}</strong><span class="block text-ink-700">{{ item.customer.email }}</span></td><td class="px-3 py-4">{{ item.card_design.name }}</td><td class="px-3 py-4">{{ item.get_source_display }}</td><td class="px-3 py-4"><span class="portal-status bg-stone-100 text-ink-700">{{ item.delivery_state_label }}</span></td></tr>{% empty %}<tr><td colspan="5" class="px-3 py-8 text-center text-ink-700">{% translate "Brak zgłoszeń." %}</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

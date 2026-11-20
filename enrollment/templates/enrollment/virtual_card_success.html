@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% block title %}{% translate "Sprawdź swoją pocztę" %} · {{ tenant.name }}{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="{% static 'css/virtual-cards.v1.css' %}?v=1">{% endblock %}
+{% block full_width_content %}
+<section class="virtual-success-shell">
+    <div class="virtual-success-card">
+        <span class="virtual-success-mark">✓</span>
+        <p class="virtual-eyebrow">{% translate "Zgłoszenie przyjęte" %}</p>
+        <h1>{% translate "Twoja karta jest przygotowywana" %}</h1>
+        <p>{% blocktranslate with email=application.customer.email %}Gotowe karty Wallet wyślemy na {{ email }}. Zwykle trwa to krótką chwilę.{% endblocktranslate %}</p>
+        <div class="virtual-success-meta"><span>{% translate "Wybrany projekt" %}</span><strong>{{ application.card_design.name }}</strong></div>
+        <p class="virtual-email-note">{% translate "Jeśli wiadomości nie ma w skrzynce odbiorczej, sprawdź folder spam." %}</p>
+    </div>
+</section>
+{% endblock %}

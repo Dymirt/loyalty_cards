@@ -68,6 +68,9 @@ EXTRACTED_MODEL_TABLES = {
     "enrollment.enrollmentaccesslink": "enrollment_enrollmentaccesslink",
     "enrollment.enrollmentevent": "enrollment_enrollmentevent",
     "enrollment.enrollmentfollowup": "enrollment_enrollmentfollowup",
+    "enrollment.virtualcardapikey": "enrollment_virtualcardapikey",
+    "enrollment.virtualcardapplication": "enrollment_virtualcardapplication",
+    "enrollment.virtualcardfollowup": "enrollment_virtualcardfollowup",
     "pos_dotykacka.dotykackaaccesstoken": "pos_dotykacka_dotykackaaccesstoken",
     "pos_dotykacka.dotykackaconnectstate": "pos_dotykacka_dotykackaconnectstate",
     "printing.fulfillmentevent": "printing_fulfillmentevent",
@@ -144,6 +147,13 @@ EXTRACTED_URL_NAMES = {
     "enrollment:ensure_followups",
     "enrollment:resend_email",
     "enrollment:retry_followup",
+    "enrollment:virtual_card_form",
+    "enrollment:virtual_card_design_asset",
+    "enrollment:virtual_card_api_keys",
+    "enrollment:revoke_virtual_card_api_key",
+    "virtual_cards_api:designs",
+    "virtual_cards_api:create",
+    "virtual_cards_api:detail",
     "tenants:portal",
     "integrations:settings",
     "integrations:test",
@@ -216,6 +226,7 @@ LEGACY_DOTYKACKA_MIGRATIONS = {
     "0014_promote_dotykacka_refresh_tokens",
     "0015_alter_cardartifact_kind_alter_cardbatch_status_and_more",
     "0016_alter_integrationconnection_provider",
+    "0017_walletpass_card_design",
 }
 
 EXTRACTED_MIGRATIONS = {
@@ -243,6 +254,7 @@ EXTRACTED_MIGRATIONS = {
     ("communications", "0003_emailcampaign_campaignrecipient_campaignasset_and_more"),
     ("enrollment", "0001_initial"),
     ("enrollment", "0002_alter_enrollmentaccesslink_purpose_and_more"),
+    ("enrollment", "0003_virtualcardapikey_virtualcardapplication_and_more"),
     ("tenants", "0001_initial"),
     ("tenants", "0002_portable_primary_domain"),
     ("tenants", "0003_backfill_primary_domain_marker"),
@@ -369,7 +381,7 @@ def collect_extraction_inventory(*, include_rows=True):
         )
 
     return {
-        "schema_version": 9,
+        "schema_version": 10,
         "settings_module": os.environ.get("DJANGO_SETTINGS_MODULE", ""),
         "root_urlconf": settings.ROOT_URLCONF,
         "wsgi_application": settings.WSGI_APPLICATION,

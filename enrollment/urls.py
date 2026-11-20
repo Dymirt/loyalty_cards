@@ -7,6 +7,16 @@ app_name = "enrollment"
 urlpatterns = [
     path("register", views.register_customer_form, name="register"),
     path("c/<slug:tenant_slug>/register", views.register_customer_form, name="tenant_register"),
+    path(
+        "c/<slug:tenant_slug>/virtual-card",
+        views.virtual_card_form,
+        name="virtual_card_form",
+    ),
+    path(
+        "c/<slug:tenant_slug>/virtual-card/designs/<int:design_id>/<str:asset_kind>",
+        views.virtual_card_design_asset,
+        name="virtual_card_design_asset",
+    ),
     path("enrollment/status/<str:token>", views.public_status, name="public_status"),
     path(
         "enrollment/status/<str:token>/apple-pass",
@@ -17,6 +27,16 @@ urlpatterns = [
         "c/<slug:tenant_slug>/enrollments",
         views.tenant_enrollments,
         name="manage",
+    ),
+    path(
+        "c/<slug:tenant_slug>/settings/virtual-card-api",
+        views.virtual_card_api_keys,
+        name="virtual_card_api_keys",
+    ),
+    path(
+        "c/<slug:tenant_slug>/settings/virtual-card-api/<int:key_id>/revoke",
+        views.revoke_virtual_card_api_key,
+        name="revoke_virtual_card_api_key",
     ),
     path(
         "c/<slug:tenant_slug>/enrollments/domain",

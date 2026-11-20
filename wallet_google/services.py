@@ -11,6 +11,7 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.urls import reverse
 from django.utils.translation import gettext as _
 
 from integrations.contracts import (
@@ -32,12 +33,16 @@ def platform_issuer_id() -> str:
     return issuer_id
 
 
-def tenant_class_suffix(tenant) -> str:
-    """Use the tenant's unique card prefix as its stable Google class identity."""
+def tenant_class_suffix(tenant, design=None) -> str:
+    """Use the tenant prefix and optional immutable design as the class identity."""
 
     suffix = re.sub(r"[^A-Za-z0-9._-]", "_", tenant.card_prefix or "")
     if not suffix:
         raise ImproperlyConfigured("The tenant has no Google Wallet class identity.")
+    if design is not None:
+        if design.tenant_id != tenant.pk:
+            raise ImproperlyConfigured("The Google Wallet design belongs to another tenant.")
+        suffix = f"{suffix}.d{design.pk}"
     return suffix
 
 
@@ -270,9 +275,25 @@ class GoogleWalletIssuer:
             raise ImproperlyConfigured(
                 "Google Wallet is not enabled for this tenant."
             ) from exc
-        issuer_id = platform_issuer_id()
-        class_suffix = tenant_class_suffix(customer.tenant)
         wallet = wallet_identity(customer)
+        issuer_id = platform_issuer_id()
+        class_suffix = tenant_class_suffix(customer.tenant, wallet.card_design)
+        design = wallet.card_design
+        if design and design.logo:
+            logo_url = settings.APP_BASE_URL.rstrip("/") + reverse(
+                "enrollment:virtual_card_design_asset",
+                args=[customer.tenant.slug, design.pk, "logo"],
+            )
+        else:
+            logo_path = customer.tenant.brand.logo_path or "logo_atelier_cafe.png"
+            logo_url = f"{settings.APP_BASE_URL.rstrip('/')}/media/{logo_path}"
+        if design and design.background_source:
+            hero_url = settings.APP_BASE_URL.rstrip("/") + reverse(
+                "enrollment:virtual_card_design_asset",
+                args=[customer.tenant.slug, design.pk, "background"],
+            )
+        else:
+            hero_url = logo_url
         expected_object_id = (
             f"{issuer_id}.{re.sub(r'[^A-Za-z0-9._-]', '_', customer.klient_id)}"
         )
@@ -296,10 +317,20 @@ class GoogleWalletIssuer:
                 "value": customer.klient_id,
                 "alternateText": customer.klient_id,
             },
+            "heroImage": {
+                "sourceUri": {
+                    "uri": hero_url
+                },
+                "contentDescription": {
+                    "defaultValue": {
+                        "language": "pl-PL",
+                        "value": f"Karta lojalnościowa {customer.tenant.brand.public_name}",
+                    }
+                },
+            },
         }
         if remote_sync is None:
             remote_sync = settings.GOOGLE_WALLET_REMOTE_SYNC_ENABLED
-        logo_path = customer.tenant.brand.logo_path or "logo_atelier_cafe.png"
         if remote_sync:
             public_name = customer.tenant.brand.public_name or customer.tenant.name
             class_payload = {
@@ -309,7 +340,7 @@ class GoogleWalletIssuer:
                 "reviewStatus": "UNDER_REVIEW",
                 "programLogo": {
                     "sourceUri": {
-                        "uri": f"{settings.APP_BASE_URL}/media/{logo_path}"
+                        "uri": logo_url
                     },
                     "contentDescription": {
                         "defaultValue": {
@@ -319,6 +350,8 @@ class GoogleWalletIssuer:
                     },
                 },
             }
+            if design is not None:
+                class_payload["hexBackgroundColor"] = design.panel_color
             (rest_client or GoogleWalletRestClient()).upsert_loyalty(
                 class_payload=class_payload,
                 object_payload=loyalty_object,
@@ -331,7 +364,7 @@ class GoogleWalletIssuer:
             class_suffix=class_suffix,
             object_id=wallet.google_object_id,
             customer_image_url=(
-                f"{settings.APP_BASE_URL}/media/{logo_path}"
+                hero_url
             ),
             image_description=f"Karta lojalnościowa {customer.tenant.brand.public_name}",
         )

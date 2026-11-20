@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import Enrollment, EnrollmentAccessLink, EnrollmentEvent, EnrollmentFollowUp
+from .models import (
+    Enrollment,
+    EnrollmentAccessLink,
+    EnrollmentEvent,
+    EnrollmentFollowUp,
+    VirtualCardApiKey,
+    VirtualCardApplication,
+    VirtualCardFollowUp,
+)
 
 
 class ReadOnlyEnrollmentAdmin(admin.ModelAdmin):
@@ -37,3 +45,23 @@ class EnrollmentEventAdmin(ReadOnlyEnrollmentAdmin):
 class EnrollmentAccessLinkAdmin(ReadOnlyEnrollmentAdmin):
     list_display = ("id", "enrollment", "purpose", "reason", "expires_at", "created_at")
     list_filter = ("purpose", "reason")
+
+
+@admin.register(VirtualCardApiKey)
+class VirtualCardApiKeyAdmin(ReadOnlyEnrollmentAdmin):
+    list_display = ("name", "tenant", "token_prefix", "created_at", "last_used_at", "revoked_at")
+    list_filter = ("tenant", "revoked_at")
+    search_fields = ("name", "token_prefix", "tenant__name")
+
+
+@admin.register(VirtualCardApplication)
+class VirtualCardApplicationAdmin(ReadOnlyEnrollmentAdmin):
+    list_display = ("public_id", "tenant", "customer", "card_design", "source", "created_at")
+    list_filter = ("tenant", "source", "card_design")
+    search_fields = ("public_id", "customer__email", "customer__klient_id")
+
+
+@admin.register(VirtualCardFollowUp)
+class VirtualCardFollowUpAdmin(ReadOnlyEnrollmentAdmin):
+    list_display = ("application", "kind", "integration_job", "created_at")
+    list_filter = ("kind",)

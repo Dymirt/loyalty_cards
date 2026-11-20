@@ -24,6 +24,10 @@ turnkey_compat_patterns = (
 urlpatterns = [
     path(
         "api/v1/",
+        include(("enrollment.api_urls", "virtual_cards_api"), namespace="virtual_cards_api"),
+    ),
+    path(
+        "api/v1/",
         include("operations.customer_export_urls", namespace="customers_api"),
     ),
     path("i18n/", include("django.conf.urls.i18n")),

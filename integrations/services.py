@@ -18,6 +18,7 @@ SAFE_PAYLOAD_KEYS = frozenset(
         "connection_id",
         "enrollment_link_id",
         "campaign_recipient_id",
+        "virtual_card_application_id",
         "reason",
     }
 )
