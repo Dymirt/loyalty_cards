@@ -287,7 +287,12 @@ class GoogleWalletIssuer:
         else:
             logo_path = customer.tenant.brand.logo_path or "logo_atelier_cafe.png"
             logo_url = f"{settings.APP_BASE_URL.rstrip('/')}/media/{logo_path}"
-        if design and design.background_source:
+        if wallet.physical_card_id:
+            hero_url = settings.APP_BASE_URL.rstrip("/") + reverse(
+                "enrollment:virtual_card_asset",
+                args=[customer.tenant.slug, wallet.physical_card_id, "front"],
+            )
+        elif design and design.background_source:
             hero_url = settings.APP_BASE_URL.rstrip("/") + reverse(
                 "enrollment:virtual_card_design_asset",
                 args=[customer.tenant.slug, design.pk, "background"],

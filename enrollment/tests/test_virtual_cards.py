@@ -7,6 +7,7 @@ from uuid import uuid4
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from billing.models import UsageEvent
 from billing.tests.test_billing_services import create_subscription
@@ -16,6 +17,7 @@ from dotykacka.tests.base import (
     configure_brevo,
     configure_dotykacka,
     configure_google_wallet,
+    create_physical_card,
     create_tenant,
     create_tenant_owner,
 )
@@ -50,6 +52,13 @@ class VirtualCardApiTests(TestCase):
         )
         self.design_one = create_design(self.tenant, version=1, front_text="Atelier Gold")
         self.design_two = create_design(self.tenant, version=2, front_text="Atelier Noir")
+        self.cards = [
+            self.create_prepared_card(number, color)
+            for number, color in enumerate(
+                ("#D94A64", "#E8B04A", "#4A7BD9", "#54A36B", "#7D55A6"),
+                start=1,
+            )
+        ]
         self.api_key, self.raw_key = VirtualCardApiKey.issue(
             tenant=self.tenant,
             name="Website backend",
@@ -60,9 +69,26 @@ class VirtualCardApiTests(TestCase):
             "last_name": "Nowak",
             "email": "anna@example.test",
             "phone": "+48500100200",
-            "card_design_id": self.design_one.pk,
+            "card_code": self.cards[0].code,
             "marketing_consent": True,
         }
+
+    def create_prepared_card(self, number, color):
+        card = create_physical_card(self.tenant, number=number)
+        card.batch.design = self.design_one
+        card.batch.save(update_fields=("design",))
+        relative_dir = Path("cards") / f"card-{number}"
+        target_dir = Path(self.media.name) / relative_dir
+        target_dir.mkdir(parents=True, exist_ok=True)
+        for side, shade in (("front", color), ("back", "#FFFFFF")):
+            relative_path = relative_dir / f"{card.code}_{side}.jpg"
+            Image.new("RGB", (1011, 638), shade).save(
+                Path(self.media.name) / relative_path,
+                format="JPEG",
+            )
+            setattr(card, f"{side}_image_path", relative_path.as_posix())
+        card.save(update_fields=("front_image_path", "back_image_path"))
+        return card
 
     def post_card(self, *, payload=None, key="checkout-request-0001"):
         return self.client.post(
@@ -73,9 +99,9 @@ class VirtualCardApiTests(TestCase):
             **self.headers,
         )
 
-    def test_design_api_lists_only_the_authenticated_tenant_designs(self):
+    def test_design_api_lists_four_available_prepared_cards_for_the_tenant(self):
         other = create_tenant(name="Other", slug="other-virtual", card_prefix="OVC")
-        create_design(other)
+        create_physical_card(other, number=1)
 
         response = self.client.get(
             reverse("virtual_cards_api:designs"),
@@ -85,33 +111,30 @@ class VirtualCardApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             [item["id"] for item in response.json()["results"]],
-            [self.design_two.pk, self.design_one.pk],
+            [card.pk for card in self.cards[:4]],
         )
-        self.assertIn("background_url", response.json()["results"][0])
-        self.assertIn("preview_url", response.json()["results"][0])
+        self.assertEqual(
+            [item["card_code"] for item in response.json()["results"]],
+            [card.code for card in self.cards[:4]],
+        )
+        self.assertIn("front_url", response.json()["results"][0])
+        self.assertIn("back_url", response.json()["results"][0])
         preview = self.client.get(response.json()["results"][0]["preview_url"])
         self.assertEqual(preview.status_code, 200)
         self.assertEqual(preview["Content-Type"], "image/jpeg")
 
-    def test_design_catalog_exposes_only_four_newest_choices(self):
-        design_three = create_design(self.tenant, version=3, front_text="Third")
-        design_four = create_design(self.tenant, version=4, front_text="Fourth")
-        design_five = create_design(self.tenant, version=5, front_text="Fifth")
-
+    def test_catalog_exposes_only_four_lowest_available_card_codes(self):
         response = self.client.get(
             reverse("virtual_cards_api:designs"),
             **self.headers,
         )
 
         self.assertEqual(
-            [item["id"] for item in response.json()["results"]],
-            [design_five.pk, design_four.pk, design_three.pk, self.design_two.pk],
+            [item["card_code"] for item in response.json()["results"]],
+            [card.code for card in self.cards[:4]],
         )
-        rejected = self.post_card()
-        self.assertEqual(rejected.status_code, 400)
-        self.assertEqual(rejected.json()["error"]["code"], "invalid_card_design")
 
-    def test_api_creates_only_virtual_identity_and_wallet_email_jobs(self):
+    def test_api_assigns_selected_prepared_card_and_wallet_email_jobs(self):
         configure_dotykacka(self.tenant)
         configure_brevo(self.tenant)
         create_subscription(self.tenant)
@@ -136,8 +159,14 @@ class VirtualCardApiTests(TestCase):
         )
         wallet = WalletPass.objects.get(customer=customer)
         self.assertEqual(wallet.card_design, self.design_one)
-        self.assertFalse(PhysicalCard.objects.filter(customer=customer).exists())
-        self.assertTrue(customer.klient_id.startswith("ACV-V-"))
+        self.assertEqual(wallet.physical_card, self.cards[0])
+        self.cards[0].refresh_from_db()
+        self.assertEqual(self.cards[0].customer, customer)
+        self.assertEqual(self.cards[0].status, PhysicalCard.Status.ASSIGNED)
+        self.assertEqual(customer.klient_id, self.cards[0].code)
+        self.assertEqual(application.physical_card, self.cards[0])
+        self.assertEqual(response.json()["card_design"]["name"], self.cards[0].code)
+        self.assertTrue(response.json()["card"]["front_url"].endswith("/front"))
         self.assertEqual(application.usage_event.kind, UsageEvent.Kind.VIRTUAL_CARD_ISSUED)
         self.assertTrue(ConsentRecord.objects.get(customer=customer).granted)
         self.assertSetEqual(
@@ -209,7 +238,7 @@ class VirtualCardApiTests(TestCase):
         self.assertEqual(Customer.objects.filter(tenant=self.tenant).count(), 1)
 
     @override_settings(GOOGLE_WALLET_ISSUER_ID="123456789")
-    def test_selected_design_is_used_by_both_wallet_issuers(self):
+    def test_selected_card_front_is_used_by_both_wallet_issuers(self):
         configure_google_wallet(self.tenant)
         response = self.post_card()
         customer = VirtualCardApplication.objects.get(
@@ -240,27 +269,27 @@ class VirtualCardApiTests(TestCase):
         )
         self.assertIn(
             reverse(
-                "enrollment:virtual_card_design_asset",
-                args=[self.tenant.slug, self.design_one.pk, "background"],
+                "enrollment:virtual_card_asset",
+                args=[self.tenant.slug, self.cards[0].pk, "front"],
             ),
             url_builder.call_args.kwargs["customer_image_url"],
         )
 
-    def test_cross_tenant_design_and_revoked_keys_are_rejected(self):
-        other = create_tenant(name="Other", slug="other-design", card_prefix="ODV")
-        other_design = create_design(other)
-        invalid_design = self.post_card(
-            payload=dict(self.payload, card_design_id=other_design.pk)
+    def test_cross_tenant_card_and_revoked_keys_are_rejected(self):
+        other = create_tenant(name="Other", slug="other-card", card_prefix="ODV")
+        other_card = create_physical_card(other, number=80)
+        invalid_card = self.post_card(
+            payload=dict(self.payload, card_code=other_card.code)
         )
         self.api_key.revoke()
         revoked = self.post_card(key="checkout-request-0002")
 
-        self.assertEqual(invalid_design.status_code, 400)
-        self.assertEqual(invalid_design.json()["error"]["code"], "invalid_card_design")
+        self.assertEqual(invalid_card.status_code, 400)
+        self.assertEqual(invalid_card.json()["error"]["code"], "invalid_card")
         self.assertEqual(revoked.status_code, 401)
         self.assertEqual(VirtualCardApplication.objects.count(), 0)
 
-    def test_public_form_uses_selected_design_and_only_confirms_email_delivery(self):
+    def test_public_form_uses_selected_prepared_card_and_only_confirms_email_delivery(self):
         response = self.client.post(
             reverse("enrollment:virtual_card_form", args=[self.tenant.slug]),
             {
@@ -268,7 +297,7 @@ class VirtualCardApiTests(TestCase):
                 "last_name": "Kowalska",
                 "email": "maria@example.test",
                 "phone": "501234567",
-                "card_design": self.design_two.pk,
+                "physical_card": self.cards[1].pk,
                 "marketing_consent": "on",
                 "request_id": str(uuid4()),
             },
@@ -277,9 +306,34 @@ class VirtualCardApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertContains(response, "maria@example.test", status_code=201)
         application = VirtualCardApplication.objects.get(source="public_form")
-        self.assertEqual(application.card_design, self.design_two)
+        self.assertEqual(application.card_design, self.design_one)
+        self.assertEqual(application.physical_card, self.cards[1])
+        self.assertEqual(application.customer.klient_id, self.cards[1].code)
         self.assertIsNone(application.api_key)
         self.assertNotContains(response, "pay.google.com", status_code=201)
+
+    def test_selected_card_can_only_be_claimed_once(self):
+        first = self.post_card()
+        second_payload = dict(
+            self.payload,
+            email="second@example.test",
+            first_name="Second",
+        )
+        second = self.post_card(payload=second_payload, key="checkout-request-0002")
+
+        self.assertEqual(first.status_code, 202)
+        self.assertEqual(second.status_code, 409)
+        self.assertEqual(second.json()["error"]["code"], "card_unavailable")
+
+    def test_legacy_card_design_id_field_selects_the_returned_inventory_card(self):
+        payload = dict(self.payload)
+        payload.pop("card_code")
+        payload["card_design_id"] = self.cards[0].pk
+
+        response = self.post_card(payload=payload)
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.json()["card_id"], self.cards[0].code)
 
 
 class VirtualCardApiKeyPortalTests(TestCase):

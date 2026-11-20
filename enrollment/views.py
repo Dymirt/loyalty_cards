@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from cards.models import PhysicalCard
+from cards.services import physical_card_asset_path
 from dotykacka.services.card_designs import render_card, spec_from_design
 from communications.services import customer_apple_pass
 from dotykacka.models import AuditEvent
@@ -226,19 +227,20 @@ def virtual_card_form(request, tenant_slug):
             _virtual_card_form_context(tenant=tenant, form=form),
             status=400,
         )
-    design = form.cleaned_data["card_design"]
+    physical_card = form.cleaned_data["physical_card"]
     cleaned = {
         "first_name": form.cleaned_data["first_name"],
         "last_name": form.cleaned_data["last_name"],
         "email": form.cleaned_data["email"].lower(),
         "phone": form.cleaned_data["phone"],
-        "card_design_id": design.pk,
+        "card_id": physical_card.pk,
+        "card_code": physical_card.code,
         "marketing_consent": True,
     }
     try:
         result = register_virtual_card(
             tenant=tenant,
-            card_design=design,
+            physical_card=physical_card,
             cleaned_data=cleaned,
             idempotency_key=f"public-form:{form.cleaned_data['request_id']}",
             request_sha256=virtual_card_request_checksum(cleaned),
@@ -267,7 +269,31 @@ def virtual_card_form(request, tenant_slug):
 
 
 @require_GET
+def virtual_card_asset(request, tenant_slug, card_id, asset_kind):
+    tenant = get_object_or_404(
+        Tenant.objects.select_related("brand"),
+        slug=tenant_slug,
+        is_active=True,
+    )
+    card = get_object_or_404(tenant.physical_cards, pk=card_id)
+    if asset_kind not in {"front", "back"}:
+        raise Http404(_("Nieznany materiał karty."))
+    try:
+        path = physical_card_asset_path(card, asset_kind)
+        stream = path.open("rb")
+    except (OSError, ValidationError) as exc:
+        raise Http404(_("Plik karty nie istnieje.")) from exc
+    content_type = mimetypes.guess_type(path.name)[0] or "image/jpeg"
+    response = FileResponse(stream, content_type=content_type)
+    response["Cache-Control"] = "public, max-age=3600"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@require_GET
 def virtual_card_design_asset(request, tenant_slug, design_id, asset_kind):
+    """Serve legacy design assets for already-issued virtual cards."""
+
     tenant = get_object_or_404(
         Tenant.objects.select_related("brand"),
         slug=tenant_slug,
@@ -275,10 +301,7 @@ def virtual_card_design_asset(request, tenant_slug, design_id, asset_kind):
     )
     design = get_object_or_404(tenant.card_designs, pk=design_id)
     if asset_kind == "preview":
-        rendered = render_card(
-            spec_from_design(design),
-            f"{tenant.card_prefix}-1",
-        )
+        rendered = render_card(spec_from_design(design), f"{tenant.card_prefix}-1")
         response = FileResponse(BytesIO(rendered.front), content_type="image/jpeg")
         response["Cache-Control"] = "public, max-age=3600"
         response["X-Content-Type-Options"] = "nosniff"
@@ -615,7 +638,7 @@ def request_domain(request, tenant_slug):
 def _virtual_card_api_context(*, request, tenant, form=None, raw_key=""):
     applications = list(
         tenant.virtual_card_applications.select_related(
-            "customer", "card_design", "api_key"
+            "customer", "card_design", "physical_card", "api_key"
         ).prefetch_related("followups__integration_job")[:100]
     )
     state_labels = {
@@ -729,6 +752,7 @@ __all__ = [
     "retry_followup",
     "tenant_enrollments",
     "virtual_card_api_keys",
+    "virtual_card_asset",
     "virtual_card_design_asset",
     "virtual_card_form",
 ]

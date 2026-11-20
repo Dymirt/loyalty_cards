@@ -159,7 +159,8 @@ def virtual_card_request_checksum(cleaned_data):
         "last_name": cleaned_data["last_name"],
         "email": cleaned_data["email"].lower(),
         "phone": cleaned_data["phone"],
-        "card_design_id": cleaned_data["card_design_id"],
+        "card_id": cleaned_data["card_id"],
+        "card_code": cleaned_data["card_code"],
         "marketing_consent": True,
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -202,7 +203,7 @@ def enqueue_virtual_card_followups(application):
 def register_virtual_card(
     *,
     tenant,
-    card_design,
+    physical_card,
     cleaned_data,
     idempotency_key,
     request_sha256,
@@ -225,27 +226,44 @@ def register_virtual_card(
             )
         enqueue_virtual_card_followups(existing)
         return VirtualCardResult(application=existing, created=False)
-    card_design = tenant.card_designs.select_related("brand_revision").get(
-        pk=card_design.pk,
+    physical_card = lock_available_card(tenant=tenant, code=physical_card.code)
+    card_design = (
+        tenant.card_designs.select_related("brand_revision")
+        .filter(pk=physical_card.batch.design_id)
+        .first()
     )
+    if card_design is None:
+        card_design = (
+            tenant.card_designs.select_related("brand_revision")
+            .filter(is_virtual_catalog=False)
+            .order_by("-version", "-pk")
+            .first()
+        )
+    if card_design is None:
+        raise ValidationError(_("Ta firma nie ma projektu powiązanego z gotowymi kartami."))
     apple_enabled, google_connection = virtual_wallet_availability(tenant)
     if not apple_enabled and google_connection is None:
         raise ValidationError(_("Ta firma nie ma aktywnego wydawcy kart Wallet."))
     public_id = uuid4()
-    card_code = f"{tenant.card_prefix}-V-{public_id.hex[:16].upper()}"
     customer = create_customer(
         tenant=tenant,
-        card_code=card_code,
+        card_code=physical_card.code,
         first_name=cleaned_data["first_name"],
         last_name=cleaned_data["last_name"],
         email=cleaned_data["email"],
         phone=cleaned_data["phone"],
     )
+    assign_locked_card(card=physical_card, customer=customer)
     usage_result = record_card_issuance(
         tenant=tenant,
         card_identity=public_id,
         physical=False,
-        metadata={"source": source, "card_design_id": card_design.pk},
+        metadata={
+            "source": source,
+            "card_design_id": card_design.pk,
+            "physical_card_id": physical_card.pk,
+            "card_code": physical_card.code,
+        },
     )
     revision = card_design.brand_revision
     consent_text = revision.marketing_consent_text or tenant.brand.marketing_consent_text
@@ -257,6 +275,8 @@ def register_virtual_card(
         metadata={
             "brand_revision_id": revision.pk,
             "card_design_id": card_design.pk,
+            "physical_card_id": physical_card.pk,
+            "card_code": physical_card.code,
             "virtual_card": True,
         },
     )
@@ -266,6 +286,7 @@ def register_virtual_card(
         api_key=api_key,
         customer=customer,
         card_design=card_design,
+        physical_card=physical_card,
         consent_record=consent,
         usage_event=usage_result.event,
         public_id=public_id,
@@ -286,6 +307,8 @@ def register_virtual_card(
         metadata={
             "public_id": str(application.public_id),
             "card_design_id": card_design.pk,
+            "physical_card_id": physical_card.pk,
+            "card_code": physical_card.code,
             "api_key_id": getattr(api_key, "pk", None),
             "job_count": len(jobs),
             "source": source,

@@ -1,8 +1,9 @@
 # Virtual card API
 
-The virtual-card API creates a tenant-owned customer without assigning a
-physical card. Apple Wallet and/or Google Wallet issuance runs in the existing
-integration worker and the resulting cards are delivered only to the submitted
+The virtual-card API assigns one of the tenant's already-rendered, unregistered
+`MB-*` cards to a new customer. The physical plastic is not delivered; its
+existing front artwork and card number become the source for Apple Wallet and
+Google Wallet. The resulting Wallet cards are delivered only to the submitted
 email address.
 
 ## Authentication
@@ -22,9 +23,29 @@ GET /api/v1/virtual-card-designs/
 Authorization: Bearer lvc_live_...
 ```
 
-The response contains the four newest tenant-scoped designs. Each item includes
-an `id`, name, colors and `preview_url`. Send the selected `id` as
-`card_design_id`; the choice is stored permanently on the issued Wallet pass.
+The response contains exactly four currently available prepared cards, ordered
+by card number. These are the real unregistered `MB-*` cards, not synthetic
+style records. Each item contains the database `id`, `card_code`, and URLs for
+the saved front and back. `preview_url` is the same image as `front_url`.
+
+```json
+{
+  "results": [
+    {
+      "id": 12,
+      "name": "MB-12",
+      "card_code": "MB-12",
+      "preview_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/front",
+      "front_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/front",
+      "back_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/back"
+    }
+  ]
+}
+```
+
+Send the chosen `card_code` when issuing the card. `card_id` is also accepted.
+For compatibility, the former `card_design_id` field is temporarily accepted
+as an alias for the returned numeric card `id`.
 
 ## Issue a virtual card
 
@@ -39,7 +60,7 @@ Content-Type: application/json
   "last_name": "Nowak",
   "email": "anna@example.com",
   "phone": "+48500100200",
-  "card_design_id": 1,
+  "card_code": "MB-12",
   "marketing_consent": true
 }
 ```
@@ -54,13 +75,15 @@ save URL; those are delivered only to the customer's email address.
 {
   "request_id": "b2b21475-5077-4cf9-87e2-c46118a39e98",
   "state": "processing",
-  "card_id": "MB-V-63C7494B8EBF4D1A",
+  "card_id": "MB-12",
   "card_created": true,
   "card": {
-    "id": "MB-V-63C7494B8EBF4D1A",
+    "id": "MB-12",
     "created": true,
     "wallet_pass_id": "19e2f1bc-3f24-4fb7-a5c6-2c94366f661e",
-    "design_id": 12
+    "inventory_card_id": 12,
+    "front_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/front",
+    "back_url": "https://club.mbstudio.online/dotykacka/c/marta-banaszek-atelier-cafe/virtual-card/cards/12/back"
   },
   "delivery": {
     "apple_wallet": {
@@ -102,4 +125,6 @@ blocks all subsequent requests authenticated with it.
 
 The Apple pass is sent as a `.pkpass` attachment and as an expiring signed
 "Add to Apple Wallet" link in the email. The signed link is never returned by
-the API.
+the API. Both Apple Wallet and Google Wallet use the saved `*_front.jpg` file
+of the selected `MB-*` card; the saved `*_back.jpg` remains available in the
+catalog response but is not used as the Wallet hero/strip artwork.

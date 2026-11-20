@@ -11,7 +11,7 @@
     </div>
     <div class="virtual-public-card">
         {% if not designs %}
-            <div class="virtual-unavailable"><strong>{% translate "Brak dostępnych projektów kart" %}</strong><p>{% translate "Firma opublikuje je wkrótce." %}</p></div>
+            <div class="virtual-unavailable"><strong>{% translate "Brak dostępnych kart" %}</strong><p>{% translate "Firma udostępni kolejne karty wkrótce." %}</p></div>
         {% elif not wallet_available %}
             <div class="virtual-unavailable"><strong>{% translate "Wydawanie kart jest chwilowo niedostępne" %}</strong><p>{% translate "Spróbuj ponownie później." %}</p></div>
         {% else %}
@@ -21,17 +21,17 @@
                 <fieldset>
                     <legend><span>01</span>{% translate "Wybierz wygląd karty" %}</legend>
                     <div class="virtual-design-grid">
-                        {% for design in designs %}
+                        {% for card in designs %}
                             <label class="virtual-design-option">
-                                <input type="radio" name="card_design" value="{{ design.pk }}" {% if form.card_design.value|stringformat:"s" == design.pk|stringformat:"s" %}checked{% endif %} required>
-                                <span class="virtual-design-visual" style="background:{{ design.panel_color }}">
-                                    <img src="{% url 'enrollment:virtual_card_design_asset' tenant.slug design.pk 'preview' %}" alt="{% blocktranslate with design_name=design.name %}Podgląd projektu {{ design_name }}{% endblocktranslate %}">
+                                <input type="radio" name="physical_card" value="{{ card.pk }}" {% if form.physical_card.value|stringformat:"s" == card.pk|stringformat:"s" %}checked{% endif %} required>
+                                <span class="virtual-design-visual">
+                                    <img src="{% url 'enrollment:virtual_card_asset' tenant.slug card.pk 'front' %}" alt="{% blocktranslate with card_code=card.code %}Przód karty {{ card_code }}{% endblocktranslate %}">
                                 </span>
-                                <span class="virtual-design-name"><strong>{{ design.name }}</strong><small>{% blocktranslate with version=design.version %}wersja {{ version }}{% endblocktranslate %}</small></span>
+                                <span class="virtual-design-name"><strong>{{ card.code }}</strong><small>{% translate "gotowy awers i rewers" %}</small></span>
                             </label>
                         {% endfor %}
                     </div>
-                    {% for error in form.card_design.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
+                    {% for error in form.physical_card.errors %}<p class="portal-error" role="alert">{{ error }}</p>{% endfor %}
                 </fieldset>
                 <fieldset>
                     <legend><span>02</span>{% translate "Twoje dane" %}</legend>

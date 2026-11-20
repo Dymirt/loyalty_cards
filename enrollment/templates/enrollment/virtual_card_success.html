@@ -9,7 +9,7 @@
         <p class="virtual-eyebrow">{% translate "Zgłoszenie przyjęte" %}</p>
         <h1>{% translate "Twoja karta jest przygotowywana" %}</h1>
         <p>{% blocktranslate with email=application.customer.email %}Gotowe karty Wallet wyślemy na {{ email }}. Zwykle trwa to krótką chwilę.{% endblocktranslate %}</p>
-        <div class="virtual-success-meta"><span>{% translate "Wybrany projekt" %}</span><strong>{{ application.card_design.name }}</strong></div>
+        <div class="virtual-success-meta"><span>{% translate "Wybrana karta" %}</span><strong>{{ application.physical_card.code|default:application.customer.klient_id }}</strong></div>
         <p class="virtual-email-note">{% translate "Jeśli wiadomości nie ma w skrzynce odbiorczej, sprawdź folder spam." %}</p>
     </div>
 </section>

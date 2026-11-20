@@ -1,23 +1,25 @@
-"""Published virtual-card design catalog rules."""
+"""Available pre-rendered card catalog rules."""
 
 
 VIRTUAL_CARD_DESIGN_LIMIT = 4
 
 
 def virtual_card_designs(tenant):
-    """Return the four newest designs that can be selected for a new card."""
+    """Return four unassigned, already-rendered MB-* cards."""
 
-    catalog = tenant.card_designs.filter(is_virtual_catalog=True)
-    if not catalog.exists():
-        catalog = tenant.card_designs.all()
-    design_ids = list(
-        catalog.order_by("-version", "-pk").values_list(
-            "pk", flat=True
-        )[:VIRTUAL_CARD_DESIGN_LIMIT]
+    card_ids = list(
+        tenant.physical_cards.filter(
+            status="available",
+            customer__isnull=True,
+        )
+        .order_by("number", "pk")
+        .values_list("pk", flat=True)[:VIRTUAL_CARD_DESIGN_LIMIT]
     )
-    return tenant.card_designs.filter(pk__in=design_ids).select_related(
-        "brand_revision", "tenant"
-    ).order_by("-version", "-pk")
+    return (
+        tenant.physical_cards.filter(pk__in=card_ids)
+        .select_related("tenant", "batch__design__brand_revision")
+        .order_by("number", "pk")
+    )
 
 
 __all__ = ["VIRTUAL_CARD_DESIGN_LIMIT", "virtual_card_designs"]

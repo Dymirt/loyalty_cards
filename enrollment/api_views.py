@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from billing.services import EntitlementLimitError
-from dotykacka.models import CardDesign
+from dotykacka.models import PhysicalCard
 from .api_auth import api_error, virtual_card_key_required
 from .catalog import virtual_card_designs
 from .models import VirtualCardApplication
@@ -24,45 +24,40 @@ from .services import (
 
 
 IDEMPOTENCY_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{7,119}")
-ALLOWED_FIELDS = {
+REQUIRED_FIELDS = {
     "first_name",
     "last_name",
     "email",
     "phone",
-    "card_design_id",
     "marketing_consent",
 }
+SELECTION_FIELDS = {"card_id", "card_code", "card_design_id"}
+ALLOWED_FIELDS = REQUIRED_FIELDS | SELECTION_FIELDS
 
 
-def _design_payload(request, design):
+def _card_payload(request, card):
     asset_base = {
-        "tenant_slug": design.tenant.slug,
-        "design_id": design.pk,
+        "tenant_slug": card.tenant.slug,
+        "card_id": card.pk,
     }
+    front_url = request.build_absolute_uri(
+        reverse(
+            "enrollment:virtual_card_asset",
+            kwargs={**asset_base, "asset_kind": "front"},
+        )
+    )
     return {
-        "id": design.pk,
-        "name": design.name,
-        "version": design.version,
-        "foreground_color": design.foreground_color,
-        "panel_color": design.panel_color,
-        "preview_url": request.build_absolute_uri(
+        "id": card.pk,
+        "name": card.code,
+        "card_code": card.code,
+        "preview_url": front_url,
+        "front_url": front_url,
+        "back_url": request.build_absolute_uri(
             reverse(
-                "enrollment:virtual_card_design_asset",
-                kwargs={**asset_base, "asset_kind": "preview"},
+                "enrollment:virtual_card_asset",
+                kwargs={**asset_base, "asset_kind": "back"},
             )
         ),
-        "background_url": request.build_absolute_uri(
-            reverse(
-                "enrollment:virtual_card_design_asset",
-                kwargs={**asset_base, "asset_kind": "background"},
-            )
-        ) if design.background_source else None,
-        "logo_url": request.build_absolute_uri(
-            reverse(
-                "enrollment:virtual_card_design_asset",
-                kwargs={**asset_base, "asset_kind": "logo"},
-            )
-        ) if design.logo else None,
     }
 
 
@@ -87,6 +82,19 @@ def _application_payload(request, application):
 
     apple_ready = bool(wallet and wallet.apple_pass_path)
     google_ready = bool(wallet and wallet.google_save_url)
+    selected_card = application.physical_card
+    selected_payload = (
+        _card_payload(request, selected_card)
+        if selected_card is not None
+        else {
+            "id": application.card_design_id,
+            "name": application.card_design.name,
+            "card_code": customer.klient_id,
+            "preview_url": None,
+            "front_url": None,
+            "back_url": None,
+        }
+    )
     return {
         "request_id": str(application.public_id),
         "state": virtual_card_application_state(application),
@@ -97,12 +105,11 @@ def _application_payload(request, application):
             "id": customer.klient_id,
             "created": wallet is not None,
             "wallet_pass_id": str(wallet.apple_serial) if wallet else None,
-            "design_id": application.card_design_id,
+            "inventory_card_id": getattr(selected_card, "pk", None),
+            "front_url": selected_payload["front_url"],
+            "back_url": selected_payload["back_url"],
         },
-        "card_design": {
-            "id": application.card_design_id,
-            "name": application.card_design.name,
-        },
+        "card_design": selected_payload,
         "delivery": {
             "apple_wallet": delivery(
                 "wallet.apple.issue",
@@ -140,9 +147,14 @@ def _clean_payload(request):
     unknown = set(payload) - ALLOWED_FIELDS
     if unknown:
         raise ValueError(f"Unknown fields: {', '.join(sorted(unknown))}.")
-    missing = ALLOWED_FIELDS - set(payload)
+    missing = REQUIRED_FIELDS - set(payload)
     if missing:
         raise ValueError(f"Missing fields: {', '.join(sorted(missing))}.")
+    selected_fields = SELECTION_FIELDS & set(payload)
+    if len(selected_fields) != 1:
+        raise ValueError(
+            "Provide exactly one of card_code, card_id, or card_design_id."
+        )
     first_name = str(payload.get("first_name") or "").strip()
     last_name = str(payload.get("last_name") or "").strip()
     email = str(payload.get("email") or "").strip().lower()
@@ -161,29 +173,37 @@ def _clean_payload(request):
         raise ValueError("phone must contain between 8 and 15 digits.")
     if payload.get("marketing_consent") is not True:
         raise ValueError("marketing_consent must be true.")
-    design_id = payload.get("card_design_id")
-    if isinstance(design_id, bool):
-        raise ValueError("card_design_id must be an integer.")
-    try:
-        design_id = int(design_id)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("card_design_id must be an integer.") from exc
-    return {
+    selection_field = selected_fields.pop()
+    cleaned = {
         "first_name": first_name,
         "last_name": last_name,
         "email": email,
         "phone": phone,
-        "card_design_id": design_id,
         "marketing_consent": True,
     }
+    if selection_field == "card_code":
+        card_code = str(payload.get("card_code") or "").strip().upper()
+        if not card_code or len(card_code) > 60:
+            raise ValueError("card_code must identify an available card.")
+        cleaned["card_code"] = card_code
+    else:
+        card_id = payload.get(selection_field)
+        if isinstance(card_id, bool):
+            raise ValueError(f"{selection_field} must be an integer.")
+        try:
+            card_id = int(card_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{selection_field} must be an integer.") from exc
+        cleaned["card_id"] = card_id
+    return cleaned
 
 
 @require_GET
 @virtual_card_key_required
 def design_list(request):
-    designs = virtual_card_designs(request.virtual_card_api_key.tenant)
+    cards = virtual_card_designs(request.virtual_card_api_key.tenant)
     response = JsonResponse(
-        {"results": [_design_payload(request, design) for design in designs]}
+        {"results": [_card_payload(request, card) for card in cards]}
     )
     response["Cache-Control"] = "private, no-store"
     return response
@@ -208,19 +228,24 @@ def create_virtual_card(request):
         return api_error(str(exc), status=400, code="invalid_request")
     tenant = request.virtual_card_api_key.tenant
     try:
-        design = virtual_card_designs(tenant).get(
-            pk=cleaned["card_design_id"],
+        selected_card = tenant.physical_cards.get(
+            **(
+                {"pk": cleaned["card_id"]}
+                if "card_id" in cleaned
+                else {"code": cleaned["card_code"]}
+            )
         )
-    except CardDesign.DoesNotExist:
+    except PhysicalCard.DoesNotExist:
         return api_error(
-            "card_design_id does not identify an available design.",
+            "The selected card does not belong to this tenant.",
             status=400,
-            code="invalid_card_design",
+            code="invalid_card",
         )
+    cleaned.update({"card_id": selected_card.pk, "card_code": selected_card.code})
     try:
         result = register_virtual_card(
             tenant=tenant,
-            card_design=design,
+            physical_card=selected_card,
             cleaned_data=cleaned,
             idempotency_key=f"api:{request.virtual_card_api_key.pk}:{idempotency_key}",
             request_sha256=virtual_card_request_checksum(cleaned),
@@ -239,6 +264,12 @@ def create_virtual_card(request):
             status=409,
             code="issuance_limit_reached",
         )
+    except PhysicalCard.DoesNotExist:
+        return api_error(
+            "The selected card is no longer available.",
+            status=409,
+            code="card_unavailable",
+        )
     except ValidationError as exc:
         return api_error(
             "; ".join(exc.messages),
@@ -246,7 +277,7 @@ def create_virtual_card(request):
             code="issuance_unavailable",
         )
     application = VirtualCardApplication.objects.select_related(
-        "customer__wallet_pass", "card_design"
+        "customer__wallet_pass", "card_design", "physical_card__tenant"
     ).prefetch_related("followups__integration_job").get(pk=result.application.pk)
     payload = _application_payload(request, application)
     response = JsonResponse(
@@ -263,7 +294,7 @@ def create_virtual_card(request):
 def virtual_card_detail(request, public_id):
     application = (
         VirtualCardApplication.objects.select_related(
-            "customer__wallet_pass", "card_design"
+            "customer__wallet_pass", "card_design", "physical_card__tenant"
         ).prefetch_related(
             "followups__integration_job"
         ).filter(

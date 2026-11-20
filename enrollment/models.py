@@ -91,7 +91,7 @@ class VirtualCardApiKey(models.Model):
 
 
 class VirtualCardApplication(AppendOnlyMixin, models.Model):
-    """One accepted request that creates only Wallet cards, never a physical card."""
+    """One accepted request assigning a prepared MB-* visual to Wallet cards."""
 
     class Source(models.TextChoices):
         API = "api", _("API")
@@ -118,6 +118,13 @@ class VirtualCardApplication(AppendOnlyMixin, models.Model):
         "dotykacka.CardDesign",
         on_delete=models.PROTECT,
         related_name="virtual_card_applications",
+    )
+    physical_card = models.OneToOneField(
+        "dotykacka.PhysicalCard",
+        on_delete=models.PROTECT,
+        related_name="virtual_card_application",
+        blank=True,
+        null=True,
     )
     consent_record = models.OneToOneField(
         "customers.ConsentRecord",
@@ -152,10 +159,13 @@ class VirtualCardApplication(AppendOnlyMixin, models.Model):
 
     def clean(self):
         errors = {}
-        for name in ("customer", "card_design", "consent_record"):
+        for name in ("customer", "card_design", "physical_card", "consent_record"):
             value = getattr(self, name, None)
             if value is not None and value.tenant_id != self.tenant_id:
                 errors[name] = _("Wniosek i powiązane dane muszą należeć do jednej firmy.")
+        if self.customer_id and self.physical_card_id:
+            if self.physical_card.customer_id != self.customer_id:
+                errors["physical_card"] = _("Wybrana karta musi być przypisana do tego klienta.")
         if self.api_key_id and self.api_key.tenant_id != self.tenant_id:
             errors["api_key"] = _("Klucz API musi należeć do tej samej firmy.")
         if self.usage_event_id and self.usage_event.tenant_id != self.tenant_id:

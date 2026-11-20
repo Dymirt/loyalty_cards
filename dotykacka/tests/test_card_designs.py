@@ -154,21 +154,14 @@ class CardDesignMigrationBaselineTests(TestCase):
             },
         )
 
-    def test_marta_virtual_catalog_contains_four_published_styles(self):
+    def test_marta_virtual_catalog_contains_four_prepared_unassigned_cards(self):
         tenant = default_tenant()
 
-        designs = list(virtual_card_designs(tenant))
+        cards = list(virtual_card_designs(tenant))
 
-        self.assertEqual([design.version for design in designs], [5, 4, 3, 2])
-        self.assertEqual(
-            [design.name for design in designs],
-            [
-                "Atelier Monochrome",
-                "Fashion Rosé",
-                "Café Crème",
-                "Atelier Signature",
-            ],
-        )
+        self.assertEqual([card.code for card in cards], ["MB-1", "MB-2", "MB-3", "MB-4"])
+        self.assertTrue(all(card.front_image_path.endswith("_front.jpg") for card in cards))
+        self.assertTrue(all(card.back_image_path.endswith("_back.jpg") for card in cards))
 
     def test_phase_three_backfill_verifier_is_read_only(self):
         output = StringIO()

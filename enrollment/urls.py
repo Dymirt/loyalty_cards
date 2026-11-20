@@ -13,6 +13,11 @@ urlpatterns = [
         name="virtual_card_form",
     ),
     path(
+        "c/<slug:tenant_slug>/virtual-card/cards/<int:card_id>/<str:asset_kind>",
+        views.virtual_card_asset,
+        name="virtual_card_asset",
+    ),
+    path(
         "c/<slug:tenant_slug>/virtual-card/designs/<int:design_id>/<str:asset_kind>",
         views.virtual_card_design_asset,
         name="virtual_card_design_asset",

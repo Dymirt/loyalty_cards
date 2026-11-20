@@ -56,7 +56,7 @@ class VirtualCardApiKeyAdmin(ReadOnlyEnrollmentAdmin):
 
 @admin.register(VirtualCardApplication)
 class VirtualCardApplicationAdmin(ReadOnlyEnrollmentAdmin):
-    list_display = ("public_id", "tenant", "customer", "card_design", "source", "created_at")
+    list_display = ("public_id", "tenant", "customer", "physical_card", "source", "created_at")
     list_filter = ("tenant", "source", "card_design")
     search_fields = ("public_id", "customer__email", "customer__klient_id")
 

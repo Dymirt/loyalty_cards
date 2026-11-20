@@ -1,10 +1,36 @@
 """Transactional card-inventory application services."""
 
+from pathlib import Path
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.utils.translation import gettext as _
 
 from .models import PhysicalCard
+
+
+CARD_IMAGE_FIELDS = {
+    "front": "front_image_path",
+    "back": "back_image_path",
+}
+
+
+def physical_card_asset_path(card, side):
+    """Resolve an immutable legacy card image without allowing path traversal."""
+
+    try:
+        field_name = CARD_IMAGE_FIELDS[side]
+    except KeyError as exc:
+        raise ValidationError(_("Nieznana strona karty.")) from exc
+    relative_path = getattr(card, field_name, "")
+    if not relative_path:
+        raise ValidationError(_("Karta nie ma zapisanego pliku %(side)s.") % {"side": side})
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    path = (media_root / relative_path).resolve()
+    if media_root not in path.parents:
+        raise ValidationError(_("Niedozwolona ścieżka pliku karty."))
+    return path
 
 
 def tenant_inventory_queryset(tenant_model):

@@ -26,6 +26,7 @@ from cryptography.x509.oid import NameOID
 from card_artwork.models import CardArtifact, CardDesign
 from card_artwork.services import bytes_sha256, render_card, spec_from_design
 from cards.codes import CardCodeError
+from cards.services import physical_card_asset_path
 from integrations.contracts import SystemCheckResult
 from wallets.models import WalletPass
 from wallets.services import apple_pass_path, wallet_identity
@@ -153,7 +154,10 @@ def build_apple_pass(*, customer, wallet: WalletPass, design: CardDesign):
         raise ValidationError(_("Klient, tożsamość Wallet i projekt muszą należeć do tej samej firmy."))
     if not settings.APPLE_WALLET_PASS_TYPE_IDENTIFIER or not settings.APPLE_WALLET_TEAM_IDENTIFIER:
         raise ImproperlyConfigured(_("Identyfikatory platformy Apple Wallet nie są skonfigurowane."))
-    rendered = render_card(spec_from_design(design), customer.klient_id)
+    if wallet.physical_card_id:
+        front_bytes = physical_card_asset_path(wallet.physical_card, "front").read_bytes()
+    else:
+        front_bytes = render_card(spec_from_design(design), customer.klient_id).front
     run_id = uuid4().hex
     relative_root = Path(
         f"tenants/{design.tenant.slug}/designs/v{design.version:04d}/wallet/apple/"
@@ -173,7 +177,7 @@ def build_apple_pass(*, customer, wallet: WalletPass, design: CardDesign):
             source = template_dir / filename
             if source.is_file():
                 shutil.copyfile(source, pass_dir / filename)
-        _write_png(rendered.front, pass_dir / "strip@2x.png")
+        _write_png(front_bytes, pass_dir / "strip@2x.png")
         (pass_dir / "pass.json").write_text(
             json.dumps(
                 apple_pass_payload(customer=customer, wallet=wallet, design=design),

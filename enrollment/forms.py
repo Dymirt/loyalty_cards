@@ -9,7 +9,7 @@ from cards.codes import CardCodeError, parse_card_code
 from cards.services import card_is_available
 from customers.forms import CustomerProfileForm
 from customers.models import Customer
-from dotykacka.models import CardDesign
+from dotykacka.models import PhysicalCard
 from tenants.forms import style_portal_form
 
 from .catalog import virtual_card_designs
@@ -54,9 +54,9 @@ class LoyaltyCustomerRegistrationForm(CustomerProfileForm):
 
 
 class VirtualCardRegistrationForm(CustomerProfileForm):
-    card_design = forms.ModelChoiceField(
-        queryset=CardDesign.objects.none(),
-        label=_("Wygląd karty"),
+    physical_card = forms.ModelChoiceField(
+        queryset=PhysicalCard.objects.none(),
+        label=_("Karta"),
         empty_label=None,
     )
     marketing_consent = forms.BooleanField(
@@ -70,11 +70,11 @@ class VirtualCardRegistrationForm(CustomerProfileForm):
         kwargs.setdefault("initial", {})
         kwargs["initial"].setdefault("request_id", uuid4())
         super().__init__(*args, **kwargs)
-        self.fields["card_design"].queryset = virtual_card_designs(tenant)
+        self.fields["physical_card"].queryset = virtual_card_designs(tenant)
         if not self.is_bound:
-            first_design = self.fields["card_design"].queryset.first()
-            if first_design is not None:
-                self.initial.setdefault("card_design", first_design.pk)
+            first_card = self.fields["physical_card"].queryset.first()
+            if first_card is not None:
+                self.initial.setdefault("physical_card", first_card.pk)
         consent_text = tenant.brand.marketing_consent_text
         if consent_text:
             self.fields["marketing_consent"].label = consent_text
