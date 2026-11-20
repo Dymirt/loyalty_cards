@@ -105,8 +105,20 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST:$remote_archive"
           # Both arguments are validated CI-generated paths; expand them locally.
           # shellcheck disable=SC2029
-          ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "sudo /usr/local/sbin/loyalty-deploy '$DEPLOY_SHA' '$remote_archive'"
+          deploy_log=$(mktemp)
+          if ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo /usr/local/sbin/loyalty-deploy '$DEPLOY_SHA' '$remote_archive'" \
+            2>&1 | tee "$deploy_log"; then
+            rm -f "$deploy_log"
+          else
+            last_line=$(tail -n 1 "$deploy_log")
+            rm -f "$deploy_log"
+            last_line=${last_line//'%'/'%25'}
+            last_line=${last_line//$'\r'/'%0D'}
+            last_line=${last_line//$'\n'/'%0A'}
+            printf '::error title=Production deployment failed::%s\n' "$last_line"
+            exit 1
+          fi
 
       - name: Verify public production health
         shell: bash
